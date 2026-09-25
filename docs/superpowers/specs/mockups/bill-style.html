@@ -1,0 +1,152 @@
+<style>
+  .bills { display:grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: 1.25rem; }
+  .bills .card-image { aspect-ratio: auto; background: var(--bg-tertiary); padding: 16px; display:block; }
+  .paper { background:#fff; color:#1d1d1f; font-family: "Be Vietnam Pro", Arial, sans-serif; font-size:10px; line-height:1.4; padding:22px; box-shadow:0 1px 4px rgba(0,0,0,.15); min-height: 560px; position:relative; }
+  .paper .en { color:#777; font-style:italic; font-weight:400; }
+  .paper table { width:100%; border-collapse:collapse; margin:10px 0; }
+  .paper th, .paper td { padding:4px 5px; text-align:left; vertical-align:top; }
+  .paper .r { text-align:right; }
+  .paper .muted { color:#666; }
+  .qr { width:78px; height:78px; display:block; }
+  /* A — classic */
+  .a th, .a td { border:1px solid #333; }
+  .a th { background:#f0f0f0; font-weight:600; }
+  .a .title { text-align:center; font-size:15px; font-weight:700; margin:12px 0 2px; letter-spacing:.5px; }
+  .a .sign { display:flex; justify-content:space-around; text-align:center; margin-top:14px; }
+  .a .sign div { width:40%; }
+  /* B — modern */
+  .b { border-top:6px solid #0f6e56; }
+  .b .top { display:flex; justify-content:space-between; align-items:flex-start; }
+  .b .logo { width:34px; height:34px; border-radius:8px; background:#0f6e56; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; }
+  .b .big { font-size:17px; font-weight:700; color:#0f6e56; text-align:right; }
+  .b th { border-bottom:2px solid #0f6e56; font-weight:600; }
+  .b td { border-bottom:1px solid #e5e5e5; }
+  .b .total { background:#0f6e56; color:#fff; font-weight:700; }
+  .b .pay { display:flex; gap:12px; align-items:center; background:#f2f8f6; border-radius:8px; padding:10px; margin-top:10px; }
+  .b .pill { display:inline-block; background:#fff3d6; color:#8a5a00; border-radius:10px; padding:1px 8px; font-weight:600; }
+  /* C — payment first */
+  .c .grid { display:grid; grid-template-columns: 1fr 130px; gap:14px; }
+  .c .side { background:#1f3a8a; color:#fff; border-radius:8px; padding:12px; text-align:center; }
+  .c .side .en { color:#c7d2fe; }
+  .c .side .amt { font-size:15px; font-weight:700; margin:6px 0; }
+  .c .side .qrbox { background:#fff; border-radius:6px; padding:6px; display:inline-block; margin:6px 0; }
+  .c th { color:#1f3a8a; font-weight:600; border-bottom:1px solid #1f3a8a; }
+  .c td { border-bottom:1px dashed #ddd; }
+  .c h4 { font-size:14px; margin:0; }
+</style>
+
+<h2>Which bill style should customers receive?</h2>
+<p class="subtitle">All three contain the same data: bilingual labels, service lines, 8% VAT, total in words, bank details and a VietQR code. Only the look differs. The data is fictional, and the QR is a placeholder. Click one to select it.</p>
+
+<div class="bills">
+
+  <div class="card" data-choice="a-classic" onclick="toggleSelect(this)">
+    <div class="card-image"><div class="paper a">
+      <div style="display:flex;justify-content:space-between">
+        <div><b>CÔNG TY TNHH THIẾT KẾ SAO MAI</b><br>MST / Tax ID: 0312345678<br>12 Lê Lợi, Q.1, TP.HCM · 0901 234 567</div>
+        <div class="r">Số / No.: <b>TT-2026-0012</b><br>Ngày / Date: 25/09/2026</div>
+      </div>
+      <div class="title">PHIẾU THANH TOÁN</div>
+      <div style="text-align:center" class="en">PAYMENT REQUEST</div>
+      <p style="margin-top:10px">Kính gửi <span class="en">/ To:</span> <b>Công ty CP Hoa Sen Xanh</b><br>Địa chỉ <span class="en">/ Address:</span> 45 Trần Phú, Hà Đông, Hà Nội · MST: 0109876543</p>
+      <table>
+        <tr><th>STT<br><span class="en">No.</span></th><th>Nội dung dịch vụ<br><span class="en">Service</span></th><th class="r">SL<br><span class="en">Qty</span></th><th class="r">Đơn giá<br><span class="en">Unit price</span></th><th class="r">Thành tiền<br><span class="en">Amount</span></th></tr>
+        <tr><td>1</td><td>Thiết kế logo <span class="en">/ Logo design</span></td><td class="r">1</td><td class="r">5.000.000</td><td class="r">5.000.000</td></tr>
+        <tr><td>2</td><td>Website gói cơ bản <span class="en">/ Basic website</span></td><td class="r">1</td><td class="r">12.000.000</td><td class="r">12.000.000</td></tr>
+        <tr><td>3</td><td>Bảo trì website (tháng) <span class="en">/ Maintenance (month)</span></td><td class="r">3</td><td class="r">800.000</td><td class="r">2.400.000</td></tr>
+        <tr><td colspan="4" class="r">Cộng <span class="en">/ Subtotal</span></td><td class="r">19.400.000</td></tr>
+        <tr><td colspan="4" class="r">Thuế GTGT 8% <span class="en">/ VAT 8%</span></td><td class="r">1.552.000</td></tr>
+        <tr><td colspan="4" class="r"><b>Tổng cộng <span class="en">/ Total (VND)</span></b></td><td class="r"><b>20.952.000</b></td></tr>
+      </table>
+      <p>Bằng chữ <span class="en">/ In words:</span> <i>Hai mươi triệu chín trăm năm mươi hai nghìn đồng.</i><br>Hạn thanh toán <span class="en">/ Due:</span> 05/10/2026</p>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
+        <svg class="qr" data-qr></svg>
+        <div>Vietcombank · STK / Acc.: 0071 0001 23456<br>Chủ TK / Holder: CONG TY TNHH THIET KE SAO MAI<br>Nội dung / Ref: <b>TT20260012</b></div>
+      </div>
+      <div class="sign"><div><b>Người lập phiếu</b><br><span class="en">Prepared by</span><br><br><br>Nguyễn Văn An</div><div><b>Khách hàng</b><br><span class="en">Customer</span></div></div>
+    </div></div>
+    <div class="card-body"><h3>A · Classic Vietnamese document</h3><p>Bordered table and signature blocks. Formal and familiar to Vietnamese accounting departments.</p></div>
+  </div>
+
+  <div class="card" data-choice="b-modern" onclick="toggleSelect(this)">
+    <div class="card-image"><div class="paper b">
+      <div class="top">
+        <div style="display:flex;gap:8px;align-items:center"><div class="logo">SM</div><div><b>Sao Mai Design</b><br><span class="muted">MST 0312345678 · 0901 234 567</span></div></div>
+        <div class="big">PHIẾU THANH TOÁN<br><span class="en" style="font-size:10px">Payment request</span></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:14px">
+        <div><span class="muted">Gửi <span class="en">/ Bill to</span></span><br><b>Công ty CP Hoa Sen Xanh</b><br>45 Trần Phú, Hà Đông, Hà Nội<br>MST 0109876543</div>
+        <div class="r"><span class="muted">Số <span class="en">/ No.</span></span> <b>TT-2026-0012</b><br><span class="muted">Ngày <span class="en">/ Date</span></span> 25/09/2026<br><span class="muted">Hạn <span class="en">/ Due</span></span> <span class="pill">05/10/2026</span></div>
+      </div>
+      <table>
+        <tr><th>Dịch vụ <span class="en">/ Service</span></th><th class="r">SL</th><th class="r">Đơn giá</th><th class="r">Thành tiền</th></tr>
+        <tr><td>Thiết kế logo<br><span class="en">Logo design</span></td><td class="r">1</td><td class="r">5.000.000</td><td class="r">5.000.000</td></tr>
+        <tr><td>Website gói cơ bản<br><span class="en">Basic website</span></td><td class="r">1</td><td class="r">12.000.000</td><td class="r">12.000.000</td></tr>
+        <tr><td>Bảo trì website<br><span class="en">Maintenance · month</span></td><td class="r">3</td><td class="r">800.000</td><td class="r">2.400.000</td></tr>
+        <tr><td colspan="3" class="r muted">Cộng / Subtotal</td><td class="r">19.400.000</td></tr>
+        <tr><td colspan="3" class="r muted">VAT 8%</td><td class="r">1.552.000</td></tr>
+        <tr class="total"><td colspan="3" class="r">Tổng cộng / Total</td><td class="r">20.952.000 ₫</td></tr>
+      </table>
+      <p class="muted"><i>Hai mươi triệu chín trăm năm mươi hai nghìn đồng.</i></p>
+      <div class="pay">
+        <svg class="qr" data-qr></svg>
+        <div><b>Quét để thanh toán</b> <span class="en">/ Scan to pay</span><br>Vietcombank · 0071 0001 23456<br>CONG TY TNHH THIET KE SAO MAI<br>Nội dung / Ref: <b>TT20260012</b></div>
+      </div>
+      <p class="muted" style="margin-top:10px">Cảm ơn quý khách! <span class="en">Thank you for your business.</span></p>
+    </div></div>
+    <div class="card-body"><h3>B · Modern clean</h3><p>Your logo and one brand colour, with the payment box highlighted. Looks like a modern agency invoice.</p></div>
+  </div>
+
+  <div class="card" data-choice="c-payfirst" onclick="toggleSelect(this)">
+    <div class="card-image"><div class="paper c">
+      <div class="grid">
+        <div>
+          <h4>PHIẾU THANH TOÁN</h4><span class="en">Payment request</span> · <b>TT-2026-0012</b>
+          <p style="margin-top:10px"><b>Công ty TNHH Thiết kế Sao Mai</b><br><span class="muted">MST 0312345678 · 12 Lê Lợi, Q.1, TP.HCM</span></p>
+          <p><span class="muted">Gửi <span class="en">/ Bill to</span></span><br><b>Công ty CP Hoa Sen Xanh</b><br><span class="muted">45 Trần Phú, Hà Đông, Hà Nội · MST 0109876543</span></p>
+          <p><span class="muted">Ngày <span class="en">/ Date</span></span> 25/09/2026</p>
+        </div>
+        <div class="side">
+          <div>Số tiền cần trả<br><span class="en">Amount due</span></div>
+          <div class="amt">20.952.000 ₫</div>
+          <div class="qrbox"><svg class="qr" data-qr></svg></div>
+          <div style="font-size:9px">Vietcombank<br>0071 0001 23456<br>Ref: TT20260012</div>
+          <div style="margin-top:6px">Hạn <span class="en">/ Due</span><br><b>05/10/2026</b></div>
+        </div>
+      </div>
+      <table>
+        <tr><th>Dịch vụ <span class="en">/ Service</span></th><th class="r">SL <span class="en">Qty</span></th><th class="r">Đơn giá <span class="en">Price</span></th><th class="r">Thành tiền <span class="en">Amount</span></th></tr>
+        <tr><td>Thiết kế logo <span class="en">/ Logo design</span></td><td class="r">1</td><td class="r">5.000.000</td><td class="r">5.000.000</td></tr>
+        <tr><td>Website gói cơ bản <span class="en">/ Basic website</span></td><td class="r">1</td><td class="r">12.000.000</td><td class="r">12.000.000</td></tr>
+        <tr><td>Bảo trì website <span class="en">/ Maintenance</span></td><td class="r">3</td><td class="r">800.000</td><td class="r">2.400.000</td></tr>
+        <tr><td colspan="3" class="r muted">Cộng / Subtotal</td><td class="r">19.400.000</td></tr>
+        <tr><td colspan="3" class="r muted">VAT 8%</td><td class="r">1.552.000</td></tr>
+        <tr><td colspan="3" class="r"><b>Tổng cộng / Total</b></td><td class="r"><b>20.952.000</b></td></tr>
+      </table>
+      <p class="muted">Bằng chữ <span class="en">/ In words:</span> <i>Hai mươi triệu chín trăm năm mươi hai nghìn đồng.</i></p>
+      <p class="muted" style="font-size:9px">Hóa đơn GTGT điện tử sẽ được xuất sau khi thanh toán. <span class="en">An official VAT e-invoice will be issued after payment.</span></p>
+    </div></div>
+    <div class="card-body"><h3>C · Payment-first</h3><p>A coloured side panel shows the amount due, the QR code and the due date at a glance, so customers pay faster.</p></div>
+  </div>
+
+</div>
+
+<script>
+  // Placeholder QR pattern (not a real VietQR)
+  document.querySelectorAll('svg[data-qr]').forEach(function (svg) {
+    var n = 21, s = 78 / n, seed = 7, out = '<rect width="78" height="78" fill="#fff"/>';
+    function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    function finder(x, y) {
+      out += '<rect x="'+x*s+'" y="'+y*s+'" width="'+7*s+'" height="'+7*s+'" fill="#000"/>' +
+             '<rect x="'+(x+1)*s+'" y="'+(y+1)*s+'" width="'+5*s+'" height="'+5*s+'" fill="#fff"/>' +
+             '<rect x="'+(x+2)*s+'" y="'+(y+2)*s+'" width="'+3*s+'" height="'+3*s+'" fill="#000"/>';
+    }
+    for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+      var inF = (x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12);
+      if (!inF && rnd() > 0.5) out += '<rect x="'+x*s+'" y="'+y*s+'" width="'+s+'" height="'+s+'" fill="#000"/>';
+    }
+    finder(0, 0); finder(14, 0); finder(0, 14);
+    svg.setAttribute('viewBox', '0 0 78 78');
+    svg.innerHTML = out;
+  });
+</script>

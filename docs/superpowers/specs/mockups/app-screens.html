@@ -1,0 +1,110 @@
+<style>
+  .app { background:#fff; color:#1d1d1f; font-family: Arial, sans-serif; font-size:12px; border-radius:10px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.15); display:flex; min-height:360px; }
+  .app .nav { background:#1e293b; color:#cbd5e1; width:150px; padding:14px 10px; flex-shrink:0; }
+  .app .nav b { color:#fff; display:block; margin-bottom:14px; font-size:13px; }
+  .app .nav div { padding:6px 8px; border-radius:6px; margin-bottom:2px; }
+  .app .nav .on { background:#334155; color:#fff; }
+  .app .main { flex:1; padding:16px; min-width:0; }
+  .app h5 { font-size:15px; margin:0 0 12px; display:flex; justify-content:space-between; align-items:center; }
+  .btn { background:#0f6e56; color:#fff; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; display:inline-block; }
+  .btn.ghost { background:#fff; color:#1d1d1f; border:1px solid #ccc; }
+  .kpis { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:14px; }
+  .kpi { border:1px solid #e5e5e5; border-radius:8px; padding:10px; }
+  .kpi .v { font-size:17px; font-weight:700; margin-top:2px; }
+  .kpi .l { color:#666; font-size:11px; }
+  .app table { width:100%; border-collapse:collapse; }
+  .app th { text-align:left; color:#666; font-weight:600; font-size:11px; border-bottom:1px solid #e5e5e5; padding:6px; }
+  .app td { border-bottom:1px solid #f0f0f0; padding:7px 6px; }
+  .app .r { text-align:right; }
+  .st { border-radius:10px; padding:1px 8px; font-size:10px; font-weight:600; }
+  .st.paid { background:#dcfce7; color:#166534; } .st.sent { background:#dbeafe; color:#1e40af; }
+  .st.over { background:#fee2e2; color:#991b1b; } .st.draft { background:#f1f5f9; color:#475569; }
+  .fld { margin-bottom:8px; } .fld label { display:block; color:#666; font-size:10px; margin-bottom:2px; }
+  .inp { border:1px solid #ccc; border-radius:5px; padding:5px 7px; background:#fff; }
+  .row { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+  .mini { background:#f1f5f9; padding:10px; border-radius:6px; }
+  .mini .paper { background:#fff; padding:10px; font-size:7px; line-height:1.35; box-shadow:0 1px 3px rgba(0,0,0,.15); }
+  .mini .paper table td, .mini .paper table th { border:1px solid #333; padding:2px; font-size:7px; color:#1d1d1f; }
+  .steps { display:flex; gap:6px; margin-bottom:12px; } .steps span { flex:1; text-align:center; padding:5px; border-radius:5px; background:#f1f5f9; color:#666; font-size:11px; }
+  .steps .on { background:#0f6e56; color:#fff; font-weight:600; }
+  .lines .inp { display:inline-block; }
+</style>
+
+<h2>The app: bill list, then the editor</h2>
+<p class="subtitle">Part 1 is the home screen. Tell me if anything is missing or unnecessary. Part 2 is the question: which editor layout do you prefer?</p>
+
+<div class="section">
+  <div class="label">1 · Home screen: all bills (for feedback, not a choice)</div>
+  <div class="app">
+    <div class="nav"><b>Bills · Phiếu TT</b><div class="on">Bills</div><div>Customers</div><div>Services</div><div>Settings</div><div style="margin-top:18px;color:#94a3b8">Backup / Restore</div></div>
+    <div class="main">
+      <h5>Bills <span class="btn">+ New bill</span></h5>
+      <div class="kpis">
+        <div class="kpi"><div class="l">Unpaid</div><div class="v">46.200.000 ₫</div><div class="l">3 bills</div></div>
+        <div class="kpi"><div class="l">Overdue</div><div class="v" style="color:#b91c1c">8.500.000 ₫</div><div class="l">1 bill</div></div>
+        <div class="kpi"><div class="l">Paid this month</div><div class="v" style="color:#166534">31.750.000 ₫</div><div class="l">5 bills</div></div>
+      </div>
+      <table>
+        <tr><th>No.</th><th>Customer</th><th>Date</th><th>Due</th><th class="r">Total</th><th>Status</th></tr>
+        <tr><td>TT-2026-0012</td><td>Công ty CP Hoa Sen Xanh</td><td>25/09</td><td>05/10</td><td class="r">20.952.000</td><td><span class="st sent">Sent</span></td></tr>
+        <tr><td>TT-2026-0011</td><td>Nhà hàng Bếp Việt</td><td>20/09</td><td>30/09</td><td class="r">16.748.000</td><td><span class="st sent">Sent</span></td></tr>
+        <tr><td>TT-2026-0010</td><td>Minh Phát Trading</td><td>01/09</td><td>11/09</td><td class="r">8.500.000</td><td><span class="st over">Overdue</span></td></tr>
+        <tr><td>TT-2026-0009</td><td>Spa Thanh Tâm</td><td>28/08</td><td>07/09</td><td class="r">6.480.000</td><td><span class="st paid">Paid</span></td></tr>
+        <tr><td>—</td><td>Công ty Lúa Vàng</td><td>—</td><td>—</td><td class="r">4.320.000</td><td><span class="st draft">Draft</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="label">2 · Which editor layout do you prefer?</div>
+<div class="options">
+  <div class="option" data-choice="editor-split" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content" style="min-width:0">
+      <h3>Split: form on the left, live bill preview on the right</h3>
+      <p style="margin-bottom:10px">The preview updates as you type. Everything fits on one screen, which suits a laptop or desktop.</p>
+      <div class="app" style="min-height:0">
+        <div class="main" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div class="fld"><label>Customer</label><div class="inp">Công ty CP Hoa Sen Xanh ▾</div></div>
+            <div class="row"><div class="fld"><label>Date</label><div class="inp">25/09/2026</div></div><div class="fld"><label>Due</label><div class="inp">05/10/2026</div></div></div>
+            <div class="fld lines"><label>Services</label>
+              <div class="inp" style="margin-bottom:3px">Logo design ▾ · 1 × 5.000.000</div>
+              <div class="inp" style="margin-bottom:3px">Basic website ▾ · 1 × 12.000.000</div>
+              <div class="inp" style="margin-bottom:3px">Maintenance ▾ · 3 × 800.000</div>
+              <span style="color:#0f6e56;font-weight:600">+ Add line</span></div>
+            <div class="row"><div class="fld"><label>VAT</label><div class="inp">8% ▾</div></div><div class="fld"><label>Total</label><div class="inp"><b>20.952.000 ₫</b></div></div></div>
+            <span class="btn ghost">Save draft</span> <span class="btn">Export PDF</span>
+          </div>
+          <div class="mini"><div class="paper">
+            <b>CÔNG TY TNHH THIẾT KẾ SAO MAI</b><div style="text-align:center;font-weight:700;font-size:10px;margin:6px 0 0">PHIẾU THANH TOÁN</div><div style="text-align:center;font-style:italic;color:#777">PAYMENT REQUEST</div>
+            <p>Kính gửi / To: <b>Công ty CP Hoa Sen Xanh</b></p>
+            <table style="width:100%;border-collapse:collapse"><tr><th>STT</th><th>Dịch vụ</th><th>SL</th><th>Thành tiền</th></tr><tr><td>1</td><td>Thiết kế logo</td><td>1</td><td>5.000.000</td></tr><tr><td>2</td><td>Website cơ bản</td><td>1</td><td>12.000.000</td></tr><tr><td>3</td><td>Bảo trì website</td><td>3</td><td>2.400.000</td></tr><tr><td colspan="3"><b>Tổng cộng</b></td><td><b>20.952.000</b></td></tr></table>
+            <p>▦ VietQR · Vietcombank 0071 0001 23456</p>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="editor-steps" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content" style="min-width:0">
+      <h3>Steps: Customer → Services → Review &amp; export</h3>
+      <p style="margin-bottom:10px">One task per screen, with a full-size preview at the last step. It's calmer and works on small screens, but needs more clicks.</p>
+      <div class="app" style="min-height:0">
+        <div class="main">
+          <div class="steps"><span>1 · Customer</span><span class="on">2 · Services</span><span>3 · Review &amp; export</span></div>
+          <table>
+            <tr><th>Service</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Amount</th></tr>
+            <tr><td>Thiết kế logo / Logo design</td><td class="r">1</td><td class="r">5.000.000</td><td class="r">5.000.000</td></tr>
+            <tr><td>Website gói cơ bản / Basic website</td><td class="r">1</td><td class="r">12.000.000</td><td class="r">12.000.000</td></tr>
+            <tr><td>Bảo trì website / Maintenance</td><td class="r">3</td><td class="r">800.000</td><td class="r">2.400.000</td></tr>
+            <tr><td colspan="3" class="r">VAT 8% · <b>Total</b></td><td class="r"><b>20.952.000 ₫</b></td></tr>
+          </table>
+          <div style="margin-top:10px;display:flex;justify-content:space-between"><span class="btn ghost">← Back</span><span class="btn">Next: Review →</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
