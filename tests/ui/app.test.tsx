@@ -55,3 +55,29 @@ describe('bill view for drafts', () => {
     expect(screen.queryByText('Export PDF')).toBeNull();
   });
 });
+
+describe('bill view: back and draft download', () => {
+  async function open(status: 'draft' | 'sent') {
+    const db = await openAppDb(`app-db-${n++}`);
+    await putBill(db, sampleBill({ id: 'b9', status }));
+    location.hash = '#/bills/b9';
+    render(<App db={db} initialSettings={await getSettings(db)} />);
+    return db;
+  }
+  it('goes back to the bill list', async () => {
+    await open('sent');
+    fireEvent.click(await screen.findByText('← Back to bills'));
+    await waitFor(() => expect(location.hash).toBe('#/'));
+  });
+  it('downloads a draft PDF without changing its status', async () => {
+    const db = await open('draft');
+    const titles: string[] = [];
+    const print = vi.spyOn(window, 'print').mockImplementation(() => { titles.push(document.title); });
+    fireEvent.click(await screen.findByText('Download draft PDF'));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    expect(titles[0]).toBe('TT-2026-0012_Công ty CP Hoa Sen Xanh_DRAFT');
+    expect(document.querySelector('.bill-draft-mark')).toBeTruthy();
+    expect((await listBills(db))[0].status).toBe('draft');
+    print.mockRestore();
+  });
+});

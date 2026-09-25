@@ -50,18 +50,22 @@ export function BillView({ id }: { id: string }) {
   return (
     <div>
       <div class="page-head no-print">
-        <h2>{bill.number} <StatusBadge bill={bill} today={todayIso()} /></h2>
+        <h2>
+          <button class="btn ghost" style="margin-right:10px" onClick={() => navigate({ name: 'home' })}>← Back to bills</button>
+          {bill.number} <StatusBadge bill={bill} today={todayIso()} />
+        </h2>
         <span style="display:flex;gap:6px;flex-wrap:wrap">
           {isDraft && <button class="btn" onClick={() => navigate({ name: 'editBill', id: bill.id })}>Continue in editor</button>}
           {actions.map((a) => <button key={a.label} class={a.to === 'cancelled' ? 'btn danger' : 'btn ghost'} onClick={() => change(a.to, a.confirm)}>{a.label}</button>)}
           <button class="btn ghost" onClick={() => navigate({ name: 'duplicateBill', id: bill.id })}>Duplicate</button>
+          {isDraft && <button class="btn ghost" onClick={() => printBill(pdfFileName(bill.number, bill.customer.name, true))}>Download draft PDF</button>}
           {bill.status !== 'cancelled' && !isDraft && <button class="btn" disabled={!qr} onClick={() => printBill(pdfFileName(bill.number, bill.customer.name))}>Export PDF</button>}
         </span>
       </div>
       {error && <p class="errors no-print">{error}</p>}
       {bill.paidDate && <p class="muted no-print">Paid on {formatDateVn(bill.paidDate)}</p>}
       {bill.status !== 'draft' && <p class="muted no-print">This bill is locked. Duplicate it to make changes.</p>}
-      <div class="preview-wrap"><BillPage bill={draft} settings={settings} qrDataUrl={qr} /></div>
+      <div class="preview-wrap"><BillPage bill={draft} settings={settings} qrDataUrl={qr} draftMark={isDraft} /></div>
     </div>
   );
 }

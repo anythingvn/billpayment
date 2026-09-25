@@ -18,7 +18,7 @@ export function addDays(iso: string, days: number): string {
   return todayIso(new Date(y, m - 1, d + days));
 }
 
-export function pdfFileName(number: string, customerName: string): string {
+export function pdfFileName(number: string, customerName: string, draft = false): string {
   const safe = customerName.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return `${number}_${safe}`;
+  return `${number}_${safe}${draft ? '_DRAFT' : ''}`;
 }

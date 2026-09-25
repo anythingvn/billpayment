@@ -25,7 +25,10 @@ export function billQrPayload(bill: DraftBill, s: Settings): string | null {
 
 const En = ({ children }: { children: string }) => <span class="en">{children}</span>;
 
-export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; settings: Settings; qrDataUrl: string | null }) {
+/** `draftMark` labels the page as a draft and hides the QR code so a draft can't be paid by mistake. */
+export function BillPage({ bill, settings: s, qrDataUrl, draftMark = false }: {
+  bill: DraftBill; settings: Settings; qrDataUrl: string | null; draftMark?: boolean;
+}) {
   const t = computeTotals(bill.lines, bill.vatRate);
   const totalOk = Number.isInteger(t.total) && t.total >= 0;
   const money = (n: number) => (Number.isFinite(n) ? formatVnd(n) : '—');
@@ -34,7 +37,8 @@ export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; se
   const c = bill.customer;
   const footer = (bill.footerNote ?? defaultFooterText(s)).trim();
   return (
-    <div class="bill-sheet">
+    <div class={draftMark ? 'bill-sheet bill-sheet-draft' : 'bill-sheet'}>
+      {draftMark && <div class="bill-draft-mark">BẢN NHÁP / DRAFT</div>}
       <header class="bill-head">
         <div class="bill-biz">
           {s.logoDataUrl && <img class="bill-logo" src={s.logoDataUrl} alt="" />}
@@ -111,9 +115,10 @@ export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; se
         </p>
         <p>Hạn thanh toán <En>/ Due date:</En> <b>{formatDateVn(bill.dueDate)}</b></p>
         <div class="bill-pay">
-          {qrDataUrl && <img class="bill-qr" src={qrDataUrl} alt="VietQR" />}
+          {qrDataUrl && !draftMark && <img class="bill-qr" src={qrDataUrl} alt="VietQR" />}
           <div>
             <div><b>Thông tin chuyển khoản</b> <En>/ Bank transfer</En></div>
+            {draftMark && <div class="bill-draft-note">Bản nháp – không dùng để thanh toán / Draft – not for payment</div>}
             <div>Ngân hàng <En>/ Bank:</En> {bank ? `${bank.shortName} – ${bank.name}` : ''}</div>
             <div>Số tài khoản <En>/ Account:</En> <b>{acc?.accountNumber}</b></div>
             {acc?.accountHolder && <div>Chủ tài khoản <En>/ Holder:</En> {acc.accountHolder}</div>}

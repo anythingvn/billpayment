@@ -30,3 +30,9 @@ describe('pdfFileName', () => {
     expect(pdfFileName('TT-2026-0013', 'A/B: "C" <D>*?|\\')).toBe('TT-2026-0013_A B C D');
   });
 });
+
+describe('draft file name', () => {
+  it('adds a DRAFT suffix', () => {
+    expect(pdfFileName('TT-2026-0005', 'Hoa Sen Xanh', true)).toBe('TT-2026-0005_Hoa Sen Xanh_DRAFT');
+  });
+});

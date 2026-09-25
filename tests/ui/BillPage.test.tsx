@@ -123,3 +123,16 @@ describe('bank account per bill', () => {
     expect(billQrPayload(bill, two)).toContain('0006970436');
   });
 });
+
+describe('draft mark', () => {
+  it('labels the page as a draft and never shows a QR code', () => {
+    const { container } = render(<BillPage bill={bill} settings={settings} qrDataUrl="data:image/png;base64,xx" draftMark />);
+    expect(container.querySelector('.bill-draft-mark')?.textContent).toContain('BẢN NHÁP / DRAFT');
+    expect(screen.queryByAltText('VietQR')).toBeNull();
+    expect(screen.getByText(/không dùng để thanh toán/)).toBeTruthy();
+  });
+  it('has no draft label on a normal bill', () => {
+    const { container } = render(<BillPage bill={bill} settings={settings} qrDataUrl={null} />);
+    expect(container.querySelector('.bill-draft-mark')).toBeNull();
+  });
+});
