@@ -40,8 +40,10 @@ export function BillView({ id }: { id: string }) {
     }
   };
 
+  // Drafts are sent from the editor, where the export checks run; here they can only be continued or cancelled.
+  const isDraft = bill.status === 'draft';
   const actions = [
-    ...ACTIONS.filter((a) => canTransition(bill.status, a.to) && !(bill.status === 'paid' && a.to === 'sent')),
+    ...ACTIONS.filter((a) => canTransition(bill.status, a.to) && !(bill.status === 'paid' && a.to === 'sent') && !(isDraft && a.to === 'sent')),
     ...(bill.status === 'paid' ? [{ to: 'sent' as BillStatus, label: 'Undo paid', confirm: 'Mark this bill as not paid?' }] : []),
   ];
 
@@ -50,10 +52,10 @@ export function BillView({ id }: { id: string }) {
       <div class="page-head no-print">
         <h2>{bill.number} <StatusBadge bill={bill} today={todayIso()} /></h2>
         <span style="display:flex;gap:6px;flex-wrap:wrap">
-          {bill.status === 'draft' && <button class="btn ghost" onClick={() => navigate({ name: 'editBill', id: bill.id })}>Edit</button>}
+          {isDraft && <button class="btn" onClick={() => navigate({ name: 'editBill', id: bill.id })}>Continue in editor</button>}
           {actions.map((a) => <button key={a.label} class={a.to === 'cancelled' ? 'btn danger' : 'btn ghost'} onClick={() => change(a.to, a.confirm)}>{a.label}</button>)}
           <button class="btn ghost" onClick={() => navigate({ name: 'duplicateBill', id: bill.id })}>Duplicate</button>
-          {bill.status !== 'cancelled' && <button class="btn" disabled={!qr} onClick={() => printBill(pdfFileName(bill.number, bill.customer.name))}>Export PDF</button>}
+          {bill.status !== 'cancelled' && !isDraft && <button class="btn" disabled={!qr} onClick={() => printBill(pdfFileName(bill.number, bill.customer.name))}>Export PDF</button>}
         </span>
       </div>
       {error && <p class="errors no-print">{error}</p>}

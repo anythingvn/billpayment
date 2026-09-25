@@ -25,6 +25,8 @@ const En = ({ children }: { children: string }) => <span class="en">{children}</
 
 export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; settings: Settings; qrDataUrl: string | null }) {
   const t = computeTotals(bill.lines, bill.vatRate);
+  const totalOk = Number.isInteger(t.total) && t.total >= 0;
+  const money = (n: number) => (Number.isFinite(n) ? formatVnd(n) : '—');
   const bank = bankByBin(s.bankBin);
   const c = bill.customer;
   return (
@@ -56,6 +58,7 @@ export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; se
       </section>
 
       <table class="bill-table">
+        <colgroup><col class="c-no" /><col /><col class="c-unit" /><col class="c-qty" /><col class="c-price" /><col class="c-amt" /></colgroup>
         <thead>
           <tr>
             <th>STT<br /><En>No.</En></th>
@@ -73,23 +76,29 @@ export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; se
               <td><span>{l.nameVi}</span>{l.nameEn && <><br /><En>{l.nameEn}</En></>}</td>
               <td>{l.unitVi}{l.unitEn && <><br /><En>{l.unitEn}</En></>}</td>
               <td class="r">{l.qty}</td>
-              <td class="r">{formatVnd(l.unitPrice)}</td>
-              <td class="r">{formatVnd(t.lineAmounts[i])}</td>
+              <td class="r">{money(l.unitPrice)}</td>
+              <td class="r">{money(t.lineAmounts[i])}</td>
             </tr>
           ))}
-          <tr><td colSpan={5} class="r">Cộng <En>/ Subtotal</En></td><td class="r">{formatVnd(t.subtotal)}</td></tr>
-          {t.vatApplies && (
-            <tr><td colSpan={5} class="r">Thuế GTGT {bill.vatRate}% <En>{`/ VAT ${bill.vatRate}%`}</En></td><td class="r">{formatVnd(t.vat)}</td></tr>
-          )}
-          <tr class="bill-total"><td colSpan={5} class="r">Tổng cộng <En>/ Total (VND)</En></td><td class="r">{formatVnd(t.total)}</td></tr>
         </tbody>
       </table>
 
       <div class="bill-end">
-        <p>
-          Bằng chữ <En>/ In words:</En> <i>{vndToWordsVi(t.total)}</i>
+        {/* Totals live in their own table inside .bill-end so they never split from the words, QR and signatures. */}
+        <table class="bill-table bill-sum">
+          <colgroup><col /><col class="c-amt" /></colgroup>
+          <tbody>
+            <tr><td class="r">Cộng <En>/ Subtotal</En></td><td class="r">{money(t.subtotal)}</td></tr>
+            {t.vatApplies && (
+              <tr><td class="r">Thuế GTGT {bill.vatRate}% <En>{`/ VAT ${bill.vatRate}%`}</En></td><td class="r">{money(t.vat)}</td></tr>
+            )}
+            <tr class="bill-total"><td class="r">Tổng cộng <En>/ Total (VND)</En></td><td class="r">{money(t.total)}</td></tr>
+          </tbody>
+        </table>
+        <p class="bill-words">
+          Bằng chữ <En>/ In words:</En> <i>{totalOk ? vndToWordsVi(t.total) : '—'}</i>
           <br />
-          <En>{vndToWordsEn(t.total)}</En>
+          <En>{totalOk ? vndToWordsEn(t.total) : '—'}</En>
         </p>
         <p>Hạn thanh toán <En>/ Due date:</En> <b>{formatDateVn(bill.dueDate)}</b></p>
         <div class="bill-pay">

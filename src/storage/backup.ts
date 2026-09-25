@@ -1,6 +1,6 @@
 import type { AppDb } from './db';
 import { getMeta, getSettings, setMeta } from './db';
-import { DEFAULT_SETTINGS, type Bill, type Customer, type Service, type Settings } from '../domain/types';
+import { DEFAULT_SETTINGS, VAT_RATES, type Bill, type Customer, type Service, type Settings } from '../domain/types';
 
 export interface BackupData {
   app: 'payment-bills';
@@ -36,12 +36,30 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object
 const isStr = (v: unknown): v is string => typeof v === 'string';
 const STATUSES = ['draft', 'sent', 'paid', 'cancelled'];
 
+const isDate = (v: unknown): boolean => isStr(v) && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const isWhole = (v: unknown, min: number): boolean => Number.isInteger(v) && (v as number) >= min;
+const isVat = (v: unknown): boolean => VAT_RATES.includes(v as never);
+const SNAPSHOT_FIELDS = ['name', 'address', 'taxId', 'contactPerson', 'email', 'phone'];
+const LINE_TEXT_FIELDS = ['nameVi', 'nameEn', 'unitVi', 'unitEn'];
+
 function validBill(b: unknown): boolean {
   return (
     isObj(b) && isStr(b.id) && isStr(b.number) && STATUSES.includes(b.status as string) &&
-    isStr(b.billDate) && isStr(b.dueDate) && isStr(b.customerId) && isObj(b.customer) &&
+    isDate(b.billDate) && isDate(b.dueDate) && (b.paidDate === null || isDate(b.paidDate)) &&
+    isStr(b.customerId) && isVat(b.vatRate) &&
+    isObj(b.customer) && SNAPSHOT_FIELDS.every((f) => isStr((b.customer as Record<string, unknown>)[f])) &&
     Array.isArray(b.lines) &&
-    b.lines.every((l) => isObj(l) && isStr(l.nameVi) && Number.isInteger(l.qty) && Number.isInteger(l.unitPrice))
+    b.lines.every((l) => isObj(l) && LINE_TEXT_FIELDS.every((f) => isStr(l[f])) && isWhole(l.qty, 1) && isWhole(l.unitPrice, 0))
+  );
+}
+
+function validSettings(s: Record<string, unknown>): boolean {
+  const merged = { ...DEFAULT_SETTINGS, ...s } as Record<string, unknown>;
+  const textFields = ['businessName', 'taxId', 'address', 'phone', 'email', 'bankBin', 'accountNumber', 'accountHolder', 'preparedBy', 'numberPrefix', 'footerNote'];
+  return (
+    textFields.every((f) => isStr(merged[f])) &&
+    (merged.logoDataUrl === null || isStr(merged.logoDataUrl)) &&
+    isVat(merged.defaultVatRate) && isWhole(merged.defaultPaymentDays, 0)
   );
 }
 
@@ -63,6 +81,11 @@ export function parseBackup(
   if (!raw.services.every((s) => isObj(s) && isStr(s.id) && isStr(s.nameVi))) return { ok: false, error: 'A service in the backup is damaged.' };
   const badBill = raw.bills.findIndex((b) => !validBill(b));
   if (badBill >= 0) return { ok: false, error: `Bill ${badBill + 1} in the backup is damaged.` };
+  if (!validSettings(raw.settings)) return { ok: false, error: 'The settings in the backup are damaged.' };
+  const counters = raw.counters;
+  if (!Object.entries(counters).every(([k, v]) => /^counter-\d{4}$/.test(k) && isWhole(v, 0))) {
+    return { ok: false, error: 'The bill number counters in the backup are damaged.' };
+  }
 
   const data = { ...raw, settings: { ...DEFAULT_SETTINGS, ...raw.settings } } as unknown as BackupData;
   return {

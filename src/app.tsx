@@ -11,6 +11,7 @@ import { Customers } from './screens/Customers';
 import { Services } from './screens/Services';
 import { SettingsScreen } from './screens/Settings';
 import { BackupScreen } from './screens/Backup';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 
 interface AppCtx {
   db: AppDb;
@@ -58,7 +59,9 @@ export function App({ db, initialSettings }: { db: AppDb; initialSettings: Setti
           ))}
         </nav>
         <main class="main">
-          <Screen route={route} />
+          <ErrorBoundary key={location.hash}>
+            <Screen route={route} />
+          </ErrorBoundary>
         </main>
       </div>
     </Ctx.Provider>

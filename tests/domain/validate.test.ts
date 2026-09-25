@@ -46,3 +46,24 @@ describe('exportBlockers', () => {
     expect(msgs).toContain('Due date cannot be before the bill date');
   });
 });
+
+describe('review fixes: numbers and account', () => {
+  it('draftSaveErrors rejects non-numeric qty/price but allows an incomplete draft', async () => {
+    const { draftSaveErrors } = await import('../../src/domain/validate');
+    const base = newDraft(DEFAULT_SETTINGS, '2026-09-25');
+    expect(draftSaveErrors(base)).toEqual([]);
+    const bad = updateLine(updateLine(addCustomLine(addCustomLine(base)), 0, { qty: NaN }), 1, { unitPrice: NaN });
+    expect(draftSaveErrors(bad)).toEqual([
+      'Line 1: Quantity must be a whole number of at least 1',
+      'Line 2: Unit price must be a whole number of at least 0',
+    ]);
+  });
+  it('accepts an account typed with dashes but blocks one with letters', () => {
+    let d = setCustomer(newDraft(filledSettings, '2026-09-25'), customer);
+    d = updateLine(addCustomLine(d), 0, { nameVi: 'A', qty: 1, unitPrice: 100 });
+    expect(exportBlockers(d, { ...filledSettings, accountNumber: '0071-0001-23456' })).toEqual([]);
+    expect(exportBlockers(d, { ...filledSettings, accountNumber: '0071abc' }).map((b) => b.message)).toEqual([
+      'Account number must contain only digits (check Settings)',
+    ]);
+  });
+});

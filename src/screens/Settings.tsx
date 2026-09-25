@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { putSettings } from '../storage/db';
 import { BANKS } from '../domain/banks';
+import { isValidAccount } from '../domain/vietqr';
 import { VAT_RATES, type Settings, type VatRate } from '../domain/types';
 
 const MAX_LOGO_BYTES = 300 * 1024;
@@ -27,6 +28,7 @@ export function SettingsScreen() {
 
   const save = async () => {
     if (!/^[A-Za-z0-9]{1,6}$/.test(s.numberPrefix)) { setMsg('Bill number prefix must be 1–6 letters or digits.'); return; }
+    if (s.accountNumber.trim() && !isValidAccount(s.accountNumber)) { setMsg('Account number must contain only digits (spaces, dots and dashes are fine).'); return; }
     if (!Number.isInteger(s.defaultPaymentDays) || s.defaultPaymentDays < 0) { setMsg('Payment days must be a whole number ≥ 0.'); return; }
     try {
       await putSettings(db, s);

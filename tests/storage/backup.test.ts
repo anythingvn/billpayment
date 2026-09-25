@@ -86,3 +86,30 @@ describe('reminder and bookkeeping', () => {
     expect(await lastBackupAt(db)).toBe('2026-09-25T10:00:00.000Z');
   });
 });
+
+describe('parseBackup rejects bills and settings with invalid fields', () => {
+  const good = () => ({
+    app: 'payment-bills', schemaVersion: 1, exportedAt: 'x', customers: [], services: [],
+    settings: { ...DEFAULT_SETTINGS }, counters: { 'counter-2026': 3 },
+    bills: [sampleBill()] as unknown[],
+  });
+  it('accepts the good baseline', () => {
+    expect(parseBackup(JSON.stringify(good())).ok).toBe(true);
+  });
+  it.each([
+    ['missing vatRate', (d: any) => { delete d.bills[0].vatRate; }],
+    ['invalid vatRate', (d: any) => { d.bills[0].vatRate = 7; }],
+    ['bad bill date', (d: any) => { d.bills[0].billDate = 'garbage'; }],
+    ['bad paid date', (d: any) => { d.bills[0].paidDate = 5; }],
+    ['missing customer name', (d: any) => { delete d.bills[0].customer.name; }],
+    ['qty zero', (d: any) => { d.bills[0].lines[0].qty = 0; }],
+    ['negative price', (d: any) => { d.bills[0].lines[0].unitPrice = -1; }],
+    ['non-numeric counter', (d: any) => { d.counters['counter-2026'] = 'abc'; }],
+    ['bad settings VAT', (d: any) => { d.settings.defaultVatRate = 7; }],
+    ['bad settings prefix', (d: any) => { d.settings.numberPrefix = 42; }],
+  ])('%s', (_label, mutate) => {
+    const d = good();
+    mutate(d);
+    expect(parseBackup(JSON.stringify(d)).ok).toBe(false);
+  });
+});

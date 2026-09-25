@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { navigate, setNavigationGuard } from '../router';
 import type { AppDb } from '../storage/db';
@@ -10,7 +10,7 @@ import {
   addCustomLine, addServiceLine, draftFromBill, duplicateAsDraft, newDraft, removeLine, setBillDate, setCustomer, updateLine,
   type DraftBill,
 } from '../domain/draft';
-import { dateErrors, exportBlockers, lineErrors, type Blocker } from '../domain/validate';
+import { dateErrors, draftSaveErrors, exportBlockers, lineErrors, type Blocker } from '../domain/validate';
 import { computeTotals } from '../domain/money';
 import { formatVnd, pdfFileName, todayIso } from '../domain/format';
 import { BillPage, billQrPayload } from '../ui/BillPage';
@@ -22,6 +22,8 @@ export type EditorMode = { kind: 'new' } | { kind: 'edit'; id: string } | { kind
 type Step = 1 | 2 | 3;
 
 export async function saveDraftBill(db: AppDb, d: DraftBill, settings: Settings, status: BillStatus): Promise<Bill> {
+  const invalid = draftSaveErrors(d);
+  if (invalid.length) throw new Error(invalid.join('; '));
   const now = new Date().toISOString();
   const existing = d.id ? await getBill(db, d.id) : undefined;
   const bill: Bill = {
@@ -46,6 +48,8 @@ export function Editor({ mode }: { mode: EditorMode }) {
   const [services, setServices] = useState<Service[]>([]);
   const [error, setError] = useState('');
   const [exportQr, setExportQr] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -84,7 +88,17 @@ export function Editor({ mode }: { mode: EditorMode }) {
   if (!draft) return <p class="muted">Loading…</p>;
 
   const save = async (status: BillStatus) => {
+    // Ignore a second click while a save is running, so one bill never gets two numbers.
+    if (savingRef.current) return null;
     setError('');
+    const invalid = draftSaveErrors(draft);
+    if (invalid.length) {
+      setError(invalid.join(' · '));
+      setStep(2);
+      return null;
+    }
+    savingRef.current = true;
+    setSaving(true);
     try {
       const bill = await saveDraftBill(db, draft, settings, status);
       setNavigationGuard(null);
@@ -94,6 +108,9 @@ export function Editor({ mode }: { mode: EditorMode }) {
     } catch (e) {
       setError(`Could not save: ${String(e)}. Make a backup and check that the browser is not in private mode.`);
       return null;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   };
 
@@ -150,10 +167,10 @@ export function Editor({ mode }: { mode: EditorMode }) {
       <div class="page-head no-print" style="margin-top:16px">
         <button class="btn ghost" disabled={step === 1} onClick={() => setStep((step - 1) as Step)}>← Back</button>
         <span>
-          <button class="btn ghost" onClick={saveDraftOnly}>Save draft</button>{' '}
+          <button class="btn ghost" disabled={saving} onClick={saveDraftOnly}>Save draft</button>{' '}
           {step < 3
             ? <button class="btn" onClick={() => setStep((step + 1) as Step)}>Next →</button>
-            : <button class="btn" disabled={blockers.length > 0} onClick={saveAndExport}>Save &amp; export PDF</button>}
+            : <button class="btn" disabled={saving || blockers.length > 0} onClick={saveAndExport}>Save &amp; export PDF</button>}
         </span>
       </div>
     </div>

@@ -58,3 +58,17 @@ describe('billQrPayload', () => {
     expect(billQrPayload(bill, { ...settings, bankBin: '' })).toBeNull();
   });
 });
+
+describe('review fixes: BillPage robustness and layout', () => {
+  it('does not crash on an invalid line and shows a dash instead of words', () => {
+    const broken = { ...bill, lines: [{ ...bill.lines[0], unitPrice: NaN }] };
+    const { container } = render(<BillPage bill={broken} settings={settings} qrDataUrl={null} />);
+    expect(container.querySelector('.bill-words')?.textContent).toContain('—');
+  });
+  it('keeps the totals together with the words, QR and signatures', () => {
+    const { container } = render(<BillPage bill={bill} settings={settings} qrDataUrl={null} />);
+    const end = container.querySelector('.bill-end')!;
+    expect(end.textContent).toContain('20.952.000');
+    expect(end.textContent).toContain('Tổng cộng');
+  });
+});

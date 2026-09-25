@@ -14,6 +14,13 @@ function tlv(id: string, value: string): string {
   return id + String(value.length).padStart(2, '0') + value;
 }
 
+/** Removes the separators people type in account numbers (spaces, dots, dashes). */
+export function normalizeAccount(accountNumber: string): string {
+  return accountNumber.replace(/[\s.\-]/g, '');
+}
+
+export const isValidAccount = (accountNumber: string): boolean => /^\d{1,19}$/.test(normalizeAccount(accountNumber));
+
 export function paymentReference(billNumber: string): string {
   return billNumber.replace(/-/g, '');
 }
@@ -26,7 +33,7 @@ export interface VietQrInput {
 }
 
 export function buildVietQrPayload({ bankBin, accountNumber, amount, reference }: VietQrInput): string {
-  const account = accountNumber.replace(/[\s.]/g, '');
+  const account = normalizeAccount(accountNumber);
   if (!/^\d{6}$/.test(bankBin)) throw new Error('Bank BIN must be 6 digits');
   if (!/^\d{1,19}$/.test(account)) throw new Error('Invalid account number');
   if (!Number.isInteger(amount) || amount < 0) throw new Error('Invalid amount');

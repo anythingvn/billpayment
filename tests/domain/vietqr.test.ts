@@ -59,3 +59,13 @@ describe('banks', () => {
     expect(new Set(BANKS.map((b) => b.bin)).size).toBe(BANKS.length);
   });
 });
+
+describe('normalizeAccount', () => {
+  it('strips spaces, dots and dashes so validation and the QR agree', async () => {
+    const { normalizeAccount } = await import('../../src/domain/vietqr');
+    expect(normalizeAccount(' 0071-0001 23.456 ')).toBe('0071000123456');
+    const a = buildVietQrPayload({ bankBin: '970436', accountNumber: '0071-0001-23456', amount: 1, reference: 'X' });
+    const b = buildVietQrPayload({ bankBin: '970436', accountNumber: '0071000123456', amount: 1, reference: 'X' });
+    expect(a).toBe(b);
+  });
+});
