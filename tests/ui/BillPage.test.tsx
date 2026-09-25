@@ -6,7 +6,7 @@ import { sampleBill } from '../fixtures';
 
 const settings: Settings = {
   ...DEFAULT_SETTINGS, businessName: 'CÔNG TY TNHH THIẾT KẾ SAO MAI', taxId: '0312345678',
-  bankBin: '970436', accountNumber: '0071000123456', accountHolder: 'CONG TY TNHH THIET KE SAO MAI', preparedBy: 'Nguyễn Văn An',
+  bankAccounts: [{ id: 'a1', bankBin: '970436', accountNumber: '0071000123456', accountHolder: 'CONG TY TNHH THIET KE SAO MAI' }], defaultBankAccountId: 'a1', preparedBy: 'Nguyễn Văn An',
 };
 
 const bill = draftFromBill(
@@ -55,7 +55,7 @@ describe('billQrPayload', () => {
   });
   it('is null without a number or bank details', () => {
     expect(billQrPayload({ ...bill, number: null }, settings)).toBeNull();
-    expect(billQrPayload(bill, { ...settings, bankBin: '' })).toBeNull();
+    expect(billQrPayload(bill, { ...settings, bankAccounts: [], defaultBankAccountId: '' })).toBeNull();
   });
 });
 
@@ -103,5 +103,23 @@ describe('footer note per bill', () => {
     const { footerNote: _omit, ...old } = { ...bill, footerNote: undefined };
     const { container } = render(<BillPage bill={old} settings={s} qrDataUrl={null} />);
     expect(container.querySelector('.bill-footer')?.textContent).toBe('Default note');
+  });
+});
+
+describe('bank account per bill', () => {
+  const two = {
+    ...settings,
+    bankAccounts: [...settings.bankAccounts, { id: 'a2', bankBin: '970422', accountNumber: '9999888877', accountHolder: 'NGUYEN VAN AN' }],
+  };
+  it("uses the bill's own account for the QR and printed details", () => {
+    const b = { ...bill, bankAccount: { bankBin: '970422', accountNumber: '9999888877', accountHolder: 'NGUYEN VAN AN' } };
+    render(<BillPage bill={b} settings={two} qrDataUrl={null} />);
+    expect(screen.getByText('9999888877')).toBeTruthy();
+    expect(screen.getByText(/MB Bank/)).toBeTruthy();
+    expect(billQrPayload(b, two)).toContain('0006970422');
+    expect(billQrPayload(b, two)).toContain('01109999888877');
+  });
+  it('falls back to the default account for older bills', () => {
+    expect(billQrPayload(bill, two)).toContain('0006970436');
   });
 });

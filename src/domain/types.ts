@@ -38,6 +38,17 @@ export interface BillLine {
   details: string[];
 }
 
+/** The account a bill is paid into (copied onto each bill). */
+export interface BankAccount {
+  bankBin: string;
+  accountNumber: string;
+  accountHolder: string;
+}
+
+export interface SavedBankAccount extends BankAccount {
+  id: string;
+}
+
 export interface Bill {
   id: string;
   number: string;
@@ -51,6 +62,8 @@ export interface Bill {
   vatRate: VatRate;
   /** Footer printed on this bill ('' = none). Missing on bills made before per-bill notes: show the Settings default. */
   footerNote?: string;
+  /** Account chosen for this bill. Missing on bills made before per-bill accounts: use the Settings default. */
+  bankAccount?: BankAccount;
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }
@@ -62,9 +75,9 @@ export interface Settings {
   phone: string;
   email: string;
   logoDataUrl: string | null;
-  bankBin: string;
-  accountNumber: string;
-  accountHolder: string;
+  bankAccounts: SavedBankAccount[];
+  /** id of the account new bills start with; '' when there are none. */
+  defaultBankAccountId: string;
   preparedBy: string;
   numberPrefix: string;
   defaultVatRate: VatRate;
@@ -82,9 +95,8 @@ export const DEFAULT_SETTINGS: Settings = {
   phone: '',
   email: '',
   logoDataUrl: null,
-  bankBin: '',
-  accountNumber: '',
-  accountHolder: '',
+  bankAccounts: [],
+  defaultBankAccountId: '',
   preparedBy: '',
   numberPrefix: 'TT',
   defaultVatRate: 8,

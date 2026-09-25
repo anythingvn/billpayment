@@ -48,6 +48,7 @@ function validBill(b: unknown): boolean {
     isObj(b) && isStr(b.id) && isStr(b.number) && STATUSES.includes(b.status as string) &&
     isDate(b.billDate) && isDate(b.dueDate) && (b.paidDate === null || isDate(b.paidDate)) &&
     isStr(b.customerId) && isVat(b.vatRate) && (b.footerNote === undefined || isStr(b.footerNote)) &&
+    (b.bankAccount === undefined || validAccount(b.bankAccount)) &&
     isObj(b.customer) && SNAPSHOT_FIELDS.every((f) => isStr((b.customer as Record<string, unknown>)[f])) &&
     Array.isArray(b.lines) &&
     b.lines.every((l) => isObj(l) && LINE_TEXT_FIELDS.every((f) => isStr(l[f])) && isWhole(l.qty, 1) && isWhole(l.unitPrice, 0) &&
@@ -55,12 +56,19 @@ function validBill(b: unknown): boolean {
   );
 }
 
+function validAccount(a: unknown): boolean {
+  return isObj(a) && isStr(a.bankBin) && isStr(a.accountNumber) && isStr(a.accountHolder);
+}
+
 function validSettings(s: Record<string, unknown>): boolean {
+  if (['bankBin', 'accountNumber', 'accountHolder'].some((k) => s[k] !== undefined && !isStr(s[k]))) return false;
+  if (s.bankAccounts !== undefined && !(Array.isArray(s.bankAccounts) && s.bankAccounts.every((a) => validAccount(a) && isStr(a.id)))) return false;
+  if (s.defaultBankAccountId !== undefined && !isStr(s.defaultBankAccountId)) return false;
   if (s.footerNote !== undefined && !isStr(s.footerNote)) return false;
   if (s.footerNotes !== undefined && !(Array.isArray(s.footerNotes) && s.footerNotes.every(isStr))) return false;
   if (s.defaultFooterIndex !== undefined && !isWhole(s.defaultFooterIndex, -1)) return false;
   const merged = normalizeSettings(s) as unknown as Record<string, unknown>;
-  const textFields = ['businessName', 'taxId', 'address', 'phone', 'email', 'bankBin', 'accountNumber', 'accountHolder', 'preparedBy', 'numberPrefix'];
+  const textFields = ['businessName', 'taxId', 'address', 'phone', 'email', 'defaultBankAccountId', 'preparedBy', 'numberPrefix'];
   return (
     textFields.every((f) => isStr(merged[f])) &&
     (merged.logoDataUrl === null || isStr(merged.logoDataUrl)) &&

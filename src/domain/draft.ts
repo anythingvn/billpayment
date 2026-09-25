@@ -1,6 +1,6 @@
 import type { Bill, BillLine, Customer, CustomerSnapshot, Service, Settings } from './types';
 import { addDays } from './format';
-import { defaultFooterText } from './settings';
+import { defaultBankAccount, defaultFooterText } from './settings';
 
 export type DraftBill = Omit<Bill, 'id' | 'number' | 'status' | 'paidDate' | 'createdAt' | 'updatedAt'> & {
   id: string | null;
@@ -20,6 +20,7 @@ export function newDraft(settings: Settings, today: string): DraftBill {
     lines: [],
     vatRate: settings.defaultVatRate,
     footerNote: defaultFooterText(settings),
+    ...(defaultBankAccount(settings) && { bankAccount: defaultBankAccount(settings) }),
   };
 }
 
@@ -55,6 +56,7 @@ export function draftFromBill(b: Bill): DraftBill {
     id: b.id, number: b.number, billDate: b.billDate, dueDate: b.dueDate, customerId: b.customerId,
     customer: { ...b.customer }, lines: b.lines.map((l) => ({ ...l, details: [...(l.details ?? [])] })), vatRate: b.vatRate,
     ...(b.footerNote !== undefined && { footerNote: b.footerNote }),
+    ...(b.bankAccount && { bankAccount: { ...b.bankAccount } }),
   };
 }
 

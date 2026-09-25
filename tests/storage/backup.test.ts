@@ -151,3 +151,19 @@ describe('backups with footer note lists', () => {
     expect(parseBackup(file(DEFAULT_SETTINGS, { ...sampleBill(), footerNote: 5 })).ok).toBe(false);
   });
 });
+
+describe('backups with bank account lists', () => {
+  const file = (settings: unknown, bill: unknown = sampleBill()) => JSON.stringify({
+    app: 'payment-bills', schemaVersion: 1, exportedAt: 'x', customers: [], services: [], counters: {}, settings, bills: [bill],
+  });
+  const { bankAccounts: _a, defaultBankAccountId: _d, ...base } = DEFAULT_SETTINGS;
+  it('converts an old backup with a single account', () => {
+    const r = parseBackup(file({ ...base, bankBin: '970436', accountNumber: '123', accountHolder: 'X' }));
+    expect(r.ok && r.data.settings.bankAccounts.map((a) => a.accountNumber)).toEqual(['123']);
+  });
+  it('rejects damaged account data', () => {
+    expect(parseBackup(file({ ...DEFAULT_SETTINGS, bankAccounts: 'x' })).ok).toBe(false);
+    expect(parseBackup(file({ ...DEFAULT_SETTINGS, bankAccounts: [{ id: 'a', bankBin: 1 }] })).ok).toBe(false);
+    expect(parseBackup(file(DEFAULT_SETTINGS, { ...sampleBill(), bankAccount: { bankBin: '970436' } })).ok).toBe(false);
+  });
+});

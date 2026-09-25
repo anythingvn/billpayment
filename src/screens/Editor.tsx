@@ -15,6 +15,8 @@ import { computeTotals } from '../domain/money';
 import { formatVnd, pdfFileName, todayIso } from '../domain/format';
 import { BillPage, billQrPayload } from '../ui/BillPage';
 import { qrToDataUrl, useQrDataUrl } from '../ui/useQrDataUrl';
+import { bankByBin } from '../domain/banks';
+import type { BankAccount } from '../domain/types';
 import { printBill } from '../ui/print';
 import { CustomerForm, emptyCustomer } from './Customers';
 
@@ -287,6 +289,10 @@ function ServicesStep({ draft, services, settings, onChange }: {
 function BillOptions({ draft, settings, onChange }: { draft: DraftBill; settings: Settings; onChange(d: DraftBill): void }) {
   const note = draft.footerNote ?? '';
   const picked = note.trim() === '' ? 'none' : String(settings.footerNotes.indexOf(note));
+  const same = (a: BankAccount, b: BankAccount) => a.bankBin === b.bankBin && a.accountNumber === b.accountNumber && a.accountHolder === b.accountHolder;
+  const accPicked = draft.bankAccount
+    ? (settings.bankAccounts.find((a) => same(a, draft.bankAccount!))?.id ?? 'kept')
+    : (settings.bankAccounts.find((a) => a.id === settings.defaultBankAccountId)?.id ?? '');
   return (
     <div class="panel">
       <h3 style="margin-top:0">Bill options</h3>
@@ -297,6 +303,16 @@ function BillOptions({ draft, settings, onChange }: { draft: DraftBill; settings
             onChange({ ...draft, vatRate: (v === 'none' ? 'none' : Number(v)) as VatRate });
           }}>
             {VAT_RATES.map((r) => <option key={String(r)} value={String(r)}>{r === 'none' ? 'Not applicable' : `${r}%`}</option>)}
+          </select>
+        </label>
+        <label class="field">Bank account
+          <select value={accPicked} onChange={(e) => {
+            const a = settings.bankAccounts.find((x) => x.id === e.currentTarget.value);
+            if (a) onChange({ ...draft, bankAccount: { bankBin: a.bankBin, accountNumber: a.accountNumber, accountHolder: a.accountHolder } });
+          }}>
+            {settings.bankAccounts.length === 0 && <option value="">No account yet (add one in Settings)</option>}
+            {accPicked === 'kept' && draft.bankAccount && <option value="kept">{accountLabel(draft.bankAccount)} (saved on this bill)</option>}
+            {settings.bankAccounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
           </select>
         </label>
         <label class="field">Footer note
@@ -316,4 +332,9 @@ function BillOptions({ draft, settings, onChange }: { draft: DraftBill; settings
       </label>
     </div>
   );
+}
+
+function accountLabel(a: BankAccount): string {
+  const bank = bankByBin(a.bankBin)?.shortName ?? 'Bank?';
+  return `${bank} – ${a.accountNumber}${a.accountHolder ? ` (${a.accountHolder})` : ''}`;
 }

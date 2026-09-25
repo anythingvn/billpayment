@@ -6,14 +6,15 @@ import { formatDateVn, formatVnd } from '../domain/format';
 import { vndToWordsEn, vndToWordsVi } from '../domain/words';
 import { buildVietQrPayload, paymentReference } from '../domain/vietqr';
 import { bankByBin } from '../domain/banks';
-import { defaultFooterText } from '../domain/settings';
+import { billBankAccount, defaultFooterText } from '../domain/settings';
 
 export function billQrPayload(bill: DraftBill, s: Settings): string | null {
-  if (!bill.number || !s.bankBin || !s.accountNumber.trim()) return null;
+  const acc = billBankAccount(bill, s);
+  if (!bill.number || !acc || !acc.bankBin || !acc.accountNumber.trim()) return null;
   try {
     return buildVietQrPayload({
-      bankBin: s.bankBin,
-      accountNumber: s.accountNumber,
+      bankBin: acc.bankBin,
+      accountNumber: acc.accountNumber,
       amount: computeTotals(bill.lines, bill.vatRate).total,
       reference: paymentReference(bill.number),
     });
@@ -28,7 +29,8 @@ export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; se
   const t = computeTotals(bill.lines, bill.vatRate);
   const totalOk = Number.isInteger(t.total) && t.total >= 0;
   const money = (n: number) => (Number.isFinite(n) ? formatVnd(n) : '—');
-  const bank = bankByBin(s.bankBin);
+  const acc = billBankAccount(bill, s);
+  const bank = acc && bankByBin(acc.bankBin);
   const c = bill.customer;
   const footer = (bill.footerNote ?? defaultFooterText(s)).trim();
   return (
@@ -113,8 +115,8 @@ export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; se
           <div>
             <div><b>Thông tin chuyển khoản</b> <En>/ Bank transfer</En></div>
             <div>Ngân hàng <En>/ Bank:</En> {bank ? `${bank.shortName} – ${bank.name}` : ''}</div>
-            <div>Số tài khoản <En>/ Account:</En> <b>{s.accountNumber}</b></div>
-            {s.accountHolder && <div>Chủ tài khoản <En>/ Holder:</En> {s.accountHolder}</div>}
+            <div>Số tài khoản <En>/ Account:</En> <b>{acc?.accountNumber}</b></div>
+            {acc?.accountHolder && <div>Chủ tài khoản <En>/ Holder:</En> {acc.accountHolder}</div>}
             {bill.number && <div>Nội dung <En>/ Reference:</En> <b>{paymentReference(bill.number)}</b></div>}
           </div>
         </div>

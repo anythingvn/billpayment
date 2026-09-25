@@ -1,6 +1,7 @@
 import type { BillLine, Settings } from './types';
 import type { DraftBill } from './draft';
 import { isValidAccount } from './vietqr';
+import { billBankAccount } from './settings';
 
 export interface Blocker {
   message: string;
@@ -36,9 +37,11 @@ export function exportBlockers(d: DraftBill, s: Settings): Blocker[] {
   d.lines.forEach((l, i) => lineErrors(l).forEach((e) => out.push({ message: `Line ${i + 1}: ${e}`, target: 'services' })));
   dateErrors(d.billDate, d.dueDate).forEach((e) => out.push({ message: e, target: 'services' }));
   if (!s.businessName.trim()) out.push({ message: 'Enter your business name in Settings', target: 'settings' });
-  if (!s.bankBin) out.push({ message: 'Choose your bank in Settings', target: 'settings' });
-  if (!s.accountNumber.trim()) out.push({ message: 'Enter your account number in Settings', target: 'settings' });
-  else if (!isValidAccount(s.accountNumber)) {
+  const acc = billBankAccount(d, s);
+  if (!acc) out.push({ message: 'Add a bank account in Settings', target: 'settings' });
+  else if (!acc.bankBin) out.push({ message: 'Choose the bank for this account in Settings', target: 'settings' });
+  else if (!acc.accountNumber.trim()) out.push({ message: 'Enter the account number in Settings', target: 'settings' });
+  else if (!isValidAccount(acc.accountNumber)) {
     out.push({ message: 'Account number must contain only digits (check Settings)', target: 'settings' });
   }
   return out;

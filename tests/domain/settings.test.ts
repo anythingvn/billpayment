@@ -28,3 +28,22 @@ describe('defaultFooterText', () => {
     expect(defaultFooterText({ ...DEFAULT_SETTINGS, footerNotes: ['A'], defaultFooterIndex: -1 })).toBe('');
   });
 });
+
+describe('bank accounts', () => {
+  it('turns the old single account into a one-item list that is the default', async () => {
+    const { defaultBankAccount } = await import('../../src/domain/settings');
+    const s = normalizeSettings({ bankBin: '970436', accountNumber: '0071 0001 23456', accountHolder: 'SAO MAI' });
+    expect(s.bankAccounts).toEqual([{ id: 'acc-1', bankBin: '970436', accountNumber: '0071 0001 23456', accountHolder: 'SAO MAI' }]);
+    expect(s.defaultBankAccountId).toBe('acc-1');
+    expect(['bankBin', 'accountNumber', 'accountHolder'].some((k) => k in s)).toBe(false);
+    expect(defaultBankAccount(s)).toEqual({ bankBin: '970436', accountNumber: '0071 0001 23456', accountHolder: 'SAO MAI' });
+  });
+  it('makes no account from old empty bank fields', () => {
+    const s = normalizeSettings({ bankBin: '', accountNumber: '', accountHolder: '' });
+    expect([s.bankAccounts, s.defaultBankAccountId]).toEqual([[], '']);
+  });
+  it('falls back to the first account when the default id is missing', () => {
+    const accounts = [{ id: 'x', bankBin: '970436', accountNumber: '1', accountHolder: '' }];
+    expect(normalizeSettings({ bankAccounts: accounts, defaultBankAccountId: 'gone' }).defaultBankAccountId).toBe('x');
+  });
+});

@@ -77,3 +77,23 @@ describe('per-bill VAT and footer note', () => {
     expect(duplicateAsDraft(b, DEFAULT_SETTINGS, '2026-11-01').footerNote).toBe('Giá đã gồm VAT / Price includes VAT');
   });
 });
+
+describe('bank account per bill', () => {
+  const s = {
+    ...DEFAULT_SETTINGS,
+    bankAccounts: [
+      { id: 'a1', bankBin: '970436', accountNumber: '111', accountHolder: 'A' },
+      { id: 'a2', bankBin: '970422', accountNumber: '222', accountHolder: 'B' },
+    ],
+    defaultBankAccountId: 'a2',
+  };
+  it('starts a new bill with a copy of the default account', () => {
+    expect(newDraft(s, '2026-09-26').bankAccount).toEqual({ bankBin: '970422', accountNumber: '222', accountHolder: 'B' });
+    expect(newDraft({ ...s, bankAccounts: [], defaultBankAccountId: '' }, '2026-09-26').bankAccount).toBeUndefined();
+  });
+  it('keeps the account when opening or duplicating a bill', () => {
+    const b = sampleBill({ bankAccount: { bankBin: '970436', accountNumber: '111', accountHolder: 'A' } });
+    expect(draftFromBill(b).bankAccount).toEqual(b.bankAccount);
+    expect(duplicateAsDraft(b, s, '2026-11-01').bankAccount).toEqual(b.bankAccount);
+  });
+});

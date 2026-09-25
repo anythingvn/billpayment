@@ -64,3 +64,12 @@ describe('settings saved by an older version', () => {
     expect([s.footerNotes, s.defaultFooterIndex]).toEqual([['Old note'], 0]);
   });
 });
+
+describe('bank settings saved by an older version', () => {
+  it('are converted to the account list when loaded', async () => {
+    const db = await freshDb();
+    const { bankAccounts: _a, defaultBankAccountId: _d, ...old } = DEFAULT_SETTINGS;
+    await db.put('settings', { ...old, bankBin: '970436', accountNumber: '123', accountHolder: 'X' } as never, 'settings');
+    expect((await getSettings(db)).bankAccounts).toEqual([{ id: 'acc-1', bankBin: '970436', accountNumber: '123', accountHolder: 'X' }]);
+  });
+});

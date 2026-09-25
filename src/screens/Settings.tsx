@@ -1,9 +1,9 @@
 import { useState } from 'preact/hooks';
 import { useApp } from '../app';
-import { putSettings } from '../storage/db';
+import { newId, putSettings } from '../storage/db';
 import { BANKS } from '../domain/banks';
 import { isValidAccount } from '../domain/vietqr';
-import { VAT_RATES, type Settings, type VatRate } from '../domain/types';
+import { VAT_RATES, type SavedBankAccount, type Settings, type VatRate } from '../domain/types';
 
 const MAX_LOGO_BYTES = 300 * 1024;
 
@@ -28,7 +28,8 @@ export function SettingsScreen() {
 
   const save = async () => {
     if (!/^[A-Za-z0-9]{1,6}$/.test(s.numberPrefix)) { setMsg('Bill number prefix must be 1–6 letters or digits.'); return; }
-    if (s.accountNumber.trim() && !isValidAccount(s.accountNumber)) { setMsg('Account number must contain only digits (spaces, dots and dashes are fine).'); return; }
+    const badAccount = s.bankAccounts.findIndex((a) => !a.bankBin || !isValidAccount(a.accountNumber));
+    if (badAccount >= 0) { setMsg(`Bank account ${badAccount + 1}: choose a bank and enter an account number with digits only (spaces, dots and dashes are fine).`); return; }
     if (!Number.isInteger(s.defaultPaymentDays) || s.defaultPaymentDays < 0) { setMsg('Payment days must be a whole number ≥ 0.'); return; }
     try {
       const keep = s.footerNotes.map((n, i) => ({ n: n.trim(), i })).filter((x) => x.n);
@@ -60,17 +61,36 @@ export function SettingsScreen() {
           {s.logoDataUrl && <div><img src={s.logoDataUrl} alt="" style="max-height:48px" /> <button class="btn ghost" onClick={() => set('logoDataUrl', null)}>Remove logo</button></div>}
         </div>
       </div>
-      <div class="panel"><h3>Bank for VietQR</h3>
-        <div class="grid2">
-          <label class="field">Bank
-            <select value={s.bankBin} onChange={(e) => set('bankBin', e.currentTarget.value)}>
-              <option value="">— Choose —</option>
-              {BANKS.map((b) => <option key={b.bin} value={b.bin}>{b.shortName} – {b.name}</option>)}
-            </select>
-          </label>
-          {text('accountNumber', 'Account number')}
-          {text('accountHolder', 'Account holder (as the bank shows it)')}
-        </div>
+      <div class="panel"><h3>Bank accounts for VietQR</h3>
+        <p class="muted" style="margin-top:0">Choose one on each bill. The selected default is used for new bills.</p>
+        {s.bankAccounts.map((a, i) => {
+          const patch = (p: Partial<SavedBankAccount>) => set('bankAccounts', s.bankAccounts.map((x, j) => (j === i ? { ...x, ...p } : x)));
+          return (
+            <div key={a.id} class="grid2" style="align-items:end;border-top:1px solid var(--border);padding-top:10px;margin-bottom:10px">
+              <label class="field">Bank
+                <select value={a.bankBin} onChange={(e) => patch({ bankBin: e.currentTarget.value })}>
+                  <option value="">— Choose —</option>
+                  {BANKS.map((b) => <option key={b.bin} value={b.bin}>{b.shortName} – {b.name}</option>)}
+                </select>
+              </label>
+              <label class="field">Account number<input value={a.accountNumber} onInput={(e) => patch({ accountNumber: e.currentTarget.value })} /></label>
+              <label class="field">Account holder (as the bank shows it)<input value={a.accountHolder} onInput={(e) => patch({ accountHolder: e.currentTarget.value })} /></label>
+              <div style="display:flex;gap:10px;align-items:center">
+                <label><input type="radio" name="defaultBank" checked={s.defaultBankAccountId === a.id} onChange={() => set('defaultBankAccountId', a.id)} /> Default</label>
+                <button class="btn ghost" onClick={() => {
+                  const rest = s.bankAccounts.filter((x) => x.id !== a.id);
+                  setS({ ...s, bankAccounts: rest, defaultBankAccountId: s.defaultBankAccountId === a.id ? (rest[0]?.id ?? '') : s.defaultBankAccountId });
+                  setMsg('');
+                }}>Remove</button>
+              </div>
+            </div>
+          );
+        })}
+        <button class="btn ghost" onClick={() => {
+          const a = { id: newId(), bankBin: '', accountNumber: '', accountHolder: '' };
+          setS({ ...s, bankAccounts: [...s.bankAccounts, a], defaultBankAccountId: s.defaultBankAccountId || a.id });
+          setMsg('');
+        }}>+ Add bank account</button>
       </div>
       <div class="panel"><h3>Bill defaults</h3>
         <div class="grid2">

@@ -8,7 +8,7 @@ import { sampleBill } from '../fixtures';
 let n = 0;
 async function setup(hash: string) {
   const db = await openAppDb(`app-db-${n++}`);
-  await putSettings(db, { ...DEFAULT_SETTINGS, businessName: 'Sao Mai', bankBin: '970436', accountNumber: '0071000123456' });
+  await putSettings(db, { ...DEFAULT_SETTINGS, businessName: 'Sao Mai', bankAccounts: [{ id: 'a1', bankBin: '970436', accountNumber: '0071000123456', accountHolder: '' }], defaultBankAccountId: 'a1' });
   await putCustomer(db, { id: 'c1', name: 'Hoa Sen Xanh', address: '', taxId: '', contactPerson: '', email: '', phone: '', archived: false });
   location.hash = hash;
   render(<App db={db} initialSettings={await getSettings(db)} />);
