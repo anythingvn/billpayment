@@ -54,3 +54,13 @@ describe('storage', () => {
     expect(await getMeta(db, 'lastBackupAt')).toBe('2026-09-25T00:00:00.000Z');
   });
 });
+
+describe('settings saved by an older version', () => {
+  it('are converted to the footer note list when loaded', async () => {
+    const db = await freshDb();
+    const { footerNotes: _n, defaultFooterIndex: _i, ...old } = DEFAULT_SETTINGS;
+    await db.put('settings', { ...old, footerNote: 'Old note' } as never, 'settings');
+    const s = await getSettings(db);
+    expect([s.footerNotes, s.defaultFooterIndex]).toEqual([['Old note'], 0]);
+  });
+});

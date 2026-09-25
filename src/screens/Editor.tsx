@@ -138,6 +138,7 @@ export function Editor({ mode }: { mode: EditorMode }) {
       <div class="page-head no-print"><h2>{title}</h2></div>
       <Steps step={step} onStep={setStep} />
       {error && <p class="errors no-print">{error}</p>}
+      {step === 1 && <BillOptions draft={draft} settings={settings} onChange={setDraft} />}
       {step === 1 && (
         <CustomerStep
           draft={draft}
@@ -272,6 +273,24 @@ function ServicesStep({ draft, services, settings, onChange }: {
           <input type="date" value={draft.dueDate} onInput={(e) => e.currentTarget.value && onChange({ ...draft, dueDate: e.currentTarget.value })} />
           {dateErrors(draft.billDate, draft.dueDate).map((er) => <span key={er} style="color:var(--danger)">{er}</span>)}
         </label>
+      </div>
+      <p class="r">
+        Subtotal <b>{formatVnd(t.subtotal)}</b>
+        {t.vatApplies && <> · VAT {draft.vatRate}% <b>{formatVnd(t.vat)}</b></>}
+        {' '}· Total <b style="font-size:18px">{formatVnd(t.total)} ₫</b>
+      </p>
+    </div>
+  );
+}
+
+/** Step 1: per-bill VAT and footer note, starting from the Settings defaults. */
+function BillOptions({ draft, settings, onChange }: { draft: DraftBill; settings: Settings; onChange(d: DraftBill): void }) {
+  const note = draft.footerNote ?? '';
+  const picked = note.trim() === '' ? 'none' : String(settings.footerNotes.indexOf(note));
+  return (
+    <div class="panel">
+      <h3 style="margin-top:0">Bill options</h3>
+      <div class="grid2">
         <label class="field">VAT
           <select value={String(draft.vatRate)} onChange={(e) => {
             const v = e.currentTarget.value;
@@ -280,12 +299,21 @@ function ServicesStep({ draft, services, settings, onChange }: {
             {VAT_RATES.map((r) => <option key={String(r)} value={String(r)}>{r === 'none' ? 'Not applicable' : `${r}%`}</option>)}
           </select>
         </label>
+        <label class="field">Footer note
+          <select value={picked} onChange={(e) => {
+            const v = e.currentTarget.value;
+            if (v === 'custom') return;
+            onChange({ ...draft, footerNote: v === 'none' ? '' : settings.footerNotes[Number(v)] });
+          }}>
+            <option value="none">None</option>
+            {settings.footerNotes.map((n, i) => <option key={i} value={String(i)}>{n.length > 60 ? `${n.slice(0, 60)}…` : n}</option>)}
+            {picked === '-1' && <option value="-1">Custom (edited below)</option>}
+          </select>
+        </label>
       </div>
-      <p class="r">
-        Subtotal <b>{formatVnd(t.subtotal)}</b>
-        {t.vatApplies && <> · VAT {draft.vatRate}% <b>{formatVnd(t.vat)}</b></>}
-        {' '}· Total <b style="font-size:18px">{formatVnd(t.total)} ₫</b>
-      </p>
+      <label class="field" style="margin-top:8px">Footer text on this bill (leave empty for none)
+        <textarea rows={2} value={note} onInput={(e) => onChange({ ...draft, footerNote: e.currentTarget.value })} />
+      </label>
     </div>
   );
 }

@@ -49,6 +49,8 @@ export interface Bill {
   customer: CustomerSnapshot;
   lines: BillLine[];
   vatRate: VatRate;
+  /** Footer printed on this bill ('' = none). Missing on bills made before per-bill notes: show the Settings default. */
+  footerNote?: string;
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }
@@ -67,7 +69,10 @@ export interface Settings {
   numberPrefix: string;
   defaultVatRate: VatRate;
   defaultPaymentDays: number;
-  footerNote: string;
+  /** Saved footer notes to pick from on each bill. */
+  footerNotes: string[];
+  /** Index into footerNotes used for new bills; -1 means no footer. */
+  defaultFooterIndex: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -84,6 +89,8 @@ export const DEFAULT_SETTINGS: Settings = {
   numberPrefix: 'TT',
   defaultVatRate: 8,
   defaultPaymentDays: 10,
-  footerNote:
+  footerNotes: [
     'Hóa đơn GTGT điện tử sẽ được xuất sau khi thanh toán. / An official VAT e-invoice will be issued after payment.',
+  ],
+  defaultFooterIndex: 0,
 };

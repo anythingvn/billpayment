@@ -88,3 +88,20 @@ describe('service detail lines on the bill', () => {
     expect(screen.getByText('Thiết kế logo')).toBeTruthy();
   });
 });
+
+describe('footer note per bill', () => {
+  const s = { ...settings, footerNotes: ['Default note'], defaultFooterIndex: 0 };
+  it("prints the bill's own note", () => {
+    const { container } = render(<BillPage bill={{ ...bill, footerNote: 'Riêng hóa đơn này' }} settings={s} qrDataUrl={null} />);
+    expect(container.querySelector('.bill-footer')?.textContent).toBe('Riêng hóa đơn này');
+  });
+  it('prints no footer when the bill note is empty', () => {
+    const { container } = render(<BillPage bill={{ ...bill, footerNote: '' }} settings={s} qrDataUrl={null} />);
+    expect(container.querySelector('.bill-footer')).toBeNull();
+  });
+  it('falls back to the default note for bills made before notes were saved per bill', () => {
+    const { footerNote: _omit, ...old } = { ...bill, footerNote: undefined };
+    const { container } = render(<BillPage bill={old} settings={s} qrDataUrl={null} />);
+    expect(container.querySelector('.bill-footer')?.textContent).toBe('Default note');
+  });
+});

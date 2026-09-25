@@ -31,7 +31,10 @@ export function SettingsScreen() {
     if (s.accountNumber.trim() && !isValidAccount(s.accountNumber)) { setMsg('Account number must contain only digits (spaces, dots and dashes are fine).'); return; }
     if (!Number.isInteger(s.defaultPaymentDays) || s.defaultPaymentDays < 0) { setMsg('Payment days must be a whole number ≥ 0.'); return; }
     try {
-      await putSettings(db, s);
+      const keep = s.footerNotes.map((n, i) => ({ n: n.trim(), i })).filter((x) => x.n);
+      const cleaned = { ...s, footerNotes: keep.map((x) => x.n), defaultFooterIndex: keep.findIndex((x) => x.i === s.defaultFooterIndex) };
+      setS(cleaned);
+      await putSettings(db, cleaned);
       await reloadSettings();
       setMsg('Saved.');
     } catch (e) {
@@ -84,9 +87,24 @@ export function SettingsScreen() {
             <input type="number" min={0} value={s.defaultPaymentDays} onInput={(e) => set('defaultPaymentDays', Number(e.currentTarget.value))} />
           </label>
         </div>
-        <label class="field" style="margin-top:12px">Footer note on bills (leave empty for none)
-          <textarea rows={2} value={s.footerNote} onInput={(e) => set('footerNote', e.currentTarget.value)} />
-        </label>
+        <div class="field" style="margin-top:12px">Footer notes (pick one on each bill; the selected default is used for new bills)
+          <label style="display:block;margin:6px 0">
+            <input type="radio" name="defaultFooter" checked={s.defaultFooterIndex === -1} onChange={() => set('defaultFooterIndex', -1)} /> No footer by default
+          </label>
+          {s.footerNotes.map((n, i) => (
+            <div key={i} style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px">
+              <input type="radio" name="defaultFooter" title="Use for new bills" checked={s.defaultFooterIndex === i} onChange={() => set('defaultFooterIndex', i)} style="margin-top:10px" />
+              <textarea rows={2} style="flex:1" value={n} onInput={(e) => set('footerNotes', s.footerNotes.map((x, j) => (j === i ? e.currentTarget.value : x)))} />
+              <button class="btn ghost" onClick={() => {
+                const notes = s.footerNotes.filter((_, j) => j !== i);
+                const d = s.defaultFooterIndex;
+                setS({ ...s, footerNotes: notes, defaultFooterIndex: d === i ? -1 : d > i ? d - 1 : d });
+                setMsg('');
+              }}>Remove</button>
+            </div>
+          ))}
+          <button class="btn ghost" onClick={() => set('footerNotes', [...s.footerNotes, ''])}>+ Add footer note</button>
+        </div>
       </div>
     </div>
   );

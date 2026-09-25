@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import { DEFAULT_SETTINGS, type Bill, type Customer, type Service, type Settings } from '../domain/types';
+import type { Bill, Customer, Service, Settings } from '../domain/types';
+import { normalizeSettings } from '../domain/settings';
 
 export interface AppSchema extends DBSchema {
   customers: { key: string; value: Customer };
@@ -55,7 +56,7 @@ export const putBill = (db: AppDb, b: Bill) => db.put('bills', b);
 
 export async function getSettings(db: AppDb): Promise<Settings> {
   const stored = await db.get('settings', 'settings');
-  return { ...DEFAULT_SETTINGS, ...stored };
+  return normalizeSettings(stored as Record<string, unknown> | undefined);
 }
 export const putSettings = (db: AppDb, s: Settings) => db.put('settings', s, 'settings');
 

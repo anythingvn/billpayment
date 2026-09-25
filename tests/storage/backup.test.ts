@@ -134,3 +134,20 @@ describe('backups with service detail lines', () => {
     expect(parseBackup(file([{ ...line, details: [1] }])).ok).toBe(false);
   });
 });
+
+describe('backups with footer note lists', () => {
+  const file = (settings: unknown, bill: unknown = sampleBill()) => JSON.stringify({
+    app: 'payment-bills', schemaVersion: 1, exportedAt: 'x', customers: [], services: [], counters: {}, settings, bills: [bill],
+  });
+  const { footerNotes: _n, defaultFooterIndex: _i, ...base } = DEFAULT_SETTINGS;
+  it('converts an old backup with a single footer note', () => {
+    const r = parseBackup(file({ ...base, footerNote: 'Old note' }));
+    expect(r.ok && [r.data.settings.footerNotes, r.data.settings.defaultFooterIndex]).toEqual([['Old note'], 0]);
+  });
+  it('rejects damaged footer settings or bill notes', () => {
+    expect(parseBackup(file({ ...DEFAULT_SETTINGS, footerNotes: 'x' })).ok).toBe(false);
+    expect(parseBackup(file({ ...DEFAULT_SETTINGS, footerNotes: [1] })).ok).toBe(false);
+    expect(parseBackup(file({ ...DEFAULT_SETTINGS, defaultFooterIndex: 'x' })).ok).toBe(false);
+    expect(parseBackup(file(DEFAULT_SETTINGS, { ...sampleBill(), footerNote: 5 })).ok).toBe(false);
+  });
+});

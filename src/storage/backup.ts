@@ -1,6 +1,7 @@
 import type { AppDb } from './db';
 import { getMeta, getSettings, setMeta } from './db';
-import { DEFAULT_SETTINGS, VAT_RATES, type Bill, type Customer, type Service, type Settings } from '../domain/types';
+import { normalizeSettings } from '../domain/settings';
+import { VAT_RATES, type Bill, type Customer, type Service, type Settings } from '../domain/types';
 
 export interface BackupData {
   app: 'payment-bills';
@@ -46,7 +47,7 @@ function validBill(b: unknown): boolean {
   return (
     isObj(b) && isStr(b.id) && isStr(b.number) && STATUSES.includes(b.status as string) &&
     isDate(b.billDate) && isDate(b.dueDate) && (b.paidDate === null || isDate(b.paidDate)) &&
-    isStr(b.customerId) && isVat(b.vatRate) &&
+    isStr(b.customerId) && isVat(b.vatRate) && (b.footerNote === undefined || isStr(b.footerNote)) &&
     isObj(b.customer) && SNAPSHOT_FIELDS.every((f) => isStr((b.customer as Record<string, unknown>)[f])) &&
     Array.isArray(b.lines) &&
     b.lines.every((l) => isObj(l) && LINE_TEXT_FIELDS.every((f) => isStr(l[f])) && isWhole(l.qty, 1) && isWhole(l.unitPrice, 0) &&
@@ -55,8 +56,11 @@ function validBill(b: unknown): boolean {
 }
 
 function validSettings(s: Record<string, unknown>): boolean {
-  const merged = { ...DEFAULT_SETTINGS, ...s } as Record<string, unknown>;
-  const textFields = ['businessName', 'taxId', 'address', 'phone', 'email', 'bankBin', 'accountNumber', 'accountHolder', 'preparedBy', 'numberPrefix', 'footerNote'];
+  if (s.footerNote !== undefined && !isStr(s.footerNote)) return false;
+  if (s.footerNotes !== undefined && !(Array.isArray(s.footerNotes) && s.footerNotes.every(isStr))) return false;
+  if (s.defaultFooterIndex !== undefined && !isWhole(s.defaultFooterIndex, -1)) return false;
+  const merged = normalizeSettings(s) as unknown as Record<string, unknown>;
+  const textFields = ['businessName', 'taxId', 'address', 'phone', 'email', 'bankBin', 'accountNumber', 'accountHolder', 'preparedBy', 'numberPrefix'];
   return (
     textFields.every((f) => isStr(merged[f])) &&
     (merged.logoDataUrl === null || isStr(merged.logoDataUrl)) &&
@@ -89,7 +93,7 @@ export function parseBackup(
   }
 
   const bills = (raw.bills as Bill[]).map((b) => ({ ...b, lines: b.lines.map((l) => ({ ...l, details: l.details ?? [] })) }));
-  const data = { ...raw, bills, settings: { ...DEFAULT_SETTINGS, ...raw.settings } } as unknown as BackupData;
+  const data = { ...raw, bills, settings: normalizeSettings(raw.settings) } as unknown as BackupData;
   return {
     ok: true,
     data,

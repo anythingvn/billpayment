@@ -6,6 +6,7 @@ import { formatDateVn, formatVnd } from '../domain/format';
 import { vndToWordsEn, vndToWordsVi } from '../domain/words';
 import { buildVietQrPayload, paymentReference } from '../domain/vietqr';
 import { bankByBin } from '../domain/banks';
+import { defaultFooterText } from '../domain/settings';
 
 export function billQrPayload(bill: DraftBill, s: Settings): string | null {
   if (!bill.number || !s.bankBin || !s.accountNumber.trim()) return null;
@@ -29,6 +30,7 @@ export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; se
   const money = (n: number) => (Number.isFinite(n) ? formatVnd(n) : '—');
   const bank = bankByBin(s.bankBin);
   const c = bill.customer;
+  const footer = (bill.footerNote ?? defaultFooterText(s)).trim();
   return (
     <div class="bill-sheet">
       <header class="bill-head">
@@ -120,7 +122,7 @@ export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; se
           <div><b>Người lập phiếu</b><br /><En>Prepared by</En><div class="bill-sign-space" /><div>{s.preparedBy}</div></div>
           <div><b>Khách hàng</b><br /><En>Customer</En><div class="bill-sign-space" /></div>
         </div>
-        {s.footerNote && <p class="bill-footer">{s.footerNote}</p>}
+        {footer && <p class="bill-footer">{footer}</p>}
       </div>
     </div>
   );

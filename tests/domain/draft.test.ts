@@ -64,3 +64,16 @@ describe('service detail lines', () => {
     expect(draftFromBill(old).lines[0].details).toEqual([]);
   });
 });
+
+describe('per-bill VAT and footer note', () => {
+  it('starts a new bill with the default VAT and default footer note', () => {
+    const s = { ...DEFAULT_SETTINGS, defaultVatRate: 10 as const, footerNotes: ['A', 'B'], defaultFooterIndex: 1 };
+    expect(newDraft(s, '2026-09-26')).toMatchObject({ vatRate: 10, footerNote: 'B' });
+    expect(newDraft({ ...s, defaultFooterIndex: -1 }, '2026-09-26').footerNote).toBe('');
+  });
+  it('keeps the footer note when opening or duplicating a bill', () => {
+    const b = sampleBill({ footerNote: 'Giá đã gồm VAT / Price includes VAT' });
+    expect(draftFromBill(b).footerNote).toBe('Giá đã gồm VAT / Price includes VAT');
+    expect(duplicateAsDraft(b, DEFAULT_SETTINGS, '2026-11-01').footerNote).toBe('Giá đã gồm VAT / Price includes VAT');
+  });
+});
