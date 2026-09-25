@@ -22,12 +22,13 @@
 .bill-details { list-style: none; margin: 3px 0 0; padding: 0; font-size: 9pt; color: #333; }
 .bill-details li::before { content: '– '; }
 .bill-end { break-inside: avoid; }
-.bill-pay { display: flex; gap: 14px; align-items: center; margin: 10px 0; }
-.bill-qr { width: 30mm; height: 30mm; image-rendering: pixelated; }
-.bill-sign { display: flex; justify-content: space-around; text-align: center; margin-top: 16px; }
+.bill-end p { margin: 6px 0; }
+.bill-pay { display: flex; gap: 14px; align-items: center; margin: 8px 0; }
+.bill-qr { width: 25mm; height: 25mm; image-rendering: pixelated; }
+.bill-sign { display: flex; justify-content: space-around; text-align: center; margin-top: 8px; }
 .bill-sign > div { width: 40%; }
-.bill-sign-space { height: 22mm; }
-.bill-footer { margin-top: 18px; font-size: 9pt; color: #555; text-align: center; }
+.bill-sign-space { height: 14mm; }
+.bill-footer { margin-top: 10px; font-size: 9pt; color: #555; text-align: center; }
 
 @page { size: A4; margin: 14mm 15mm; }
 @media print {
