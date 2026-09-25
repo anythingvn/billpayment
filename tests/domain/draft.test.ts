@@ -21,7 +21,7 @@ describe('draft helpers', () => {
     const d0 = newDraft(DEFAULT_SETTINGS, '2026-09-25');
     const d1 = addServiceLine(d0, service);
     expect(d0.lines).toHaveLength(0);
-    expect(d1.lines[0]).toEqual({ nameVi: 'Bảo trì website', nameEn: 'Website maintenance', unitVi: 'tháng', unitEn: 'month', qty: 1, unitPrice: 800000 });
+    expect(d1.lines[0]).toEqual({ nameVi: 'Bảo trì website', nameEn: 'Website maintenance', unitVi: 'tháng', unitEn: 'month', qty: 1, unitPrice: 800000, details: [] });
     const d2 = updateLine(addCustomLine(d1), 0, { qty: 3 });
     expect(d2.lines[0].qty).toBe(3);
     expect(d2.lines[1].nameVi).toBe('');
@@ -36,5 +36,31 @@ describe('draft helpers', () => {
     const dup = duplicateAsDraft(b, DEFAULT_SETTINGS, '2026-11-01');
     expect(dup).toMatchObject({ id: null, number: null, billDate: '2026-11-01', dueDate: '2026-11-11', customerId: 'c1', lines: b.lines });
     expect(dup.lines).not.toBe(b.lines);
+  });
+});
+
+describe('service detail lines', () => {
+  it('starts new lines with no details', () => {
+    const d = addCustomLine(addServiceLine(newDraft(DEFAULT_SETTINGS, '2026-09-25'), service));
+    expect(d.lines.map((l) => l.details)).toEqual([[], []]);
+  });
+  it('splits the details box into raw lines while typing (keeps blanks so Enter works)', async () => {
+    const { splitDetails } = await import('../../src/domain/draft');
+    expect(splitDetails('Trang chủ\n')).toEqual(['Trang chủ', '']);
+    expect(splitDetails('')).toEqual([]);
+  });
+  it('cleans details when saving: trims and drops blank lines', async () => {
+    const { cleanDraft } = await import('../../src/domain/draft');
+    const d = updateLine(addCustomLine(newDraft(DEFAULT_SETTINGS, '2026-09-25')), 0, { details: ['  Trang chủ / Home ', '', '   ', 'Tên miền 1 năm'] });
+    expect(cleanDraft(d).lines[0].details).toEqual(['Trang chủ / Home', 'Tên miền 1 năm']);
+  });
+  it('copies details when opening or duplicating a bill, and treats old lines without details as empty', () => {
+    const b = sampleBill({ lines: [{ ...sampleBill().lines[0], details: ['A', 'B'] }] });
+    const dup = duplicateAsDraft(b, DEFAULT_SETTINGS, '2026-11-01');
+    expect(dup.lines[0].details).toEqual(['A', 'B']);
+    expect(dup.lines[0].details).not.toBe(b.lines[0].details);
+    const { details: _omit, ...oldLine } = sampleBill().lines[0];
+    const old = sampleBill({ lines: [oldLine as never] });
+    expect(draftFromBill(old).lines[0].details).toEqual([]);
   });
 });

@@ -9,7 +9,7 @@ const customer = { id: 'c1', name: 'Hoa Sen Xanh', address: '', taxId: '', conta
 
 describe('lineErrors', () => {
   it('requires a name, qty ≥ 1 and an integer price ≥ 0', () => {
-    const ok = { nameVi: 'A', nameEn: '', unitVi: '', unitEn: '', qty: 1, unitPrice: 0 };
+    const ok = { nameVi: 'A', nameEn: '', unitVi: '', unitEn: '', qty: 1, unitPrice: 0, details: [] };
     expect(lineErrors(ok)).toEqual([]);
     expect(lineErrors({ ...ok, nameVi: '  ' })).toContain('Service name is required');
     expect(lineErrors({ ...ok, qty: 0 })).toContain('Quantity must be a whole number of at least 1');
@@ -34,7 +34,7 @@ describe('exportBlockers', () => {
   });
   it('is empty for a complete draft', () => {
     let d = setCustomer(newDraft(filledSettings, '2026-09-25'), customer);
-    d = updateLine(addCustomLine(d), 0, { nameVi: 'Thiết kế', qty: 1, unitPrice: 100 });
+    d = updateLine(addCustomLine(d), 0, { nameVi: 'Thiết kế', qty: 1, unitPrice: 100, details: [] });
     expect(exportBlockers(d, filledSettings)).toEqual([]);
   });
   it('blocks on invalid lines and dates', () => {
@@ -60,7 +60,7 @@ describe('review fixes: numbers and account', () => {
   });
   it('accepts an account typed with dashes but blocks one with letters', () => {
     let d = setCustomer(newDraft(filledSettings, '2026-09-25'), customer);
-    d = updateLine(addCustomLine(d), 0, { nameVi: 'A', qty: 1, unitPrice: 100 });
+    d = updateLine(addCustomLine(d), 0, { nameVi: 'A', qty: 1, unitPrice: 100, details: [] });
     expect(exportBlockers(d, { ...filledSettings, accountNumber: '0071-0001-23456' })).toEqual([]);
     expect(exportBlockers(d, { ...filledSettings, accountNumber: '0071abc' }).map((b) => b.message)).toEqual([
       'Account number must contain only digits (check Settings)',

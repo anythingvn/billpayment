@@ -73,7 +73,12 @@ export function BillPage({ bill, settings: s, qrDataUrl }: { bill: DraftBill; se
           {bill.lines.map((l, i) => (
             <tr key={i}>
               <td>{i + 1}</td>
-              <td><span>{l.nameVi}</span>{l.nameEn && <><br /><En>{l.nameEn}</En></>}</td>
+              <td>
+                <span>{l.nameVi}</span>{l.nameEn && <><br /><En>{l.nameEn}</En></>}
+                {(l.details ?? []).some((t) => t.trim()) && (
+                  <ul class="bill-details">{(l.details ?? []).filter((t) => t.trim()).map((t, j) => <li key={j}>{t.trim()}</li>)}</ul>
+                )}
+              </td>
               <td>{l.unitVi}{l.unitEn && <><br /><En>{l.unitEn}</En></>}</td>
               <td class="r">{l.qty}</td>
               <td class="r">{money(l.unitPrice)}</td>

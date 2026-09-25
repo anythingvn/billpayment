@@ -2,7 +2,7 @@ import { computeTotals } from '../../src/domain/money';
 import type { BillLine } from '../../src/domain/types';
 
 const line = (qty: number, unitPrice: number): BillLine => ({
-  nameVi: 'x', nameEn: 'x', unitVi: '', unitEn: '', qty, unitPrice,
+  nameVi: 'x', nameEn: 'x', unitVi: '', unitEn: '', qty, unitPrice, details: [],
 });
 
 describe('computeTotals', () => {

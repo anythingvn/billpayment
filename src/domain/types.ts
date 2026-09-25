@@ -34,6 +34,8 @@ export interface BillLine {
   unitEn: string;
   qty: number;
   unitPrice: number;
+  /** Text-only notes printed under the service name; they never change amounts. */
+  details: string[];
 }
 
 export interface Bill {

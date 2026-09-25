@@ -7,7 +7,7 @@ import { allocateBillNumber } from '../storage/numbering';
 import type { Bill, BillStatus, Customer, Service, Settings, VatRate } from '../domain/types';
 import { VAT_RATES } from '../domain/types';
 import {
-  addCustomLine, addServiceLine, draftFromBill, duplicateAsDraft, newDraft, removeLine, setBillDate, setCustomer, updateLine,
+  addCustomLine, addServiceLine, cleanDraft, draftFromBill, splitDetails, duplicateAsDraft, newDraft, removeLine, setBillDate, setCustomer, updateLine,
   type DraftBill,
 } from '../domain/draft';
 import { dateErrors, draftSaveErrors, exportBlockers, lineErrors, type Blocker } from '../domain/validate';
@@ -27,7 +27,7 @@ export async function saveDraftBill(db: AppDb, d: DraftBill, settings: Settings,
   const now = new Date().toISOString();
   const existing = d.id ? await getBill(db, d.id) : undefined;
   const bill: Bill = {
-    ...d,
+    ...cleanDraft(d),
     id: d.id ?? newId(),
     number: d.number ?? (await allocateBillNumber(db, settings.numberPrefix, d.billDate)),
     status,
@@ -236,6 +236,8 @@ function ServicesStep({ draft, services, settings, onChange }: {
                 <td>
                   <input value={l.nameVi} placeholder="Tên dịch vụ" onInput={(e) => onChange(updateLine(draft, i, { nameVi: e.currentTarget.value }))} />
                   <input value={l.nameEn} placeholder="Service name" onInput={(e) => onChange(updateLine(draft, i, { nameEn: e.currentTarget.value }))} />
+                  <textarea rows={2} class="details-box" value={(l.details ?? []).join('\n')} placeholder="Details, one per line (optional) / Chi tiết, mỗi dòng một ý"
+                    onInput={(e) => onChange(updateLine(draft, i, { details: splitDetails(e.currentTarget.value) }))} />
                   {errs.map((er) => <div key={er} style="color:var(--danger);font-size:12px">{er}</div>)}
                 </td>
                 <td>

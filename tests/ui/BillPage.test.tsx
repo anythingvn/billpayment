@@ -12,9 +12,9 @@ const settings: Settings = {
 const bill = draftFromBill(
   sampleBill({
     lines: [
-      { nameVi: 'Thiết kế logo', nameEn: 'Logo design', unitVi: '', unitEn: '', qty: 1, unitPrice: 5000000 },
-      { nameVi: 'Website gói cơ bản', nameEn: 'Basic website', unitVi: '', unitEn: '', qty: 1, unitPrice: 12000000 },
-      { nameVi: 'Bảo trì website', nameEn: 'Maintenance', unitVi: 'tháng', unitEn: 'month', qty: 3, unitPrice: 800000 },
+      { nameVi: 'Thiết kế logo', nameEn: 'Logo design', unitVi: '', unitEn: '', qty: 1, unitPrice: 5000000, details: [] },
+      { nameVi: 'Website gói cơ bản', nameEn: 'Basic website', unitVi: '', unitEn: '', qty: 1, unitPrice: 12000000, details: [] },
+      { nameVi: 'Bảo trì website', nameEn: 'Maintenance', unitVi: 'tháng', unitEn: 'month', qty: 3, unitPrice: 800000, details: [] },
     ],
   }),
 );
@@ -70,5 +70,21 @@ describe('review fixes: BillPage robustness and layout', () => {
     const end = container.querySelector('.bill-end')!;
     expect(end.textContent).toContain('20.952.000');
     expect(end.textContent).toContain('Tổng cộng');
+  });
+});
+
+describe('service detail lines on the bill', () => {
+  it('prints each non-blank detail under its service name', () => {
+    const withDetails = { ...bill, lines: bill.lines.map((l, i) => (i === 1 ? { ...l, details: ['Trang chủ, Giới thiệu, Liên hệ / Home, About, Contact', '', 'Tên miền 1 năm / 1-year domain'] } : l)) };
+    const { container } = render(<BillPage bill={withDetails} settings={settings} qrDataUrl={null} />);
+    const rows = container.querySelectorAll('.bill-table tbody tr');
+    const items = [...rows[1].querySelectorAll('.bill-details li')].map((li) => li.textContent);
+    expect(items).toEqual(['Trang chủ, Giới thiệu, Liên hệ / Home, About, Contact', 'Tên miền 1 năm / 1-year domain']);
+    expect(rows[0].querySelector('.bill-details')).toBeNull();
+  });
+  it('shows old lines saved without details', () => {
+    const { details: _omit, ...oldLine } = bill.lines[0];
+    render(<BillPage bill={{ ...bill, lines: [oldLine as never] }} settings={settings} qrDataUrl={null} />);
+    expect(screen.getByText('Thiết kế logo')).toBeTruthy();
   });
 });

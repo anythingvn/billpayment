@@ -27,12 +27,12 @@ export function setCustomer(d: DraftBill, c: Customer): DraftBill {
 }
 
 export function addServiceLine(d: DraftBill, s: Service): DraftBill {
-  const line: BillLine = { nameVi: s.nameVi, nameEn: s.nameEn, unitVi: s.unitVi, unitEn: s.unitEn, qty: 1, unitPrice: s.unitPrice };
+  const line: BillLine = { nameVi: s.nameVi, nameEn: s.nameEn, unitVi: s.unitVi, unitEn: s.unitEn, qty: 1, unitPrice: s.unitPrice, details: [] };
   return { ...d, lines: [...d.lines, line] };
 }
 
 export function addCustomLine(d: DraftBill): DraftBill {
-  const line: BillLine = { nameVi: '', nameEn: '', unitVi: '', unitEn: '', qty: 1, unitPrice: 0 };
+  const line: BillLine = { nameVi: '', nameEn: '', unitVi: '', unitEn: '', qty: 1, unitPrice: 0, details: [] };
   return { ...d, lines: [...d.lines, line] };
 }
 
@@ -51,12 +51,25 @@ export function setBillDate(d: DraftBill, billDate: string, paymentDays: number)
 export function draftFromBill(b: Bill): DraftBill {
   return {
     id: b.id, number: b.number, billDate: b.billDate, dueDate: b.dueDate, customerId: b.customerId,
-    customer: { ...b.customer }, lines: b.lines.map((l) => ({ ...l })), vatRate: b.vatRate,
+    customer: { ...b.customer }, lines: b.lines.map((l) => ({ ...l, details: [...(l.details ?? [])] })), vatRate: b.vatRate,
   };
 }
 
 export function duplicateAsDraft(b: Bill, settings: Settings, today: string): DraftBill {
   return {
     ...draftFromBill(b), id: null, number: null, billDate: today, dueDate: addDays(today, settings.defaultPaymentDays),
+  };
+}
+
+/** Raw lines from the editor's details box; blanks are kept so pressing Enter works while typing. */
+export function splitDetails(text: string): string[] {
+  return text === '' ? [] : text.split('\n');
+}
+
+/** Tidies a draft before saving: trims detail lines and drops blank ones. */
+export function cleanDraft(d: DraftBill): DraftBill {
+  return {
+    ...d,
+    lines: d.lines.map((l) => ({ ...l, details: (l.details ?? []).map((t) => t.trim()).filter(Boolean) })),
   };
 }

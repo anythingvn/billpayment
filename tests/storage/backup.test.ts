@@ -113,3 +113,24 @@ describe('parseBackup rejects bills and settings with invalid fields', () => {
     expect(parseBackup(JSON.stringify(d)).ok).toBe(false);
   });
 });
+
+describe('backups with service detail lines', () => {
+  const file = (lines: unknown[]) => JSON.stringify({
+    app: 'payment-bills', schemaVersion: 1, exportedAt: 'x', customers: [], services: [],
+    settings: { ...DEFAULT_SETTINGS }, counters: {}, bills: [{ ...sampleBill(), lines }],
+  });
+  const line = sampleBill().lines[0];
+  it('accepts lines with details', () => {
+    const r = parseBackup(file([{ ...line, details: ['Trang chủ / Home'] }]));
+    expect(r.ok && r.data.bills[0].lines[0].details).toEqual(['Trang chủ / Home']);
+  });
+  it('accepts an old backup without details and fills in an empty list', () => {
+    const { details: _omit, ...old } = line;
+    const r = parseBackup(file([old]));
+    expect(r.ok && r.data.bills[0].lines[0].details).toEqual([]);
+  });
+  it('rejects details that are not a list of text', () => {
+    expect(parseBackup(file([{ ...line, details: 'x' }])).ok).toBe(false);
+    expect(parseBackup(file([{ ...line, details: [1] }])).ok).toBe(false);
+  });
+});

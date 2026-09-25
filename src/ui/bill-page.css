@@ -19,6 +19,8 @@
 .bill-table th { background: #f0f0f0; }
 .bill-table .r { text-align: right; }
 .bill-total td { font-weight: 700; }
+.bill-details { list-style: none; margin: 3px 0 0; padding: 0; font-size: 9pt; color: #333; }
+.bill-details li::before { content: '– '; }
 .bill-end { break-inside: avoid; }
 .bill-pay { display: flex; gap: 14px; align-items: center; margin: 10px 0; }
 .bill-qr { width: 30mm; height: 30mm; image-rendering: pixelated; }

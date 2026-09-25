@@ -49,7 +49,8 @@ function validBill(b: unknown): boolean {
     isStr(b.customerId) && isVat(b.vatRate) &&
     isObj(b.customer) && SNAPSHOT_FIELDS.every((f) => isStr((b.customer as Record<string, unknown>)[f])) &&
     Array.isArray(b.lines) &&
-    b.lines.every((l) => isObj(l) && LINE_TEXT_FIELDS.every((f) => isStr(l[f])) && isWhole(l.qty, 1) && isWhole(l.unitPrice, 0))
+    b.lines.every((l) => isObj(l) && LINE_TEXT_FIELDS.every((f) => isStr(l[f])) && isWhole(l.qty, 1) && isWhole(l.unitPrice, 0) &&
+      (l.details === undefined || (Array.isArray(l.details) && l.details.every(isStr))))
   );
 }
 
@@ -87,7 +88,8 @@ export function parseBackup(
     return { ok: false, error: 'The bill number counters in the backup are damaged.' };
   }
 
-  const data = { ...raw, settings: { ...DEFAULT_SETTINGS, ...raw.settings } } as unknown as BackupData;
+  const bills = (raw.bills as Bill[]).map((b) => ({ ...b, lines: b.lines.map((l) => ({ ...l, details: l.details ?? [] })) }));
+  const data = { ...raw, bills, settings: { ...DEFAULT_SETTINGS, ...raw.settings } } as unknown as BackupData;
   return {
     ok: true,
     data,

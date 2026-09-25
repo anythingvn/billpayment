@@ -32,6 +32,7 @@ table.list tr.click:hover { background: #f8fafc; }
 .errors { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; }
 .errors button { background: none; border: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
 .muted { color: var(--muted); }
+.details-box { display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 13px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; resize: vertical; }
 .preview-wrap { overflow-x: auto; padding: 12px 0; }
 @media (max-width: 720px) { .layout { flex-direction: column; } .nav { width: auto; display: flex; flex-wrap: wrap; } .nav h1 { width: 100%; } .nav button { width: auto; } }
 @media print { .nav, .no-print { display: none !important; } .main { padding: 0; } }
