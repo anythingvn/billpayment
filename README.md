@@ -24,13 +24,15 @@ fill your own **Word templates** (company letterhead), and optionally save every
   - Several contract templates (one default, chosen per contract), one addendum and one bill template; three starters to begin from.
   - **Check a template** ticks known placeholders and flags typos (*"did you mean so_hop_dong?"*) and ones the document type doesn't fill; only plain placeholders are accepted, so a template can't run code.
   - Bills get the VietQR code; drafts are named `…_DRAFT.docx` and have no QR. See [docs/word-templates.md](docs/word-templates.md).
-- **Accountant report:** Reports → pick a period (This/Last month, This/Last quarter, This year, or any dates) → an Excel file with
-  a VAT summary per rate (bills **paid** in the period, since the e-invoice is issued after payment), the bills paid, the bills issued
-  and what's still owed at the end of the period. Download it or save it to Drive (`Phiếu thanh toán/Báo cáo/<year>/`).
+- **Accountant report:** Reports → pick a period (This/Last month, This/Last quarter, This year, or any dates) → an Excel file (`Báo cáo 2026-09.xlsx`, `Báo cáo 2026-Q3.xlsx`, …):
+  - **Tổng hợp / Summary:** VAT per rate for bills **paid** in the period (the e-invoice is issued after payment), money received, billed and still owed;
+  - **Đã thanh toán / Paid**, **Đã lập / Billed** and **Còn phải thu / Owed** (with days overdue, up to today for a period not yet ended);
+  - real numbers and dates, so SUM and sorting work; the same figures are shown on screen.
 - **Google Drive (optional)**, automatically or with a button:
   - bills: `My Drive / Phiếu thanh toán / <year> / <customer> / <bill number>.pdf` on export, with the Word file next to it when you have a bill template;
-  - contracts and addenda: `Phiếu thanh toán / Hợp đồng / <year> / <customer> / HĐ … .docx` on **Save & activate**.
-- **Works offline** and installs as an app (desktop or phone). **Backup / Restore** to a single file (templates included).
+  - contracts and addenda: `Phiếu thanh toán / Hợp đồng / <year> / <customer> / HĐ … .docx` on **Save & activate**;
+  - reports: `Phiếu thanh toán / Báo cáo / <year> / Báo cáo … .xlsx` with a button; saving the same period again updates the same file.
+- **Works offline** and installs as an app (desktop or phone). **Backup / Restore** to a single file (Word templates and saved-report Drive links included).
 
 ## Use
 1. Open the live app in Chrome, Edge or Safari. Install it: the install icon in the address bar, or *Add to Home screen* on a phone.
@@ -40,9 +42,13 @@ fill your own **Word templates** (company letterhead), and optionally save every
    When the customer pays, **Mark as paid** (the report counts VAT by payment date).
 5. **Back up weekly** (Backup / Restore). Your data lives only in the browser you use — nothing is sent to a server.
    To move to another device or browser, back up there and restore here.
+6. **Updates:** after a new version is published, the app may open the old version once; reload and the new one appears.
 
 **Word templates:** Settings → Documents → **Use starter** (or download a starter, edit it in Word and upload it).
 Then use **Word (.docx)** on a contract, addendum or bill. How to write templates: [docs/word-templates.md](docs/word-templates.md).
+
+**Report for your accountant:** Reports → pick the period (e.g. **Last month** or **Last quarter**) → **Download Excel**
+or **Save to Google Drive**. Compare its VAT per rate with the e-invoices you issued for the same period.
 
 **Google Drive:** Settings → Google Drive → **Connect Google Drive**, choose your account and allow access (once per browser).
 No setup is needed; the app only sees the files it creates. Sign in from a normal browser, not an app's built-in browser.
