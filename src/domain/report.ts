@@ -16,7 +16,7 @@ export interface ReportBill {
   beforeVat: number;
   vat: number;
   total: number;
-  /** Days past the due date at the end of the period; 0 when not overdue. */
+  /** Days past the due date at the end of the period (or today, if earlier); 0 when not overdue. */
   daysOverdue: number;
 }
 
@@ -48,7 +48,8 @@ const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 const monthEnd = (y: number, m: number) => iso(Date.UTC(y, m, 0));
 const monthStart = (y: number, m: number) => iso(Date.UTC(y, m - 1, 1));
 
-function toRow(b: Bill, to: string): ReportBill {
+/** `asOf`: the day overdue is counted to — the end of the period, or today if the period hasn't ended. */
+function toRow(b: Bill, asOf: string): ReportBill {
   const t = computeTotals(b.lines, b.vatRate);
   const ref = b.contractRef;
   return {
@@ -57,7 +58,7 @@ function toRow(b: Bill, to: string): ReportBill {
     contract: !ref ? '' : ref.parentNumber ? `${ref.number} · ${ref.parentNumber}` : ref.number,
     status: b.status === 'paid' ? 'paid' : 'sent',
     vatRate: b.vatRate, beforeVat: t.subtotal, vat: t.vat, total: t.total,
-    daysOverdue: Math.max(0, Math.round((utc(to) - utc(b.dueDate)) / DAY)),
+    daysOverdue: Math.max(0, Math.round((utc(asOf) - utc(b.dueDate)) / DAY)),
   };
 }
 
@@ -72,7 +73,8 @@ const sum = (rows: ReportBill[]) => ({ count: rows.length, total: rows.reduce((a
 
 /** The accountant report for bills in [from, to] (inclusive). Drafts and cancelled bills never count. */
 export function buildReport(bills: Bill[], from: string, to: string, s: Settings, madeOn: string): Report {
-  const rows = bills.filter((b) => b.status === 'sent' || b.status === 'paid').map((b) => toRow(b, to));
+  const asOf = madeOn < to ? madeOn : to;
+  const rows = bills.filter((b) => b.status === 'sent' || b.status === 'paid').map((b) => toRow(b, asOf));
   const paid = rows.filter((r) => r.paidDate !== null && r.paidDate >= from && r.paidDate <= to).sort(by('paidDate', 'number'));
   const billedBills = rows.filter((r) => r.billDate >= from && r.billDate <= to).sort(by('billDate', 'number'));
   const owedBills = rows.filter((r) => r.billDate <= to && (r.paidDate === null || r.paidDate > to)).sort(by('dueDate', 'number'));

@@ -22,6 +22,8 @@ export function Reports() {
   const [status, setStatus] = useState<DriveStatus | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Re-render on Drive start/finish even when the stored status hasn't changed (the first save of a period).
+  const [, tick] = useState(0);
 
   const valid = from !== '' && to !== '' && from <= to;
   const fileName = valid ? reportFileName(from, to) : '';
@@ -34,7 +36,11 @@ export function Reports() {
     if (!fileName) return setStatus(undefined);
     const load = () => { reportDriveStatus(db, fileName).then(setStatus); };
     load();
-    return onDriveChange((id) => { if (id === fileName) load(); });
+    return onDriveChange((id) => {
+      if (id !== fileName) return;
+      tick((n) => n + 1);
+      load();
+    });
   }, [fileName]);
 
   if (!bills) return <p class="muted">Loading…</p>;

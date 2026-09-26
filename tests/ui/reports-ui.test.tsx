@@ -16,6 +16,8 @@ vi.mock('../../src/drive/service', () => ({
   onDriveChange: vi.fn(() => () => {}),
 }));
 vi.mock('../../src/docs/download', () => ({ downloadBlob: vi.fn() }));
+// The Excel file has its own tests; the screen only needs a file to hand to the download.
+vi.mock('../../src/report/excel', () => ({ reportToXlsx: vi.fn(async () => new Blob(['PK'])), XLSX_MIME: 'application/xlsx' }));
 
 import * as service from '../../src/drive/service';
 import { downloadBlob } from '../../src/docs/download';
@@ -46,6 +48,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup(); location.hash = ''; vi.clearAllMocks(); vi.useRealTimers();
   vi.mocked(service.reportDriveStatus).mockResolvedValue(undefined);
+  vi.mocked(service.onDriveChange).mockImplementation(() => () => {});
+  vi.mocked(service.isUploadingFile).mockReturnValue(false);
 });
 const date = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
 
@@ -91,6 +95,17 @@ describe('Reports screen', () => {
     fireEvent.click(await screen.findByText('Save to Google Drive'));
     expect(service.saveReportToDrive).toHaveBeenCalledWith(expect.anything(),
       expect.objectContaining({ from: '2026-09-01', to: '2026-09-30' }), expect.anything());
+  });
+  it('first save of a period shows that it is uploading', async () => {
+    let listener: (id: string) => void = () => {};
+    vi.mocked(service.onDriveChange).mockImplementation((fn) => { listener = fn; return () => {}; });
+    await open();
+    fireEvent.click(await screen.findByText('Save to Google Drive'));
+    vi.mocked(service.isUploadingFile).mockReturnValue(true);
+    listener('Báo cáo 2026-09.xlsx');
+    expect(await screen.findByText('Uploading to Google Drive…')).toBeTruthy();
+    expect((screen.getByText('Save to Google Drive') as HTMLButtonElement).disabled).toBe(true);
+    vi.mocked(service.isUploadingFile).mockReturnValue(false);
   });
   it('shows the saved Drive status', async () => {
     vi.mocked(service.reportDriveStatus).mockResolvedValue({ fileId: 'f1', link: 'https://drive.google.com/file/d/f1/view', savedAt: '2026-10-01T03:05:00.000Z', error: null });

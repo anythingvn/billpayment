@@ -294,4 +294,20 @@ describe('backups with Word templates', () => {
       expect(r.data.templates.filter((t) => t.isDefault).map((t) => t.id)).toEqual(['a']);
     }
   });
+  it('keeps report Drive status (so the next save updates the same Drive file)', async () => {
+    const src = await seeded();
+    const status = { fileId: 'f9', link: 'https://drive.google.com/file/d/f9/view', savedAt: '2026-09-26T07:00:00.000Z', error: null };
+    await setMeta(src, 'report-drive:Báo cáo 2026-08.xlsx', status);
+    const parsed = parseBackup(JSON.stringify(await exportAll(src, 'x')));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const dst = await freshDb();
+    await restoreAll(dst, parsed.data);
+    expect(await getMeta(dst, 'report-drive:Báo cáo 2026-08.xlsx')).toEqual(status);
+  });
+  it('old backup without report Drive status restores; damaged ones are refused', () => {
+    const r = parseBackup(file({}));
+    expect(r.ok && r.data.reportDrive).toEqual({});
+    expect(parseBackup(file({ reportDrive: { 'Báo cáo 2026-08.xlsx': { fileId: 5 } } })).ok).toBe(false);
+  });
 });
+

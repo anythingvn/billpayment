@@ -59,6 +59,13 @@ describe('buildReport', () => {
     expect(r.billed).toEqual({ count: 3, total: 3 * 1080000 });
   });
 
+  it('days overdue stop at today when the period has not ended', () => {
+    const late = bill({ billDate: '2026-09-10', dueDate: '2026-09-20' });
+    const r = buildReport([late], '2026-01-01', '2026-12-31', s, '2026-09-26');
+    expect(r.owedBills.map((b) => b.daysOverdue)).toEqual([6]);
+    const due = bill({ billDate: '2026-09-25', dueDate: '2026-10-05' });
+    expect(buildReport([due], '2026-09-01', '2026-12-31', s, '2026-09-26').owedBills[0].daysOverdue).toBe(0);
+  });
   it('undone payment counts as owed', () => {
     const b = bill({ status: 'sent', paidDate: null, billDate: '2026-09-05' });
     expect(numbers(report([b]).owedBills)).toEqual([b.number]);
