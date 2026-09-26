@@ -1,15 +1,18 @@
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/preact';
-import { makeDocx } from '../docs/makeDocx';
+import { makeDocx, docxText } from '../docs/makeDocx';
+
+vi.mock('../../src/docs/download', () => ({ downloadBlob: vi.fn() }));
 
 vi.mock('../../src/docs/starters', () => ({
   loadStarter: vi.fn(async () => (await import('../docs/makeDocx')).makeDocx(['{so_phieu}'])),
 }));
 
 import { App } from '../../src/app';
-import { openAppDb, putSettings, getSettings, putCustomer, putContract, putTemplate, listTemplates, type AppDb } from '../../src/storage/db';
+import { openAppDb, putSettings, getSettings, putCustomer, putContract, putTemplate, listTemplates, getContract, type AppDb } from '../../src/storage/db';
 import { DEFAULT_SETTINGS, type Contract, type DocTemplate } from '../../src/domain/types';
-import { sampleContract } from '../contractFixtures';
+import { sampleContract, sampleAddendum } from '../contractFixtures';
+import { downloadBlob } from '../../src/docs/download';
 
 let n = 0;
 export async function openApp(hash: string, data: { contracts?: Contract[]; templates?: DocTemplate[] } = {}): Promise<AppDb> {
@@ -25,7 +28,7 @@ export async function openApp(hash: string, data: { contracts?: Contract[]; temp
   render(<App db={db} initialSettings={await getSettings(db)} />);
   return db;
 }
-afterEach(() => { cleanup(); location.hash = ''; vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); location.hash = ''; vi.restoreAllMocks(); vi.mocked(downloadBlob).mockClear(); });
 
 const docxFile = async (paragraphs: string[], name = 't.docx') => new File([await makeDocx(paragraphs)], name);
 const tpl = async (over: Partial<DocTemplate>): Promise<DocTemplate> => ({
@@ -98,5 +101,63 @@ describe('Settings → Documents', () => {
   it('warning text shown', async () => {
     await openApp('#/settings');
     expect(within(await panel()).getByText('Only upload templates you created or trust — templates can contain small formulas that run in this app.')).toBeTruthy();
+  });
+});
+
+describe('contracts — Word', () => {
+  it('template select', async () => {
+    const db = await openApp('#/contracts/k1/edit', {
+      contracts: [sampleContract({ status: 'draft' })],
+      templates: [await tpl({ id: 'A', name: 'Mẫu A', isDefault: true }), await tpl({ id: 'B', name: 'Mẫu B' })],
+    });
+    const select = await screen.findByLabelText(/^Document template/) as HTMLSelectElement;
+    await waitFor(() => expect(select.options.length).toBe(3));
+    expect(select.value).toBe('');
+    expect(select.options[select.selectedIndex].text).toBe('Default (Mẫu A)');
+    fireEvent.click(screen.getByText('Save draft'));
+    await waitFor(async () => expect(location.hash).toBe('#/contracts/k1'));
+    expect((await getContract(db, 'k1'))!.templateId).toBeNull();
+    location.hash = '#/contracts/k1/edit';
+    fireEvent.change(await screen.findByLabelText(/^Document template/), { target: { value: 'B' } });
+    fireEvent.click(screen.getByText('Save draft'));
+    await waitFor(async () => expect((await getContract(db, 'k1'))!.templateId).toBe('B'));
+  });
+  it('addendum editor has no template select', async () => {
+    await openApp('#/contracts/k1/addendum', { contracts: [sampleContract()], templates: [await tpl({ id: 'A', isDefault: true })] });
+    await screen.findByText(/Addendum of contract/);
+    expect(screen.queryByLabelText(/^Document template/)).toBeNull();
+  });
+  it('Word download', async () => {
+    await openApp('#/contracts/k1', { contracts: [sampleContract()], templates: [await tpl({ id: 'A', isDefault: true })] });
+    fireEvent.click(await screen.findByText('Word (.docx)'));
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled());
+    const [blob, name] = vi.mocked(downloadBlob).mock.calls[0];
+    expect(name).toBe('HĐ 12-2026-HĐDV-SM – Công ty CP Hoa Sen Xanh.docx');
+    expect(await docxText(blob)).toContain('12/2026/HĐDV-SM');
+  });
+  it('addendum row Word', async () => {
+    await openApp('#/contracts/k1', {
+      contracts: [sampleContract(), sampleAddendum()],
+      templates: [await tpl({ id: 'A', isDefault: true }), await tpl({ id: 'P', kind: 'addendum', data: await makeDocx(['{so_phu_luc}']) })],
+    });
+    const row = (await screen.findByText('PL01')).closest('tr')!;
+    fireEvent.click(within(row).getByText('Word'));
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled());
+    const [blob, name] = vi.mocked(downloadBlob).mock.calls[0];
+    expect(name).toBe('PL01 – HĐ 12-2026-HĐDV-SM.docx');
+    expect(await docxText(blob)).toContain('PL01');
+  });
+  it('missing template', async () => {
+    await openApp('#/contracts/k1', { contracts: [sampleContract(), sampleAddendum()] });
+    const links = await screen.findAllByText('Add a template in Settings → Documents');
+    expect(links.length).toBe(2);
+    expect(links[0].getAttribute('href')).toBe('#/settings');
+    expect(screen.queryByText('Word (.docx)')).toBeNull();
+  });
+  it('unknown placeholder at download', async () => {
+    await openApp('#/contracts/k1', { contracts: [sampleContract()], templates: [await tpl({ id: 'A', isDefault: true, data: await makeDocx(['{so_hop_dongg}']) })] });
+    fireEvent.click(await screen.findByText('Word (.docx)'));
+    expect(await screen.findByText('Unknown placeholder: so_hop_dongg (did you mean so_hop_dong?)')).toBeTruthy();
+    expect(downloadBlob).not.toHaveBeenCalled();
   });
 });

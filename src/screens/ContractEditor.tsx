@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { navigate } from '../router';
-import { getContract, listContracts, listCustomers, listServices, newId, putContract } from '../storage/db';
+import { getContract, listContracts, listCustomers, listServices, listTemplates, newId, putContract, templateFor } from '../storage/db';
+import { driveConfigured, saveDocxToDrive } from '../drive/service';
 import { allocateContractNumber, peekContractNumber } from '../storage/contractNumbering';
-import type { Contract, Customer, Instalment, Plan, Service, VatRate } from '../domain/types';
+import type { Contract, Customer, DocTemplate, Instalment, Plan, Service, VatRate } from '../domain/types';
 import { VAT_RATES } from '../domain/types';
 import { contractSaveErrors, contractValue, isDuplicateNumber, nextAddendumNumber, planErrors } from '../domain/contractPlan';
 import { lineErrors } from '../domain/validate';
@@ -44,6 +45,7 @@ export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
   const [services, setServices] = useState<Service[]>([]);
   const [suggested, setSuggested] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
+  const [templates, setTemplates] = useState<DocTemplate[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -51,6 +53,7 @@ export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
       setAll(contracts);
       setCustomers((await listCustomers(db)).filter((x) => !x.archived).sort((a, b) => a.name.localeCompare(b.name, 'vi')));
       setServices((await listServices(db)).filter((x) => !x.archived));
+      setTemplates((await listTemplates(db)).filter((t) => t.kind === 'contract').sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt)));
       if (mode.kind === 'edit') {
         const existing = await getContract(db, mode.id);
         if (!existing) return navigate({ name: 'contracts' });
@@ -128,6 +131,11 @@ export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
     };
     await putContract(db, next);
     setSaved(next);
+    // Save & activate also saves the contract's or addendum's Word document to Drive (skipped silently without a template).
+    if (activate && settings.driveAutoUpload && driveConfigured(settings)
+      && await templateFor(db, next.kind === 'addendum' ? 'addendum' : 'contract', next.templateId)) {
+      saveDocxToDrive(db, { type: 'contract', id: next.id }, settings).catch(() => undefined);
+    }
     navigate({ name: 'contract', id: next.parentId ?? next.id });
   };
 
@@ -163,6 +171,17 @@ export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
                 </select>
               </label>}
           <label class="field">Title<input value={c.title} placeholder="Hợp đồng thiết kế website" onInput={(e) => set('title', e.currentTarget.value)} /></label>
+          {!isAddendum && templates.length > 0 && (() => {
+            const def = templates.find((t) => t.isDefault) ?? templates[0];
+            return (
+              <label class="field">Document template
+                <select value={templates.some((t) => t.id === c.templateId) ? c.templateId! : ''} onChange={(e) => set('templateId', e.currentTarget.value || null)}>
+                  <option value="">Default ({def.name})</option>
+                  {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </label>
+            );
+          })()}
           <label class="field">Signing date<input type="date" value={c.signedDate} onInput={(e) => e.currentTarget.value && set('signedDate', e.currentTarget.value)} /></label>
           <label class="field">Start date<input type="date" value={c.startDate} onInput={(e) => e.currentTarget.value && set('startDate', e.currentTarget.value)} /></label>
           <label class="field">End date (optional)<input type="date" value={c.endDate ?? ''} onInput={(e) => set('endDate', e.currentTarget.value || null)} /></label>
