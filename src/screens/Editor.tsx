@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { navigate, setNavigationGuard } from '../router';
 import type { AppDb } from '../storage/db';
-import { getBill, listCustomers, listServices, newId, putBill, putCustomer } from '../storage/db';
+import { getBill, getContract, listBills, listContracts, listCustomers, listServices, newId, putBill, putCustomer } from '../storage/db';
 import { allocateBillNumber } from '../storage/numbering';
-import type { Bill, BillStatus, Customer, Service, Settings, VatRate } from '../domain/types';
+import type { Bill, BillStatus, Contract, Customer, Service, Settings, VatRate } from '../domain/types';
 import { VAT_RATES } from '../domain/types';
 import { cleanDraft, draftFromBill, duplicateAsDraft, newDraft, setBillDate, setCustomer, type DraftBill } from '../domain/draft';
 import { dateErrors, draftSaveErrors, exportBlockers, type Blocker } from '../domain/validate';
-import { pdfFileName, todayIso } from '../domain/format';
+import { formatDateVn, pdfFileName, todayIso } from '../domain/format';
 import { BillPage, billQrPayload } from '../ui/BillPage';
 import { qrToDataUrl, useQrDataUrl } from '../ui/useQrDataUrl';
 import { bankByBin } from '../domain/banks';
@@ -18,14 +18,46 @@ import { printBill } from '../ui/print';
 import { CustomerForm, emptyCustomer } from './Customers';
 import { LinesEditor } from '../ui/LinesEditor';
 import { businessSnapshot } from '../domain/settings';
+import { applicableTerms, contractItems } from '../domain/contractTerms';
+import { contractRefFor, fillFromContract } from '../domain/contractFill';
 
-export type EditorMode = { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'duplicate'; id: string };
+export type EditorMode =
+  | { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'duplicate'; id: string }
+  | { kind: 'fromContract'; contractId: string; itemKey: string | null };
+
+/**
+ * Links a draft to a contract/addendum (and optionally one plan item) and fills it in from the contract.
+ * With no item, the terms that apply on the bill date are used ("Other").
+ */
+export function applyContract(d: DraftBill, contracts: Contract[], bills: Bill[], recordId: string, itemKey: string | null): DraftBill {
+  const record = contracts.find((c) => c.id === recordId);
+  if (!record) return d;
+  const parent = record.parentId ? contracts.find((c) => c.id === record.parentId) ?? null : null;
+  const top = parent ?? record;
+  const addenda = contracts.filter((c) => c.parentId === top.id);
+  const item = itemKey ? contractItems(top, addenda, bills, d.billDate).find((r) => r.sourceId === record.id && r.key === itemKey) ?? null : null;
+  const terms = item || record.kind === 'addendum' ? record : applicableTerms(top, addenda, d.billDate);
+  return fillFromContract(d, terms, { record, parent, item });
+}
 type Step = 1 | 2 | 3;
 
 
 export async function saveDraftBill(db: AppDb, d: DraftBill, settings: Settings, status: BillStatus): Promise<Bill> {
   const invalid = draftSaveErrors(d);
   if (invalid.length) throw new Error(invalid.join('; '));
+  if (d.contractRef) {
+    const ref = d.contractRef;
+    if (ref.itemKey && (await listBills(db)).some((b) => b.id !== d.id && b.status !== 'cancelled'
+      && b.contractRef?.contractId === ref.contractId && b.contractRef.itemKey === ref.itemKey)) {
+      throw new Error('This contract item is already billed');
+    }
+    // Refresh the copied contract number and dates as they are now.
+    const record = await getContract(db, ref.contractId);
+    if (record) {
+      const parent = record.parentId ? (await getContract(db, record.parentId)) ?? null : null;
+      d = { ...d, contractRef: contractRefFor(record, parent, ref.itemKey) };
+    }
+  }
   const now = new Date().toISOString();
   const existing = d.id ? await getBill(db, d.id) : undefined;
   // A draft moved to another year gets a number from that year (the old number is not reused).
@@ -53,6 +85,8 @@ export function Editor({ mode }: { mode: EditorMode }) {
   const [step, setStep] = useState<Step>(1);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [allBills, setAllBills] = useState<Bill[]>([]);
   const [error, setError] = useState('');
   const [exportQr, setExportQr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -64,7 +98,15 @@ export function Editor({ mode }: { mode: EditorMode }) {
       setCustomers((await listCustomers(db)).filter((c) => !c.archived).sort((a, b) => a.name.localeCompare(b.name, 'vi')));
       setServices((await listServices(db)).filter((s) => !s.archived).sort((a, b) => a.nameVi.localeCompare(b.nameVi, 'vi')));
       let d: DraftBill;
+      const cs = await listContracts(db);
+      const bs = await listBills(db);
+      setContracts(cs);
+      setAllBills(bs);
       if (mode.kind === 'new') d = newDraft(settings, todayIso());
+      else if (mode.kind === 'fromContract') {
+        d = applyContract(newDraft(settings, todayIso()), cs, bs, mode.contractId, mode.itemKey);
+        setStep(2);
+      }
       else {
         const b = await getBill(db, mode.id);
         if (!b) return navigate({ name: 'home' });
@@ -154,7 +196,7 @@ export function Editor({ mode }: { mode: EditorMode }) {
       <div class="page-head no-print"><h2>{title}</h2></div>
       <Steps step={step} onStep={setStep} />
       {error && <p class="errors no-print">{error}</p>}
-      {step === 1 && <BillOptions draft={draft} settings={settings} onChange={setDraft} />}
+      {step === 1 && <BillOptions draft={draft} settings={settings} contracts={contracts} bills={allBills} onChange={setDraft} />}
       {step === 1 && (
         <CustomerStep
           draft={draft}
@@ -256,7 +298,9 @@ function ServicesStep({ draft, services, onChange }: {
 }
 
 /** Step 1: per-bill VAT and footer note, starting from the Settings defaults. */
-function BillOptions({ draft, settings, onChange }: { draft: DraftBill; settings: Settings; onChange(d: DraftBill): void }) {
+function BillOptions({ draft, settings, contracts, bills, onChange }: {
+  draft: DraftBill; settings: Settings; contracts: Contract[]; bills: Bill[]; onChange(d: DraftBill): void;
+}) {
   const note = draft.footerNote ?? '';
   const picked = note.trim() === '' ? 'none' : String(settings.footerNotes.indexOf(note));
   const same = (a: BankAccount, b: BankAccount) => a.bankBin === b.bankBin && a.accountNumber === b.accountNumber && a.accountHolder === b.accountHolder;
@@ -267,6 +311,7 @@ function BillOptions({ draft, settings, onChange }: { draft: DraftBill; settings
     <div class="panel">
       <h3 style="margin-top:0">Bill options</h3>
       <div class="grid2">
+        <ContractPicker draft={draft} contracts={contracts} bills={bills} onChange={onChange} />
         <label class="field">VAT
           <select value={String(draft.vatRate)} onChange={(e) => {
             const v = e.currentTarget.value;
@@ -307,4 +352,51 @@ function BillOptions({ draft, settings, onChange }: { draft: DraftBill; settings
 function accountLabel(a: BankAccount): string {
   const bank = bankByBin(a.bankBin)?.shortName ?? 'Bank?';
   return `${bank} – ${a.accountNumber}${a.accountHolder ? ` (${a.accountHolder})` : ''}`;
+}
+
+/** Bill options → Contract and Contract item: links the bill to a contract (or addendum) and fills it in. */
+function ContractPicker({ draft, contracts, bills, onChange }: {
+  draft: DraftBill; contracts: Contract[]; bills: Bill[]; onChange(d: DraftBill): void;
+}) {
+  const active = contracts.filter((c) => c.status === 'active' && (!draft.customerId || c.customerId === draft.customerId));
+  if (active.length === 0 && !draft.contractRef) return null;
+  const ref = draft.contractRef;
+  const record = ref ? contracts.find((c) => c.id === ref.contractId) : undefined;
+  const top = record?.parentId ? contracts.find((c) => c.id === record.parentId) : record;
+  const rows = record && top
+    ? contractItems(top, contracts.filter((c) => c.parentId === top.id), bills.filter((b) => b.id !== draft.id), draft.billDate)
+      .filter((r) => r.sourceId === record.id && (r.state === 'due' || r.state === 'notDue' || r.state === 'waiting' || r.key === ref?.itemKey))
+    : [];
+  const label = (c: Contract) => (c.kind === 'addendum'
+    ? `${contracts.find((p) => p.id === c.parentId)?.number ?? ''} · ${c.number}`
+    : `${c.number} · ${c.customer.name}`);
+  return (
+    <>
+      <label class="field">Contract
+        <select value={ref?.contractId ?? ''} onChange={(e) => {
+          const id = e.currentTarget.value;
+          if (!id) {
+            const { contractRef: _removed, ...rest } = draft;
+            onChange(rest);
+          } else onChange(applyContract(draft, contracts, bills, id, null));
+        }}>
+          <option value="">— None —</option>
+          {record && !active.includes(record) && <option value={record.id}>{label(record)}</option>}
+          {active.map((c) => <option key={c.id} value={c.id}>{label(c)}</option>)}
+        </select>
+      </label>
+      {ref && (
+        <label class="field">Contract item
+          <select value={ref.itemKey ?? ''} onChange={(e) => onChange(applyContract(draft, contracts, bills, ref.contractId, e.currentTarget.value || null))}>
+            {rows.map((r) => (
+              <option key={r.key} value={r.key} disabled={r.state === 'waiting'}>
+                {r.label.vi}{r.state === 'waiting' ? ' (not ready)' : r.state === 'notDue' && r.dueDate ? ` (from ${formatDateVn(r.dueDate)})` : ''}
+              </option>
+            ))}
+            <option value="">Other (no specific item)</option>
+          </select>
+        </label>
+      )}
+    </>
+  );
 }

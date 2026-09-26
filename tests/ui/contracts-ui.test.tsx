@@ -169,3 +169,59 @@ describe('contract page', () => {
     await waitFor(async () => expect((await getContract(db, 'k1'))!.status).toBe('terminated'));
   });
 });
+
+import { listBills } from '../../src/storage/db';
+
+describe('bills from contracts', () => {
+  it('create bill from a contract item', async () => {
+    const db = await openApp('#/bills/new/contract/k1/i1', { contracts: [sampleContract()] });
+    expect((await screen.findByText(/Customer:/)).textContent).toBe('Customer: Công ty CP Hoa Sen Xanh');
+    expect((screen.getByPlaceholderText('Tên dịch vụ') as HTMLInputElement).value).toBe('Đợt 1 – Tạm ứng – 50% giá trị hợp đồng');
+    expect(screen.getByText('10.800.000 ₫')).toBeTruthy();
+    fireEvent.click(screen.getByText('Save draft'));
+    await waitFor(async () => {
+      const [b] = await listBills(db);
+      expect(b.contractRef).toEqual({ contractId: 'k1', itemKey: 'i1', number: '12/2026/HĐDV-SM', signedDate: '2026-09-15', parentNumber: null, parentSignedDate: null });
+    });
+  });
+
+  it('Bill options contract picker lists the items', async () => {
+    await openApp('#/bills/new', { contracts: [sampleContract()] });
+    fireEvent.change(await screen.findByLabelText(/^Contract$/), { target: { value: 'k1' } });
+    const item = await screen.findByLabelText(/^Contract item/) as HTMLSelectElement;
+    const options = [...item.options].map((o) => [o.text, o.disabled]);
+    expect(options).toContainEqual(['Đợt 1 – Tạm ứng', false]);
+    expect(options).toContainEqual(['Đợt 2 – Nghiệm thu (not ready)', true]);
+    expect(options).toContainEqual(['Other (no specific item)', false]);
+    fireEvent.change(item, { target: { value: 'i1' } });
+    fireEvent.click(screen.getByText('2 · Services'));
+    expect((await screen.findByPlaceholderText('Tên dịch vụ') as HTMLInputElement).value).toBe('Đợt 1 – Tạm ứng – 50% giá trị hợp đồng');
+  });
+
+  it('clearing the contract removes the link but keeps the lines', async () => {
+    const db = await openApp('#/bills/new/contract/k1/i1', { contracts: [sampleContract()] });
+    await screen.findByText(/Customer:/);
+    fireEvent.click(screen.getByText('1 · Customer'));
+    fireEvent.change(await screen.findByLabelText(/^Contract$/), { target: { value: '' } });
+    fireEvent.click(screen.getByText('Save draft'));
+    await waitFor(async () => {
+      const [b] = await listBills(db);
+      expect(b.contractRef).toBeUndefined();
+      expect(b.lines[0].nameVi).toBe('Đợt 1 – Tạm ứng – 50% giá trị hợp đồng');
+    });
+  });
+
+  it('already billed item is blocked on save', async () => {
+    const db = await openApp('#/bills/new/contract/k1/i1', { contracts: [sampleContract()], bills: [sampleBill({ id: 'old', status: 'draft', contractRef: ref('i1') })] });
+    await screen.findByText(/Customer:/);
+    fireEvent.click(screen.getByText('Save draft'));
+    expect(await screen.findByText(/This contract item is already billed/)).toBeTruthy();
+    expect(await listBills(db)).toHaveLength(1);
+  });
+
+  it('bill view shows the contract link', async () => {
+    await openApp('#/bills/b1', { contracts: [sampleContract()], bills: [sampleBill({ id: 'b1', status: 'sent', contractRef: ref('i1') })] });
+    const link = (await screen.findByText('Contract 12/2026/HĐDV-SM')) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('#/contracts/k1');
+  });
+});

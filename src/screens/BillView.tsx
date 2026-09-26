@@ -70,6 +70,11 @@ export function BillView({ id }: { id: string }) {
         </span>
       </div>
       {error && <p class="errors no-print">{error}</p>}
+      {bill.contractRef && (
+        <p class="no-print"><a href={`#/contracts/${encodeURIComponent(bill.contractRef.contractId)}`}>
+          Contract {bill.contractRef.parentNumber ?? bill.contractRef.number}{bill.contractRef.parentNumber ? ` · ${bill.contractRef.number}` : ''}
+        </a></p>
+      )}
       {bill.paidDate && <p class="muted no-print">Paid on {formatDateVn(bill.paidDate)}</p>}
       {(bill.status === 'sent' || bill.status === 'paid') && <DriveLine db={db} bill={bill} settings={settings} />}
       {bill.status !== 'draft' && <p class="muted no-print">This bill is locked. Duplicate it to make changes.</p>}

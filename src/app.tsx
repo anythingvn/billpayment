@@ -49,7 +49,7 @@ function Screen({ route }: { route: Route }) {
     case 'editContract': return <ContractEditor key={`ec-${route.id}`} mode={{ kind: 'edit', id: route.id }} />;
     case 'newAddendum': return <ContractEditor key={`na-${route.parentId}`} mode={{ kind: 'addendum', parentId: route.parentId }} />;
     case 'contract': return <ContractView key={route.id} id={route.id} />;
-    case 'newBillFromContract': return <Editor key={`fc-${route.contractId}-${route.itemKey}`} mode={{ kind: 'new' }} />;
+    case 'newBillFromContract': return <Editor key={`fc-${route.contractId}-${route.itemKey}`} mode={{ kind: 'fromContract', contractId: route.contractId, itemKey: route.itemKey }} />;
   }
 }
 
