@@ -12,6 +12,7 @@ https://anythingvn.github.io/billpayment/ — the same checks apply to `http://l
 |---|---|---|
 | 2026-09-26 | Owner | Google Drive: Connect and first upload OK (Chrome, localhost:5173) |
 | 2026-09-26 | Automated test | Bank list = all 65 banks of the official VietQR list, BINs match (`npm test`) |
+| 2026-09-26 | Claude (browser, test data) | Contracts: 50/50 contract activated (50+40 refused); bill from Đợt 1 filled in with reference line; cancel → back in To bill + banner; Mark ready; adds-work monthly PL01 bill names "Phụ lục số 01"; DB upgraded to version 2 |
 | 2026-09-26 | Automated print check | 3-line bill = 1 page, 25-line bill = 2 pages (no row cut, end block together), draft PDF label/watermark, no grey background, hidden Drive copy adds no page |
 
 Add a row each time you run the list.
@@ -48,16 +49,34 @@ Scan the QR (from screen and from a printed/PDF copy) with at least 3 apps, e.g.
 - [ ] **← Back to bills** returns to the list from any bill
 
 ## 3b. Contracts
-- [ ] New contract: number suggested as `n/YYYY/HĐDV[-suffix]` (Settings → Bill defaults sets type and suffix); editable; a duplicate number warns
-- [ ] 2 instalments (50% on signing, 50% on acceptance): Save & activate works; 50% + 40% is refused with a message
-- [ ] Contract page: value / billed / paid / left; Đợt 1 shows **Create bill**; Đợt 2 shows **Mark ready**, then Create bill
-- [ ] Create bill from Đợt 1: customer, line "… – 50% giá trị hợp đồng", VAT and due date filled in; the printed bill shows "Căn cứ Hợp đồng số … ký ngày …"
-- [ ] Cancel that bill: Đợt 1 is back in **To bill** on Home
-- [ ] Add an addendum "Adds work" with a monthly plan: its periods appear on the contract page and in To bill; the bill's reference line also names "Phụ lục số 01"
-- [ ] Add an addendum "Changes terms" from a date: later unbilled periods show "Replaced by PLnn"; billed ones stay
+**First open after updating:** your existing bills, customers and settings are all still there (the app upgrades its stored data once).
+
+Contract basics
+- [x] New contract: number suggested as `n/YYYY/HĐDV[-suffix]` (Settings → Bill defaults sets type and suffix); editable; a duplicate number warns *(2026-09-26)*
+- [x] 2 instalments (50% on signing, 50% on acceptance): Save & activate works; 50% + 40% is refused with a message *(2026-09-26)*
+- [ ] Clearing a price or quantity box and saving (draft or activate) is refused with "Line 1: … must be a whole number…", nothing half-saved
+- [ ] Monthly contract, 800.000 ₫ × 12 months + 8% VAT: the contract page shows value **10.368.000**, not just one month
+- [ ] Contract page: value / billed / paid / left add up after a bill is marked Paid
+
+Billing from a contract
+- [x] Create bill from Đợt 1: customer, line "… – 50% giá trị hợp đồng", VAT and due date filled in; the bill shows "Căn cứ Hợp đồng số … ký ngày …" *(2026-09-26)*
+- [x] Cancel that bill: Đợt 1 is back in **To bill** on Home, with the reminder banner *(2026-09-26)*
+- [x] Đợt 2 shows **Mark ready**, then **Create bill** *(2026-09-26)*
+- [ ] Trying to bill the same item twice (two drafts) → "This contract item is already billed"
+- [ ] Print a contract bill: the reference line sits under the customer block, on one A4 page
+- [ ] Bill options → Contract picker: lists active contracts, items (not-ready ones greyed) and "Other"; clearing it keeps the lines
+- [ ] Bill view shows "Contract …" linking to the contract page
+
+Addenda (phụ lục)
+- [x] "Adds work" with a monthly plan: its periods appear on the contract page; its bill names "Phụ lục số 01" *(2026-09-26)*
+- [ ] "Changes terms" from a date: later unbilled periods show "Replaced by PLnn"; already billed ones stay
+- [ ] Two "Changes terms" addenda (e.g. from 01/2027 and 06/2027): each month appears **once** in To bill, from the latest change
+- [ ] A "Changes terms" addendum with an "on signing" instalment before its effective date: that instalment is still billable
+- [ ] Addenda row: **Terminate** works; **Delete** works for a draft addendum
+
+Home, deletes and backup
 - [ ] Home: To bill lists due items; the banner appears when one has waited more than 3 days
-- [ ] Bill options → Contract picker: lists active contracts, items and "Other"; clearing it keeps the lines
-- [ ] Delete a contract with bills → refused, Terminate offered; a customer with contracts is archived, not deleted
+- [ ] Delete a contract with bills or addenda → refused, Terminate offered; a customer with contracts is archived, not deleted
 - [ ] Backup → restore: contracts and addenda come back; the next contract number continues
 - [ ] Open the app in two tabs, then load a new version in one: the other tab reloads (or you're asked to close it)
 
