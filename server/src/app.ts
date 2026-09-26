@@ -9,6 +9,7 @@ import { addSecurity } from './security';
 import { authRoutes } from './routes/auth';
 import { userRoutes } from './routes/users';
 import { recordRoutes } from './routes/records';
+import { backupRoutes } from './routes/backup';
 import type { Ctx } from './context';
 
 export interface AppOptions {
@@ -31,6 +32,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   authRoutes(app, ctx);
   userRoutes(app, ctx);
   recordRoutes(app, ctx);
+  backupRoutes(app, ctx);
 
   const dist = opts.distDir ?? 'dist';
   if (existsSync(dist)) await app.register(fastifyStatic, { root: dist.startsWith('/') ? dist : `${process.cwd()}/${dist}`, prefix: '/' });

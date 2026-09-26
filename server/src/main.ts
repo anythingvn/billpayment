@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { loadEnv } from './env';
 import { SqliteStore } from './sqliteStore';
 import { buildApp } from './app';
+import { startNightlyBackup } from './nightly';
 
 // Settings come from the environment, or from ./.env when present (npm run make-env writes one).
 if (existsSync('.env')) process.loadEnvFile('.env');
@@ -17,4 +18,5 @@ try {
 mkdirSync(env.dataDir, { recursive: true });
 const store = new SqliteStore(join(env.dataDir, 'billpayment.db'));
 const app = await buildApp({ store, env, logger: true });
+startNightlyBackup(store, env.dataDir, (msg) => app.log.error(msg));
 await app.listen({ host: '0.0.0.0', port: env.port });
