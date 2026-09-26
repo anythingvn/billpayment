@@ -17,7 +17,8 @@ vi.mock('../../src/drive/service', () => ({
 
 import * as service from '../../src/drive/service';
 import { App } from '../../src/app';
-import { openAppDb, putSettings, getSettings, putCustomer, putContract, putTemplate } from '../../src/storage/db';
+import { openAppDb, putSettings, getSettings, putCustomer, putContract, putTemplate, putBill } from '../../src/storage/db';
+import { sampleBill } from '../fixtures';
 import { DEFAULT_SETTINGS, type Contract, type DocTemplate, type Settings } from '../../src/domain/types';
 import { sampleContract, sampleAddendum } from '../contractFixtures';
 
@@ -26,12 +27,13 @@ const base: Settings = {
   ...DEFAULT_SETTINGS, businessName: 'Sao Mai', googleClientId: 'cid.apps.googleusercontent.com', driveAutoUpload: true,
   bankAccounts: [{ id: 'a1', bankBin: '970436', accountNumber: '0071000123456', accountHolder: '' }], defaultBankAccountId: 'a1',
 };
-async function open(hash: string, settings: Partial<Settings>, contracts: Contract[], templates: DocTemplate[]) {
+async function open(hash: string, settings: Partial<Settings>, contracts: Contract[], templates: DocTemplate[], bills: ReturnType<typeof sampleBill>[] = []) {
   const db = await openAppDb(`documents-drive-ui-${n++}`);
   await putSettings(db, { ...base, ...settings });
   await putCustomer(db, { id: 'c1', name: 'Công ty CP Hoa Sen Xanh', address: '', taxId: '', contactPerson: '', email: '', phone: '', archived: false });
   for (const c of contracts) await putContract(db, c);
   for (const t of templates) await putTemplate(db, t);
+  for (const b of bills) await putBill(db, b);
   location.hash = hash;
   render(<App db={db} initialSettings={await getSettings(db)} />);
   return db;
@@ -90,4 +92,50 @@ describe('contracts — Drive', () => {
       void db;
     });
   }
+});
+
+const textIs = (t: string) => (_: string, el: Element | null) => el?.tagName === 'SPAN' && el.textContent === t;
+
+describe('bills — Drive', () => {
+  it('Drive line shows PDF and Word separately', async () => {
+    await open('#/bills/b1', {}, [], [await tpl('bill')],
+      [sampleBill({ status: 'sent', drive: saved, driveDocx: { ...saved, error: 'Offline' } })]);
+    expect(await screen.findByText(/^PDF: saved to Drive 26\/09\/2026/)).toBeTruthy();
+    const word = await screen.findByText(textIs('Word: not saved: Offline · Retry'));
+    fireEvent.click(within(word as HTMLElement).getByText('Retry'));
+    expect(service.saveDocxToDrive).toHaveBeenCalledWith(expect.anything(), { type: 'bill', id: 'b1' }, expect.anything());
+    expect(service.saveBillToDrive).not.toHaveBeenCalled();
+  });
+  it('Save button saves PDF then Word', async () => {
+    await open('#/bills/b1', {}, [], [await tpl('bill')], [sampleBill({ status: 'sent' })]);
+    await screen.findByText('Word (.docx)');
+    fireEvent.click(screen.getByText('Save to Google Drive'));
+    await waitFor(() => expect(service.saveDocxToDrive).toHaveBeenCalled());
+    expect(vi.mocked(service.saveBillToDrive).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(service.saveDocxToDrive).mock.invocationCallOrder[0]);
+  });
+
+  async function exportNewBill(templates: DocTemplate[]) {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    await open('#/bills/new', {}, [], templates);
+    fireEvent.click(await screen.findByText('Công ty CP Hoa Sen Xanh'));
+    fireEvent.click(await screen.findByText('+ Custom line'));
+    fireEvent.input(screen.getByPlaceholderText('Tên dịch vụ'), { target: { value: 'Thiết kế' } });
+    fireEvent.input(document.querySelectorAll('input[type=number]')[1], { target: { value: '1000' } });
+    fireEvent.click(screen.getByText('3 · Review & export'));
+    fireEvent.click(await screen.findByText('Save & export PDF'));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    print.mockRestore();
+  }
+  it('export uploads PDF then Word', async () => {
+    await exportNewBill([await tpl('bill')]);
+    await waitFor(() => expect(service.saveDocxToDrive).toHaveBeenCalled());
+    const id = vi.mocked(service.saveBillToDrive).mock.calls[0][1];
+    expect(service.saveDocxToDrive).toHaveBeenCalledWith(expect.anything(), { type: 'bill', id }, expect.anything());
+    expect(vi.mocked(service.saveBillToDrive).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(service.saveDocxToDrive).mock.invocationCallOrder[0]);
+  });
+  it('export without a bill template uploads only the PDF', async () => {
+    await exportNewBill([]);
+    expect(service.saveBillToDrive).toHaveBeenCalledTimes(1);
+    expect(service.saveDocxToDrive).not.toHaveBeenCalled();
+  });
 });

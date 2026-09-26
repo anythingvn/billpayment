@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { navigate } from '../router';
-import { getBill, putBill } from '../storage/db';
+import { getBill, putBill, templateFor } from '../storage/db';
 import type { Bill, BillStatus, Settings } from '../domain/types';
 import type { AppDb } from '../storage/db';
-import { driveConfigured, isUploading, onDriveChange, prepareDrive, saveBillToDrive } from '../drive/service';
+import { driveConfigured, isUploadingFile, onDriveChange, prepareDrive, saveBillToDrive, saveDocxToDrive } from '../drive/service';
+import { buildBillDocx } from '../docs/documents';
+import { downloadBlob } from '../docs/download';
+import { DriveStatusText } from '../ui/DriveStatusLine';
 import { applyStatus, canTransition } from '../domain/status';
 import { draftFromBill } from '../domain/draft';
 import { formatDateVn, pdfFileName, todayIso } from '../domain/format';
@@ -23,7 +26,10 @@ export function BillView({ id }: { id: string }) {
   const { db, settings } = useApp();
   const [bill, setBill] = useState<Bill | null | undefined>(undefined);
   const [error, setError] = useState('');
+  const [hasTemplate, setHasTemplate] = useState(false);
+  const [building, setBuilding] = useState(false);
   useEffect(() => { getBill(db, id).then((b) => setBill(b ?? null)); }, [id]);
+  useEffect(() => { templateFor(db, 'bill').then((t) => setHasTemplate(!!t)); }, []);
   // Reload when a Drive upload for this bill starts or finishes.
   useEffect(() => onDriveChange((changed) => {
     if (changed === id) getBill(db, id).then((b) => setBill(b ?? null));
@@ -47,6 +53,20 @@ export function BillView({ id }: { id: string }) {
     }
   };
 
+  const downloadWord = async () => {
+    setError('');
+    setBuilding(true);
+    try {
+      const doc = await buildBillDocx(db, bill, settings);
+      if (doc) downloadBlob(doc.blob, doc.fileName);
+      else setError('Add a template in Settings → Documents');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBuilding(false);
+    }
+  };
+
   // Drafts are sent from the editor, where the export checks run; here they can only be continued or cancelled.
   const isDraft = bill.status === 'draft';
   const actions = [
@@ -66,6 +86,9 @@ export function BillView({ id }: { id: string }) {
           {actions.map((a) => <button key={a.label} class={a.to === 'cancelled' ? 'btn danger' : 'btn ghost'} onClick={() => change(a.to, a.confirm)}>{a.label}</button>)}
           <button class="btn ghost" onClick={() => navigate({ name: 'duplicateBill', id: bill.id })}>Duplicate</button>
           {isDraft && <button class="btn ghost" onClick={() => printBill(pdfFileName(bill.number, bill.customer.name, true))}>Download draft PDF</button>}
+          {bill.status !== 'cancelled' && (hasTemplate
+            ? <button class="btn ghost" disabled={building} onClick={downloadWord}>Word (.docx)</button>
+            : <a href="#/settings" style="align-self:center">Add a template in Settings → Documents</a>)}
           {bill.status !== 'cancelled' && !isDraft && <button class="btn" disabled={!qr} onClick={() => printBill(pdfFileName(bill.number, bill.customer.name))}>Export PDF</button>}
         </span>
       </div>
@@ -76,37 +99,34 @@ export function BillView({ id }: { id: string }) {
         </a></p>
       )}
       {bill.paidDate && <p class="muted no-print">Paid on {formatDateVn(bill.paidDate)}</p>}
-      {(bill.status === 'sent' || bill.status === 'paid') && <DriveLine db={db} bill={bill} settings={settings} />}
+      {(bill.status === 'sent' || bill.status === 'paid') && <DriveLine db={db} bill={bill} settings={settings} withWord={hasTemplate} />}
       {bill.status !== 'draft' && <p class="muted no-print">This bill is locked. Duplicate it to make changes.</p>}
       <div class="preview-wrap"><BillPage bill={draft} settings={settings} qrDataUrl={qr} draftMark={isDraft} /></div>
     </div>
   );
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  return `${formatDateVn(todayIso(d))} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-/** Google Drive status and save button for a sent or paid bill. */
-function DriveLine({ db, bill, settings }: { db: AppDb; bill: Bill; settings: Settings }) {
-  const d = bill.drive;
+/** Google Drive status and save button for a sent or paid bill; with a bill template, PDF and Word are shown separately. */
+function DriveLine({ db, bill, settings, withWord }: { db: AppDb; bill: Bill; settings: Settings; withWord: boolean }) {
   const configured = driveConfigured(settings);
-  const save = () => { saveBillToDrive(db, bill.id, settings).catch(() => undefined); };
-  const uploading = isUploading(bill.id);
-  const expired = d?.error === 'Google access expired';
+  const savePdf = () => { saveBillToDrive(db, bill.id, settings).catch(() => undefined); };
+  const saveWord = () => { saveDocxToDrive(db, { type: 'bill', id: bill.id }, settings).catch(() => undefined); };
+  const saveBoth = () => { savePdf(); if (withWord) saveWord(); };
+  const pdfUploading = isUploadingFile(bill.id, 'pdf');
+  const wordUploading = withWord && isUploadingFile(bill.id, 'docx');
   return (
     <div class="no-print" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
-      {uploading && <span class="muted">Uploading to Google Drive…</span>}
-      {!uploading && configured && d?.error && (
-        <span style="color:var(--danger)">Not saved to Drive: {d.error} · <button class="btn ghost" onClick={save}>{expired ? 'Reconnect' : 'Retry'}</button></span>
-      )}
-      {!uploading && !d?.error && d?.savedAt && (
-        <span class="muted">Saved to Drive {formatDateTime(d.savedAt)}{d.link && <> · <a href={d.link} target="_blank" rel="noopener">Open in Drive</a></>}</span>
-      )}
+      {withWord
+        ? <>
+          <DriveStatusText status={bill.drive} uploading={pdfUploading} configured={configured} onSave={savePdf}
+            saved={(when) => `PDF: saved to Drive ${when}`} notSaved={(e) => `PDF: not saved: ${e}`} />
+          <DriveStatusText status={bill.driveDocx} uploading={wordUploading} configured={configured} onSave={saveWord}
+            saved={(when) => `Word: saved to Drive ${when}`} notSaved={(e) => `Word: not saved: ${e}`} />
+        </>
+        : <DriveStatusText status={bill.drive} uploading={pdfUploading} configured={configured} onSave={savePdf}
+          saved={(when) => `Saved to Drive ${when}`} notSaved={(e) => `Not saved to Drive: ${e}`} />}
       {configured
-        ? <button class="btn ghost" disabled={uploading} onClick={save}>{d?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
+        ? <button class="btn ghost" disabled={pdfUploading || wordUploading} onClick={saveBoth}>{bill.drive?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
         : <a href="#/settings" class="muted">Connect Google Drive in Settings</a>}
     </div>
   );

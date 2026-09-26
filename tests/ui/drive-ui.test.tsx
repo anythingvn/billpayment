@@ -8,7 +8,9 @@ vi.mock('../../src/drive/service', () => ({
   disconnectDrive: vi.fn(async () => {}),
   driveConnection: vi.fn(async () => null),
   saveBillToDrive: vi.fn(async () => ({ fileId: 'f', link: 'l', savedAt: 's', error: null })),
+  saveDocxToDrive: vi.fn(async () => ({ fileId: 'f', link: 'l', savedAt: 's', error: null })),
   isUploading: vi.fn(() => false),
+  isUploadingFile: vi.fn(() => false),
   onDriveChange: vi.fn(() => () => {}),
 }));
 

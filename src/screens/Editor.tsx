@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { navigate, setNavigationGuard } from '../router';
 import type { AppDb } from '../storage/db';
-import { getBill, getContract, listBills, listContracts, listCustomers, listServices, newId, putBill, putCustomer } from '../storage/db';
+import { getBill, getContract, listBills, listContracts, listCustomers, listServices, newId, putBill, putCustomer, templateFor } from '../storage/db';
 import { allocateBillNumber } from '../storage/numbering';
 import type { Bill, BillStatus, Contract, Customer, Service, Settings, VatRate } from '../domain/types';
 import { VAT_RATES } from '../domain/types';
@@ -12,7 +12,7 @@ import { formatDateVn, pdfFileName, todayIso } from '../domain/format';
 import { BillPage, billQrPayload } from '../ui/BillPage';
 import { qrToDataUrl, useQrDataUrl } from '../ui/useQrDataUrl';
 import { bankByBin } from '../domain/banks';
-import { driveConfigured, prepareDrive, saveBillToDrive } from '../drive/service';
+import { driveConfigured, prepareDrive, saveBillToDrive, saveDocxToDrive } from '../drive/service';
 import type { BankAccount } from '../domain/types';
 import { printBill } from '../ui/print';
 import { CustomerForm, emptyCustomer } from './Customers';
@@ -173,7 +173,11 @@ export function Editor({ mode }: { mode: EditorMode }) {
     if (!bill) return;
     // Start the Drive upload right away (still inside the click, so Google's permission window may open);
     // it runs in the background and never blocks or undoes the export.
-    if (driveConfigured(settings) && settings.driveAutoUpload) saveBillToDrive(db, bill.id, settings).catch(() => undefined);
+    if (driveConfigured(settings) && settings.driveAutoUpload) {
+      saveBillToDrive(db, bill.id, settings).catch(() => undefined);
+      // The Word document follows in the same queue; without a bill template it is skipped silently.
+      templateFor(db, 'bill').then((t) => t && saveDocxToDrive(db, { type: 'bill', id: bill.id }, settings)).catch(() => undefined);
+    }
     // Build the QR now so the printed page never misses it, then let the preview re-render.
     const payload = billQrPayload(draftFromBill(bill), settings);
     try {

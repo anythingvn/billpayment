@@ -1,21 +1,27 @@
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/preact';
-import { makeDocx, docxText } from '../docs/makeDocx';
+import { makeDocx, docxText, docxMedia } from '../docs/makeDocx';
 
 vi.mock('../../src/docs/download', () => ({ downloadBlob: vi.fn() }));
+vi.mock('../../src/ui/useQrDataUrl', async (orig) => {
+  const { PNG_1PX } = await import('../docs/makeDocx');
+  const url = `data:image/png;base64,${btoa(String.fromCharCode(...PNG_1PX))}`;
+  return { ...(await orig<object>()), qrToDataUrl: vi.fn(async () => url), useQrDataUrl: () => url };
+});
 
 vi.mock('../../src/docs/starters', () => ({
   loadStarter: vi.fn(async () => (await import('../docs/makeDocx')).makeDocx(['{so_phieu}'])),
 }));
 
 import { App } from '../../src/app';
-import { openAppDb, putSettings, getSettings, putCustomer, putContract, putTemplate, listTemplates, getContract, type AppDb } from '../../src/storage/db';
-import { DEFAULT_SETTINGS, type Contract, type DocTemplate } from '../../src/domain/types';
+import { openAppDb, putSettings, getSettings, putCustomer, putContract, putTemplate, listTemplates, getContract, putBill, type AppDb } from '../../src/storage/db';
+import { DEFAULT_SETTINGS, type Bill, type Contract, type DocTemplate } from '../../src/domain/types';
 import { sampleContract, sampleAddendum } from '../contractFixtures';
+import { sampleBill } from '../fixtures';
 import { downloadBlob } from '../../src/docs/download';
 
 let n = 0;
-export async function openApp(hash: string, data: { contracts?: Contract[]; templates?: DocTemplate[] } = {}): Promise<AppDb> {
+export async function openApp(hash: string, data: { contracts?: Contract[]; templates?: DocTemplate[]; bills?: Bill[] } = {}): Promise<AppDb> {
   const db = await openAppDb(`documents-ui-${n++}`);
   await putSettings(db, {
     ...DEFAULT_SETTINGS, businessName: 'Sao Mai', driveAutoUpload: false,
@@ -24,6 +30,7 @@ export async function openApp(hash: string, data: { contracts?: Contract[]; temp
   await putCustomer(db, { id: 'c1', name: 'Công ty CP Hoa Sen Xanh', address: '', taxId: '', contactPerson: '', email: '', phone: '', archived: false });
   for (const c of data.contracts ?? []) await putContract(db, c);
   for (const t of data.templates ?? []) await putTemplate(db, t);
+  for (const b of data.bills ?? []) await putBill(db, b);
   location.hash = hash;
   render(<App db={db} initialSettings={await getSettings(db)} />);
   return db;
@@ -159,5 +166,31 @@ describe('contracts — Word', () => {
     fireEvent.click(await screen.findByText('Word (.docx)'));
     expect(await screen.findByText('Unknown placeholder: so_hop_dongg (did you mean so_hop_dong?)')).toBeTruthy();
     expect(downloadBlob).not.toHaveBeenCalled();
+  });
+});
+
+describe('bills — Word', () => {
+  const billTpl = async () => tpl({ id: 'BT', kind: 'bill', data: await makeDocx(['{so_phieu}', '{IMAGE qr()}']) });
+  it('bill Word download', async () => {
+    await openApp('#/bills/b1', { bills: [sampleBill({ status: 'sent' })], templates: [await billTpl()] });
+    fireEvent.click(await screen.findByText('Word (.docx)'));
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled());
+    const [blob, name] = vi.mocked(downloadBlob).mock.calls[0];
+    expect(name).toBe('TT-2026-0012_Công ty CP Hoa Sen Xanh.docx');
+    expect(await docxText(blob)).toContain('TT-2026-0012');
+    expect((await docxMedia(blob)).length).toBe(1);
+  });
+  it('draft bill Word has _DRAFT and no QR', async () => {
+    await openApp('#/bills/b1', { bills: [sampleBill()], templates: [await billTpl()] });
+    fireEvent.click(await screen.findByText('Word (.docx)'));
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled());
+    const [blob, name] = vi.mocked(downloadBlob).mock.calls[0];
+    expect(name).toBe('TT-2026-0012_Công ty CP Hoa Sen Xanh_DRAFT.docx');
+    expect(await docxMedia(blob)).toEqual([]);
+  });
+  it('bill without template shows the Settings link', async () => {
+    await openApp('#/bills/b1', { bills: [sampleBill({ status: 'sent' })] });
+    expect((await screen.findByText('Add a template in Settings → Documents')).getAttribute('href')).toBe('#/settings');
+    expect(screen.queryByText('Word (.docx)')).toBeNull();
   });
 });
