@@ -10,6 +10,7 @@ https://anythingvn.github.io/billpayment/ — the same checks apply to `http://l
 ## Last run
 | Date | Who | Result |
 |---|---|---|
+| 2026-09-26 | Automated tests + independent review | Accountant report review fixes: report Drive status kept through backup/restore; "Uploading to Google Drive…" on a period's first save; days overdue counted to today for a period not yet ended (422 tests) |
 | 2026-09-26 | Claude (browser, test data, localhost:5199 dev + 5198 production build) | Accountant report: Last month figures match a hand calculation (bill issued in July and paid in August counted as paid, not billed; draft left out); Excel download has 4 sheets, exact dates, `#,##0` money, Vietnamese intact; works in the production build |
 | 2026-09-26 | Claude (browser, test data, localhost:5199) | Word review minors: bill and contract .docx line breaks are real Word breaks (library option), no leftover placeholders; Settings no longer scrolls sideways on a narrow screen |
 | 2026-09-26 | Claude (browser, test data, localhost:5199 dev + 5198 production build) | Word: 3 starters installed via Use starter; contract, addendum, sent bill (QR image) and draft bill (no QR, BẢN NHÁP) generated in the browser with no leftover placeholders; typo template → "Unknown placeholder: so_phieuu (did you mean so_phieu?)"; .txt refused; production build Word (.docx) download OK |
@@ -101,6 +102,7 @@ Home, deletes and backup
 - [ ] The online address opens and can be installed (Install app / Add to Home screen)
 - [ ] Installed app opens with Wi-Fi off and can create and export a bill
 - [ ] Moving data: Backup on localhost:5173 → Restore on the online app → everything is there
+- [ ] After a new version is published: the first visit may still show the old version; reload once and the new one appears (e.g. the **Reports** menu item)
 
 ## 7. Google Drive
 Uses the built-in Client ID (see `docs/google-drive-setup.md`). The Google client must list both origins:
@@ -152,15 +154,17 @@ Guide: `docs/word-templates.md`. Items marked *(generated in browser)* were chec
 ## 9. Accountant report
 - [x] Reports opens on **Last month**; the shortcuts fill From/To *(2026-09-26)*
 - [x] On-screen Received / Billed / Owed at end and the VAT table match a hand calculation (a bill paid in the period but issued earlier counts as paid, not billed; drafts and cancelled bills don't count) *(2026-09-26, test data)*
-- [x] **Download Excel** names the file `Báo cáo 2026-08.xlsx` (a month), `Báo cáo 2026-Q3.xlsx` (a quarter), `Báo cáo 2026.xlsx` (a year) *(month checked 2026-09-26; others by automatic tests)*
+- [x] **Download Excel** names the file `Báo cáo 2026-08.xlsx` (a month), `Báo cáo 2026-Q3.xlsx` (a quarter), `Báo cáo 2026.xlsx` (a year) *(month checked 2026-09-26 in dev and the production build; others by automatic tests)*
+- [ ] **Download Excel** on the **online app** and on a phone (Safari/iPhone may need a second tap)
 - [ ] Open the file in **Excel** and in **Google Sheets**: four sheets (Tổng hợp, Đã thanh toán, Đã lập, Còn phải thu); Vietnamese text correct; column widths readable
 - [ ] Money columns add up with `=SUM(…)`; dates sort as dates and show as dd/mm/yyyy (not a day off)
 - [ ] VAT per rate matches the e-invoices you issued for the same period
 - [ ] Start date after end date: "The start date must be on or before the end date"; buttons disabled
-- [ ] **Save to Google Drive**: the file lands in `Phiếu thanh toán/Báo cáo/<year>/`; the screen shows "Saved to Drive …"
+- [ ] **Save to Google Drive**: the screen shows "Uploading to Google Drive…", then "Saved to Drive …"; the file lands in `Phiếu thanh toán/Báo cáo/<year>/`
 - [ ] Save the same period again: **Update in Google Drive** replaces the same file (no second copy)
-- [ ] Offline: **Download Excel** still works; Save shows "Not saved: Offline · Retry"
+- [ ] Installed app offline: **Download Excel** still works; Save shows "Not saved: Offline · Retry"
 - [ ] Back up, restore, then **Update in Google Drive** for a saved period: still one file in Drive
 - [ ] With **This month**, the Owed sheet counts days overdue up to today, not to the end of the month
+- [ ] A bill paid after the period shows "Paid" on the Billed sheet and also appears on the Owed sheet (it was still owed at the end of the period); check your accountant is fine with this
 - [ ] Give the file to your accountant: does it have what they need?
 
