@@ -17,6 +17,7 @@ import { printBill } from '../ui/print';
 import { StatusBadge } from './Home';
 import { Authorship } from '../ui/Authorship';
 import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 const ACTIONS: { to: BillStatus; label: string; confirm?: string }[] = [
   { to: 'sent', label: 'Mark as sent' },
@@ -49,9 +50,9 @@ export function BillView({ id }: { id: string }) {
     // Undoing "paid" is labelled clearly so it is not clicked by accident.
     try {
       const next = applyStatus(bill, to, todayIso(), new Date().toISOString());
-      await putBill(db, next);
-      setBill(next);
+      setBill(await putBill(db, next));
     } catch (e) {
+      if (isHandled(e)) return;
       setError(String(e));
     }
   };
@@ -64,6 +65,7 @@ export function BillView({ id }: { id: string }) {
       if (doc) downloadBlob(doc.blob, doc.fileName);
       else setError('Add a template in Settings → Documents');
     } catch (e) {
+      if (isHandled(e)) return;
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBuilding(false);

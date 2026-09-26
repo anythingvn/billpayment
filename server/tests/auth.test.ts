@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { makeServer, client, withAdmin, addUser, PASSWORD } from './helpers';
+import { makeServer, client, withAdmin, addUser, PASSWORD, SETUP_CODE } from './helpers';
 
 const BAD = 'Wrong username or password, or the account is locked for a while';
 
@@ -8,11 +8,11 @@ describe('setup and sign-in', () => {
     const { app } = await makeServer();
     const c = client(app);
     expect((await c.get('/api/setup')).json()).toEqual({ needed: true });
-    const r = await c.post('/api/setup', { username: 'admin', displayName: 'Chủ', password: PASSWORD });
+    const r = await c.post('/api/setup', { username: 'admin', displayName: 'Chủ', password: PASSWORD, setupCode: SETUP_CODE });
     expect(r.statusCode).toBe(200);
     expect(r.json().user).toMatchObject({ username: 'admin', role: 'admin', mustChangePassword: false });
     expect((await c.get('/api/setup')).json()).toEqual({ needed: false });
-    expect((await client(app).post('/api/setup', { username: 'x', displayName: 'X', password: PASSWORD })).statusCode).toBe(409);
+    expect((await client(app).post('/api/setup', { username: 'x', displayName: 'X', password: PASSWORD, setupCode: SETUP_CODE })).statusCode).toBe(409);
   });
 
   it('sign in and me', async () => {
@@ -56,9 +56,9 @@ describe('setup and sign-in', () => {
   it('password rules', async () => {
     const { app, store } = await makeServer();
     const c = client(app);
-    const short = await c.post('/api/setup', { username: 'admin', displayName: 'A', password: '123456789' });
+    const short = await c.post('/api/setup', { username: 'admin', displayName: 'A', password: '123456789', setupCode: SETUP_CODE });
     expect([short.statusCode, short.json().messages]).toEqual([422, ['The password must be at least 10 characters']]);
-    await c.post('/api/setup', { username: 'admin', displayName: 'A', password: PASSWORD });
+    await c.post('/api/setup', { username: 'admin', displayName: 'A', password: PASSWORD, setupCode: SETUP_CODE });
     const row = store.db.prepare('SELECT hash, salt FROM users').get() as { hash: string; salt: string };
     expect(row.hash).not.toContain(PASSWORD);
     expect(row.hash.length).toBeGreaterThan(40);

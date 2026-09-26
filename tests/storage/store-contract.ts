@@ -17,7 +17,7 @@ const bare = <T extends object>(x: T) => {
 };
 
 /** Behaviour every Store must have (browser IndexedDB, SQLite server, …). */
-export function storeContract(name: string, make: () => Promise<Store>) {
+export function storeContract(name: string, make: () => Promise<Store>, opts: { serverOwnsDriveStatus?: boolean } = {}) {
   describe(`${name} store contract`, () => {
     it('customers and services', async () => {
       const db = await make();
@@ -78,7 +78,8 @@ export function storeContract(name: string, make: () => Promise<Store>) {
       const db = await make();
       expect([await db.nextCounter('counter-2026'), await db.nextCounter('counter-2026'), await db.nextCounter('counter-2027')]).toEqual([1, 2, 1]);
     });
-    it('updateDriveStatus merges on the record', async () => {
+    // On a server only the server's uploads record Drive status (ApiStore can't write it).
+    it.skipIf(!!opts.serverOwnsDriveStatus)('updateDriveStatus merges on the record', async () => {
       const db = await make();
       await db.putBill(sampleBill({ status: 'sent' }));
       const saved = { fileId: 'f', link: 'l', savedAt: 's', error: null };

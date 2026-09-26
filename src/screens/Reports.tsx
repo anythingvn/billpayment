@@ -9,6 +9,7 @@ import { downloadBlob } from '../docs/download';
 import { driveConfigured, isUploadingFile, onDriveChange, prepareDrive, reportDriveStatus, saveReportToDrive } from '../drive/service';
 import { DriveStatusText } from '../ui/DriveStatusLine';
 import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 const DATE_ERROR = 'The start date must be on or before the end date';
 
@@ -54,6 +55,7 @@ export function Reports() {
     try {
       downloadBlob(await reportToXlsx(report), fileName);
     } catch (e) {
+      if (isHandled(e)) return;
       setError(`The Excel file could not be created: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy(false);

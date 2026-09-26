@@ -6,7 +6,9 @@ services:
     environment:
       DATA_DIR: /data
     ports:
-      - "8080:8080"
+      # Only this machine can reach :8080 — people use HTTPS through the reverse proxy (see docs/server-setup.md).
+      # Trying it on your own computer? This is fine as it is: open http://localhost:8080
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./data:/data
     restart: unless-stopped

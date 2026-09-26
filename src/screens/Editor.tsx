@@ -21,6 +21,7 @@ import { businessSnapshot } from '../domain/settings';
 import { applicableTerms, contractItems } from '../domain/contractTerms';
 import { contractRefFor, fillFromContract } from '../domain/contractFill';
 import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 export type EditorMode =
   | { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'duplicate'; id: string }
@@ -74,9 +75,10 @@ export async function saveDraftBill(db: AppDb, d: DraftBill, settings: Settings,
     paidDate: null,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
+    ...(d.version !== undefined && { version: d.version }),
   };
-  await putBill(db, bill);
-  return bill;
+  // The saved record (on a server: with its new version).
+  return putBill(db, bill);
 }
 
 export function Editor({ mode }: { mode: EditorMode }) {
@@ -160,6 +162,7 @@ export function Editor({ mode }: { mode: EditorMode }) {
       setDraft(draftFromBill(bill));
       return bill;
     } catch (e) {
+      if (isHandled(e)) return null;
       setError(`Could not save: ${String(e)}. Make a backup and check that the browser is not in private mode.`);
       return null;
     } finally {

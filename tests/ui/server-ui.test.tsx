@@ -4,7 +4,7 @@ import { ServerRoot, type AuthApi, type SessionUser } from '../../src/serverRoot
 import { App } from '../../src/app';
 import { openAppDb, putSettings, getSettings, putBill, putCustomer } from '../../src/storage/db';
 import { setConnection } from '../../src/ui/useOnline';
-import { ConflictError, SignInError, InvalidError } from '../../src/storage/errors';
+import { ConflictError, SignInError, InvalidError, OfflineError } from '../../src/storage/errors';
 import { DEFAULT_SETTINGS } from '../../src/domain/types';
 import { useServerDrive } from '../../src/drive/service';
 import { sampleBill } from '../fixtures';
@@ -43,7 +43,8 @@ describe('server mode', () => {
   it('setup screen when there are no users, then optional import', async () => {
     const auth = fakeAuth({ setupNeeded: vi.fn(async () => true), me: vi.fn(async () => { throw new SignInError(); }) });
     await root(auth);
-    fireEvent.input(await screen.findByLabelText('Username'), { target: { value: 'admin' } });
+    fireEvent.input(await screen.findByLabelText('Setup code (in the server log)'), { target: { value: 'CODE-1234' } });
+    fireEvent.input(screen.getByLabelText('Username'), { target: { value: 'admin' } });
     fireEvent.input(screen.getByLabelText('Your name'), { target: { value: 'Chủ Doanh Nghiệp' } });
     fireEvent.input(screen.getByLabelText('Password'), { target: { value: 'correct horse 1' } });
     fireEvent.input(screen.getByLabelText('Password again'), { target: { value: 'correct horse 2' } });
@@ -51,7 +52,7 @@ describe('server mode', () => {
     expect(await screen.findByText('The passwords are different')).toBeTruthy();
     fireEvent.input(screen.getByLabelText('Password again'), { target: { value: 'correct horse 1' } });
     fireEvent.click(screen.getByText('Create Admin'));
-    await waitFor(() => expect(auth.setup).toHaveBeenCalledWith({ username: 'admin', displayName: 'Chủ Doanh Nghiệp', password: 'correct horse 1' }));
+    await waitFor(() => expect(auth.setup).toHaveBeenCalledWith({ setupCode: 'CODE-1234', username: 'admin', displayName: 'Chủ Doanh Nghiệp', password: 'correct horse 1' }));
     expect(await screen.findByText('Import your data')).toBeTruthy();
     fireEvent.click(screen.getByText('Skip — start empty'));
     expect(await screen.findByText('+ New bill')).toBeTruthy();
@@ -221,6 +222,51 @@ describe('company Drive in Settings (server mode)', () => {
     expect(await screen.findByText('Google Drive is connected by the Admin.')).toBeTruthy();
     expect(screen.queryByText('Connect Google Drive')).toBeNull();
     expect(screen.queryByText('Disconnect')).toBeNull();
+  });
+});
+
+describe('review fixes (app)', () => {
+  it('I2: after an offline failure the editor can save again', async () => {
+    const db = await root(fakeAuth());
+    await putCustomer(db, { id: 'c1', name: 'Hoa Sen Xanh', address: '', taxId: '', contactPerson: '', email: '', phone: '', archived: false });
+    await screen.findByText('+ New bill');
+    const real = db.putBill.bind(db);
+    let calls = 0;
+    db.putBill = vi.fn(async (b) => { calls++; if (calls === 1) throw new OfflineError(); return real(b); });
+    location.hash = '#/bills/new';
+    fireEvent.click(await screen.findByText('Hoa Sen Xanh'));
+    fireEvent.click(screen.getByText('Save draft'));
+    expect(await screen.findByText("Can't reach the server — your change wasn't saved")).toBeTruthy();
+    expect(screen.queryByText(/Could not save/)).toBeNull();
+    await waitFor(() => expect((screen.getByText('Save draft') as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByText('Save draft'));
+    await waitFor(() => expect(calls).toBe(2));
+  });
+
+  it('M1: a sign-in with a temporary password in the overlay goes to Change password', async () => {
+    const auth = fakeAuth({ signIn: vi.fn(async () => ({ ...admin, mustChangePassword: true })) });
+    const db = await root(auth);
+    await screen.findByText('+ New bill');
+    db.putCustomer = vi.fn(async () => { throw new SignInError(); });
+    location.hash = '#/customers';
+    fireEvent.click(await screen.findByText('+ New customer'));
+    fireEvent.input(screen.getByLabelText(/^Name/), { target: { value: 'X' } });
+    fireEvent.click(screen.getByText('Save customer'));
+    fireEvent.input(await screen.findByLabelText('Password'), { target: { value: 'temporary pass 1' } });
+    fireEvent.click(screen.getByText('Sign in'));
+    expect(await screen.findByText('Choose a new password')).toBeTruthy();
+  });
+
+  it('I5: setup asks for the setup code from the server log', async () => {
+    const auth = fakeAuth({ setupNeeded: vi.fn(async () => true), me: vi.fn(async () => { throw new SignInError(); }) });
+    await root(auth);
+    fireEvent.input(await screen.findByLabelText('Setup code (in the server log)'), { target: { value: 'K7Q2-M9XA-3FHP' } });
+    fireEvent.input(screen.getByLabelText('Username'), { target: { value: 'admin' } });
+    fireEvent.input(screen.getByLabelText('Your name'), { target: { value: 'A' } });
+    fireEvent.input(screen.getByLabelText('Password'), { target: { value: 'correct horse 1' } });
+    fireEvent.input(screen.getByLabelText('Password again'), { target: { value: 'correct horse 1' } });
+    fireEvent.click(screen.getByText('Create Admin'));
+    await waitFor(() => expect(auth.setup).toHaveBeenCalledWith({ setupCode: 'K7Q2-M9XA-3FHP', username: 'admin', displayName: 'A', password: 'correct horse 1' }));
   });
 });
 

@@ -18,6 +18,12 @@ export class InvalidError extends Error {
 export class ForbiddenError extends Error {
   constructor() { super('You are not allowed to do this'); this.name = 'ForbiddenError'; }
 }
+/** A problem already shown app-wide (message or sign-in); screens should just stop, not show it again. */
+export class HandledError extends Error {
+  constructor(readonly cause: Error) { super(cause.message); this.name = 'HandledError'; }
+}
+export const isHandled = (e: unknown): e is HandledError => e instanceof HandledError;
+
 export class ServerError extends Error {
   constructor() { super('Something went wrong on the server'); this.name = 'ServerError'; }
 }

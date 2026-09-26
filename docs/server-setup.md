@@ -15,7 +15,7 @@ npm run build && npm run build:server
 node server/dist/main.js
 ```
 
-Open http://localhost:8080 → **Set up the server**: create the Admin, then **Import** a backup file from the current
+The terminal prints a **setup code**. Open http://localhost:8080 → **Set up the server**: enter the code, create the Admin, then **Import** a backup file from the current
 app (Backup / Restore → Download backup file). Add users in **Users**.
 
 For development, run `npm run server` in one terminal and `npm run dev` in another (the app on :5173 talks to the
@@ -28,8 +28,13 @@ git clone https://github.com/anythingvn/billpayment.git && cd billpayment
 git checkout feat/shared-server        # until it is merged
 npm run make-env                        # or: cp .env.example .env and fill in
 # edit .env: PUBLIC_URL=https://bills.your-domain.vn  (and remove DATA_DIR — Docker uses /data)
+mkdir -p data && sudo chown 1000:1000 data   # the container runs as user 1000 and must be able to write here
 docker compose up -d --build
+docker compose logs app                      # shows the one-time setup code
 ```
+
+Open your address → **Set up the server** asks for the **setup code** printed in that log (only shown while the
+server has no users). This stops anyone else from setting it up before you do.
 
 Data lives in `./data` next to `docker-compose.yml` (`billpayment.db`, and `backups/` with one copy per night,
 the last 14 kept).
@@ -45,7 +50,8 @@ bills.your-domain.vn {
 ```
 
 Set `PUBLIC_URL=https://bills.your-domain.vn` in `.env` and restart (`docker compose up -d`). Sign-in cookies are
-then only sent over HTTPS.
+then only sent over HTTPS. `docker-compose.yml` publishes port 8080 on `127.0.0.1` only, so nobody can bypass HTTPS
+by going to `http://your-server:8080`; if your reverse proxy runs on another machine, change that line accordingly.
 
 ## 4. Company Google Drive
 

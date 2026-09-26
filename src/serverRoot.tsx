@@ -88,7 +88,8 @@ export function ServerRoot({ auth, makeStore }: { auth: AuthApi; makeStore: (u: 
             <div class="signin-overlay">
               <SignIn auth={auth} username={stage.user.username} onSignedIn={(u) => {
                 setSignedOut(false);
-                if (u.id !== stage.user.id) open(u);
+                // A different person, or a temporary password to replace first: start over from them.
+                if (u.id !== stage.user.id || u.mustChangePassword) open(u);
               }} />
             </div>
           )}

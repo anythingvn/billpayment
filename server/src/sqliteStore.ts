@@ -244,7 +244,9 @@ export class SqliteStore implements Store {
     return this.transaction(() => {
       const rec = this.get<Record<string, unknown>>(kind, target.id);
       const next = make(rec?.[key] as DriveStatus | undefined);
-      if (rec) this.db.prepare('UPDATE records SET json = ?, version = version + 1 WHERE kind = ? AND id = ?')
+      // Drive status is written only by the server's uploads — not a user's edit, so the version stays (no false
+      // "someone else changed this" for whoever has the record open).
+      if (rec) this.db.prepare('UPDATE records SET json = ? WHERE kind = ? AND id = ?')
         .run(JSON.stringify({ ...stripTracked(rec), [key]: next }), kind, target.id);
       return next;
     });

@@ -9,6 +9,7 @@ const DAY = 86400000;
 const SESSION_DAYS = 30;
 const LOCK_MINUTES = 15;
 const MAX_FAILURES = 5;
+export const USERNAME = /^[A-Za-z0-9._-]{2,40}$/;
 
 /** What the API returns about a user — never the hash, salt or sessions. */
 export interface PublicUser {
@@ -57,6 +58,19 @@ export class Accounts {
     return (this.db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND disabled = 0 AND id <> ?").get(exceptId ?? '') as { n: number }).n;
   }
 
+  /** The first Admin: created only if there are still no users (checked in the same transaction as the insert). */
+  async createFirstAdmin(input: { username: string; displayName: string; password: string }, now: Date): Promise<PublicUser | null> {
+    const { hash, salt } = await hashPassword(input.password);
+    const id = randomUUID();
+    const created = this.store.transaction(() => {
+      if (this.count() > 0) return false;
+      this.db.prepare("INSERT INTO users (id, username, display_name, role, hash, salt, disabled, must_change, created_at) VALUES (?, ?, ?, 'admin', ?, ?, 0, 0, ?)")
+        .run(id, input.username.trim(), input.displayName.trim(), hash, salt, now.toISOString());
+      return true;
+    });
+    return created ? this.get(id)! : null;
+  }
+
   async create(input: { username: string; displayName: string; role: Role; password: string; mustChange: boolean }, now: Date): Promise<PublicUser> {
     const { hash, salt } = await hashPassword(input.password);
     const id = randomUUID();
@@ -89,16 +103,24 @@ export class Accounts {
    * Checks a sign-in. Unknown users, wrong passwords, disabled accounts and locked usernames all fail the same way.
    * Returns the user, or `{ failed, locked }` where `locked` is true when this failure just locked the username.
    */
-  async signIn(username: string, password: string, now: Date): Promise<{ user: PublicUser } | { failed: true; lockedNow: boolean }> {
+  async signIn(username: string, password: string, now: Date): Promise<{ user: PublicUser } | { failed: true; lockedNow: boolean; known: boolean }> {
     const since = new Date(now.getTime() - LOCK_MINUTES * 60000).toISOString();
-    const failures = () => (this.db.prepare('SELECT COUNT(*) AS n FROM signin_failures WHERE username = ? AND at > ?').get(username.trim(), since) as { n: number }).n;
-    const u = this.byUsername(username);
+    // Old failures don't matter any more: forget them (keeps the table small).
+    this.db.prepare('DELETE FROM signin_failures WHERE at <= ?').run(since);
+    const name = username.trim();
+    const failures = () => (this.db.prepare('SELECT COUNT(*) AS n FROM signin_failures WHERE username = ? AND at > ?').get(name, since) as { n: number }).n;
+    // Not a possible username (e.g. a password typed in the wrong box): fail without storing it anywhere.
+    const valid = USERNAME.test(name);
+    const u = valid ? this.byUsername(name) : undefined;
     // Always derive once, so unknown usernames take as long as wrong passwords.
     const ok = u ? await passwordMatches(password, u.hash, u.salt) : (await derive(password, randomBytes(16)), false);
-    if (failures() >= MAX_FAILURES || !u || !ok || u.disabled) {
+    const locked = valid && failures() >= MAX_FAILURES;
+    if (locked || !u || !ok || u.disabled) {
+      // Attempts during a lock are not counted, so the lock ends 15 minutes after it started.
+      if (!valid || locked) return { failed: true, lockedNow: false, known: !!u };
       const before = failures();
-      this.db.prepare('INSERT INTO signin_failures (username, at) VALUES (?, ?)').run(username.trim(), now.toISOString());
-      return { failed: true, lockedNow: before === MAX_FAILURES - 1 };
+      this.db.prepare('INSERT INTO signin_failures (username, at) VALUES (?, ?)').run(name, now.toISOString());
+      return { failed: true, lockedNow: before === MAX_FAILURES - 1, known: !!u };
     }
     this.db.prepare('DELETE FROM signin_failures WHERE username = ?').run(u.username);
     this.db.prepare('UPDATE users SET last_signin = ? WHERE id = ?').run(now.toISOString(), u.id);

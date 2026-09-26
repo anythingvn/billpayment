@@ -14,6 +14,10 @@ import { driveRoutes } from './routes/drive';
 import { ServerDrive, googleOAuth, type GoogleOAuth } from './drive';
 import type { DriveApi } from '../../src/drive/api';
 import type { Ctx } from './context';
+import { randomBytes } from 'node:crypto';
+
+/** e.g. "K7Q2-M9XA-3FHP" — easy to type from the server log. */
+export const newSetupCode = () => (randomBytes(9).toString('base64').replace(/[^A-Za-z0-9]/g, 'X').toUpperCase().match(/.{4}/g) ?? []).slice(0, 3).join('-');
 
 export interface AppOptions {
   store: SqliteStore;
@@ -23,6 +27,8 @@ export interface AppOptions {
   /** Clock, for tests. */
   now?: () => Date;
   logger?: boolean;
+  /** Code needed to create the first Admin (printed in the server log). Random when not given. */
+  setupCode?: string;
   /** Google's OAuth endpoints and the Drive API (fakes in tests). */
   googleOAuth?: GoogleOAuth;
   driveApi?: (getToken: () => Promise<string>) => DriveApi;
@@ -31,11 +37,18 @@ export interface AppOptions {
 /** The server: the built app at / and the JSON API under /api. */
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 20 * 1024 * 1024 });
+  // Never send internal error details to the browser (they go to the server log).
+  app.setErrorHandler((err, req, reply) => {
+    const status = (err as { statusCode?: number }).statusCode ?? 500;
+    if (status < 500) return reply.code(status).send({ error: status === 413 ? 'too-large' : 'bad-request' });
+    req.log.error(err);
+    return reply.code(500).send({ error: 'server' });
+  });
   const ctx: Ctx = { store: opts.store, accounts: new Accounts(opts.store), env: opts.env, now: opts.now ?? (() => new Date()) };
   await app.register(fastifyCookie);
   addSecurity(app, opts.env);
   app.get('/api/health', async () => ({ ok: true }));
-  authRoutes(app, ctx);
+  authRoutes(app, ctx, opts.setupCode ?? newSetupCode());
   userRoutes(app, ctx);
   recordRoutes(app, ctx);
   backupRoutes(app, ctx);

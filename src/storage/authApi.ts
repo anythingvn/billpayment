@@ -8,7 +8,7 @@ export interface ActivityItem { at: string; action: string; user: string | null;
 /** Sign-in, users and activity calls to the server (separate from the data Store). */
 export interface AuthApi {
   setupNeeded(): Promise<boolean>;
-  setup(input: { username: string; displayName: string; password: string }): Promise<SessionUser>;
+  setup(input: { setupCode: string; username: string; displayName: string; password: string }): Promise<SessionUser>;
   signIn(username: string, password: string): Promise<SessionUser>;
   me(): Promise<SessionUser>;
   signOut(): Promise<void>;
@@ -38,7 +38,10 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
     if (url === '/api/signin') throw new InvalidError([json.message ?? 'Wrong username or password']);
     throw new SignInError();
   }
-  if (res.status === 403) throw new ForbiddenError();
+  if (res.status === 403) {
+    if (url === '/api/setup') throw new InvalidError([json.message ?? 'Wrong setup code']);
+    throw new ForbiddenError();
+  }
   if (res.status === 409) {
     if (json.message) throw new InvalidError([json.message]);
     throw new ConflictError();

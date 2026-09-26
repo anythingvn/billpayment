@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { useWrite } from '../ui/useOnline';
 import { backupFileName, exportAll, lastBackupAt, markBackedUp, parseBackup, restoreAll, type BackupData } from '../storage/backup';
+import { isHandled } from '../storage/errors';
 
 function download(data: BackupData, name: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -45,6 +46,7 @@ export function BackupScreen() {
       await reloadSettings();
       setMsg(`Restored: ${parsed.summary}.`);
     } catch (e) {
+      if (isHandled(e)) return;
       setErr(`Restore failed, current data was not changed: ${String(e)}`);
     }
   };

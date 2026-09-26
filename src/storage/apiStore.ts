@@ -64,7 +64,11 @@ export class ApiStore implements Store {
       clearTimeout(timer);
     }
     if (res.status === 401) throw new SignInError();
-    if (res.status === 403) throw new ForbiddenError();
+    if (res.status === 403) {
+      // A temporary password must be changed first: treated like a new sign-in (which leads to Change password).
+      if (((await res.clone().json().catch(() => ({}))) as { error?: string }).error === 'password-change') throw new SignInError();
+      throw new ForbiddenError();
+    }
     if (res.status === 409) throw new ConflictError();
     if (res.status === 422) throw new InvalidError(((await res.json().catch(() => ({}))) as { messages?: string[] }).messages ?? []);
     if (res.status === 404 && method === 'GET') return undefined as T;
@@ -143,24 +147,13 @@ export class ApiStore implements Store {
 
   async nextCounter(key: string) { return (await this.call<{ value: number }>('POST', `/api/counters/${enc(key)}`)).value; }
 
-  /** Until Drive runs on the server: read, change and save with the record's version (a conflict retries once). */
+  /**
+   * On a server, Drive status is recorded by the server itself when it uploads (users can't change it), so this only
+   * works out the new status from the current record without saving anything.
+   */
   async updateDriveStatus(target: { type: 'bill' | 'contract'; id: string }, field: 'drive' | 'driveDocx', make: (prev: DriveStatus | undefined) => DriveStatus) {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        if (target.type === 'bill') {
-          const b = await this.getBill(target.id);
-          const next = make(b?.[field]);
-          if (b) await this.putBill({ ...b, [field]: next });
-          return next;
-        }
-        const c = await this.getContract(target.id);
-        const next = make(c?.drive);
-        if (c) await this.putContract({ ...c, drive: next });
-        return next;
-      } catch (e) {
-        if (!(e instanceof ConflictError) || attempt > 0) throw e;
-      }
-    }
+    if (target.type === 'bill') return make((await this.getBill(target.id))?.[field]);
+    return make((await this.getContract(target.id))?.drive);
   }
 
   async exportAll(nowIso: string): Promise<BackupData> {

@@ -2,13 +2,13 @@ import type { FastifyInstance } from 'fastify';
 import { ROLES, passwordErrors, type Role } from '../auth';
 import { listActivity, logActivity } from '../activity';
 import type { Ctx } from '../context';
-import { invalid, requireAdmin, userFieldErrors } from './auth';
+import { SMALL, invalid, requireAdmin, userFieldErrors } from './auth';
 
 const LAST_ADMIN = 'There must be at least one active Admin';
 
 export function userRoutes(app: FastifyInstance, ctx: Ctx): void {
   const { accounts, store } = ctx;
-  const admin = { preHandler: requireAdmin(ctx) };
+  const admin = { ...SMALL, preHandler: requireAdmin(ctx) };
 
   app.get('/api/users', admin, async () => ({ users: accounts.list() }));
 

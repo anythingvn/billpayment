@@ -35,6 +35,14 @@ export function recordRoutes(app: FastifyInstance, ctx: Ctx): void {
       const prev = kind === 'bills' ? await store.getBill(id) : kind === 'contracts' ? await store.getContract(id) : undefined;
       const problems = validateWrite(kind, prev, stripTracked(body));
       if (problems.length) return invalid(reply, problems);
+      // Drive status belongs to the server (its uploads write it): a save never changes it.
+      if (kind === 'bills' || kind === 'contracts') {
+        const stored = prev as { drive?: unknown; driveDocx?: unknown } | undefined;
+        delete body.drive;
+        delete body.driveDocx;
+        if (stored?.drive !== undefined) body.drive = stored.drive;
+        if (stored?.driveDocx !== undefined) body.driveDocx = stored.driveDocx;
+      }
       try {
         return store.putRecord(kind as RecordKind, body, { actor: actorOf(req.user!), expectVersion: body.version ?? 0, now: ctx.now().toISOString() });
       } catch (e) {
@@ -71,7 +79,10 @@ export function recordRoutes(app: FastifyInstance, ctx: Ctx): void {
     if (bytes.length > MAX_TEMPLATE_BYTES) return invalid(reply, ['The template is larger than 5 MB']);
     if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) return invalid(reply, ["This isn't a Word .docx file"]);
     if (!['contract', 'addendum', 'bill', 'statement'].includes(b.kind)) return invalid(reply, ['Unknown template kind']);
-    const { dataBase64: _d, ...meta } = b;
+    if (typeof b.name !== 'string' || !b.name.trim() || typeof b.fileName !== 'string' || typeof b.uploadedAt !== 'string'
+      || Number.isNaN(Date.parse(b.uploadedAt)) || typeof b.isDefault !== 'boolean') return invalid(reply, ['The template is incomplete']);
+    // Only the known fields are stored.
+    const meta = { id: b.id, kind: b.kind, name: b.name, fileName: b.fileName, uploadedAt: b.uploadedAt, isDefault: b.isDefault };
     try {
       store.putTemplateSync({ ...meta, data: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length) as ArrayBuffer },
         { actor: actorOf(req.user!), expectVersion: b.version ?? 0, now: ctx.now().toISOString() });

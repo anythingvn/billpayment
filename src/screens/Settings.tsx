@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { SettingsDocuments } from './SettingsDocuments';
-import { newId, putSettings } from '../storage/db';
+import { getSettings, newId, putSettings } from '../storage/db';
 import { BANKS } from '../domain/banks';
 import { isValidAccount } from '../domain/vietqr';
 import { connectDrive, disconnectDrive, disconnectServerDrive, driveConfigured, driveConnection, onDriveChange, prepareDrive, serverDriveState } from '../drive/service';
 import { VAT_RATES, type SavedBankAccount, type Settings, type VatRate } from '../domain/types';
 import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 const MAX_LOGO_BYTES = 300 * 1024;
 
@@ -43,6 +44,7 @@ export function SettingsScreen() {
     try {
       setDrive(await connectDrive(db, settings));
     } catch (e) {
+      if (isHandled(e)) return;
       setDriveMsg(e instanceof Error && /origin|pop-ups/i.test(e.message) ? e.message
         : `Could not connect to Google Drive. If Google showed an error page, check that ${location.origin} is listed under Authorized JavaScript origins of your Client ID (see How to set up), then try again.`);
     }
@@ -65,8 +67,11 @@ export function SettingsScreen() {
       setS(cleaned);
       await putSettings(db, cleaned);
       await reloadSettings();
+      // Continue from what was saved (on a server: its new version).
+      setS(await getSettings(db));
       setMsg('Saved.');
     } catch (e) {
+      if (isHandled(e)) return;
       setMsg(`Could not save: ${String(e)}`);
     }
   };

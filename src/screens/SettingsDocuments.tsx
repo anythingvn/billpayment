@@ -9,6 +9,7 @@ import { downloadBlob } from '../docs/download';
 import { formatDateVn } from '../domain/format';
 import type { DocKind, DocTemplate } from '../domain/types';
 import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const KIND_LABEL: Record<DocKind, string> = { contract: 'contract', addendum: 'addendum', bill: 'bill', statement: 'statement' };
@@ -89,6 +90,7 @@ export function SettingsDocuments() {
       await save(kind, data, file.name, name, existing ?? (kind === 'contract' ? null : slot(kind)));
       if (kind === 'contract' && !existing) setNewName('');
     } catch (err) {
+      if (isHandled(err)) return;
       report([err instanceof Error ? err.message : String(err)]);
     }
   }
@@ -100,6 +102,7 @@ export function SettingsDocuments() {
     try {
       await save(kind, await loadStarter(kind), `starter-${kind}.docx`, STARTER_NAME[kind], current);
     } catch (err) {
+      if (isHandled(err)) return;
       report([err instanceof Error ? err.message : String(err)]);
     }
   }
@@ -108,6 +111,7 @@ export function SettingsDocuments() {
     try {
       downloadBlob(new Blob([await loadStarter(kind)], { type: DOCX_MIME }), `starter-${kind}.docx`);
     } catch (err) {
+      if (isHandled(err)) return;
       report([err instanceof Error ? err.message : String(err)]);
     }
   }
@@ -139,6 +143,7 @@ export function SettingsDocuments() {
       const r = await inspectTemplate(await readDocx(file));
       setCheck({ report: r, lines: reportLines(r) });
     } catch (err) {
+      if (isHandled(err)) return;
       setCheck({ report: { used: [], unknown: [], unavailable: [], errors: [] }, lines: [err instanceof Error ? err.message : String(err)] });
     }
   }

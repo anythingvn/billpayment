@@ -14,6 +14,7 @@ import { downloadBlob } from '../docs/download';
 import { buildStatementDocx } from '../docs/documents';
 import { driveConfigured, isUploadingFile, onDriveChange, prepareDrive, saveStatementToDrive, statementDriveKey, statementDriveStatus } from '../drive/service';
 import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 const DATE_ERROR = 'The start date must be on or before the end date';
 
@@ -88,6 +89,7 @@ export function StatementScreen({ id }: { id: string }) {
       if (doc) downloadBlob(doc.blob, doc.fileName);
       else setError('Add a template in Settings → Documents');
     } catch (e) {
+      if (isHandled(e)) return;
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);

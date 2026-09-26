@@ -60,6 +60,8 @@ export function draftFromBill(b: Bill): DraftBill {
     ...(b.bankAccount && { bankAccount: { ...b.bankAccount } }),
     ...(b.business && { business: { ...b.business } }),
     ...(b.contractRef && { contractRef: { ...b.contractRef } }),
+    // On a server, the version this draft was loaded at (so a save can't overwrite someone else's change).
+    ...(b.version !== undefined && { version: b.version }),
   };
 }
 

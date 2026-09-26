@@ -15,6 +15,7 @@ import { ContractStatusBadge } from './Contracts';
 import { StatusBadge } from './Home';
 import { Authorship } from '../ui/Authorship';
 import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 const EFFECT_LABEL = { addsWork: 'Adds work', changesTerms: 'Changes terms' } as const;
 
@@ -57,8 +58,7 @@ export function ContractView({ id }: { id: string }) {
 
   const setStatus = async (status: ContractStatus) => {
     const next = { ...contract, status, updatedAt: new Date().toISOString() };
-    await putContract(db, next);
-    setContract(next);
+    setContract(await putContract(db, next));
   };
   const markReady = async (row: ItemRow) => {
     const source = records.find((r) => r.id === row.sourceId);
@@ -93,6 +93,7 @@ export function ContractView({ id }: { id: string }) {
       if (doc) downloadBlob(doc.blob, doc.fileName);
       else setMsg('Add a template in Settings → Documents');
     } catch (e) {
+      if (isHandled(e)) return;
       setMsg(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy('');
