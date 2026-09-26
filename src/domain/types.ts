@@ -49,6 +49,14 @@ export interface SavedBankAccount extends BankAccount {
   id: string;
 }
 
+/** Result of the last Google Drive upload of a bill. */
+export interface DriveStatus {
+  fileId: string | null;
+  link: string | null;
+  savedAt: string | null;
+  error: string | null;
+}
+
 export interface Bill {
   id: string;
   number: string;
@@ -64,6 +72,8 @@ export interface Bill {
   footerNote?: string;
   /** Account chosen for this bill. Missing on bills made before per-bill accounts: use the Settings default. */
   bankAccount?: BankAccount;
+  /** Google Drive upload status; missing when never uploaded. */
+  drive?: DriveStatus;
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }
@@ -86,6 +96,10 @@ export interface Settings {
   footerNotes: string[];
   /** Index into footerNotes used for new bills; -1 means no footer. */
   defaultFooterIndex: number;
+  /** OAuth Web client id for Google Drive; '' turns Drive features off. */
+  googleClientId: string;
+  driveFolderName: string;
+  driveAutoUpload: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -105,4 +119,7 @@ export const DEFAULT_SETTINGS: Settings = {
     'Hóa đơn GTGT điện tử sẽ được xuất sau khi thanh toán. / An official VAT e-invoice will be issued after payment.',
   ],
   defaultFooterIndex: 0,
+  googleClientId: '',
+  driveFolderName: 'Phiếu thanh toán',
+  driveAutoUpload: true,
 };

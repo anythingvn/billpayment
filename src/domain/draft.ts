@@ -2,7 +2,7 @@ import type { Bill, BillLine, Customer, CustomerSnapshot, Service, Settings } fr
 import { addDays } from './format';
 import { defaultBankAccount, defaultFooterText } from './settings';
 
-export type DraftBill = Omit<Bill, 'id' | 'number' | 'status' | 'paidDate' | 'createdAt' | 'updatedAt'> & {
+export type DraftBill = Omit<Bill, 'id' | 'number' | 'status' | 'paidDate' | 'createdAt' | 'updatedAt' | 'drive'> & {
   id: string | null;
   number: string | null;
 };

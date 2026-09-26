@@ -49,11 +49,18 @@ function validBill(b: unknown): boolean {
     isDate(b.billDate) && isDate(b.dueDate) && (b.paidDate === null || isDate(b.paidDate)) &&
     isStr(b.customerId) && isVat(b.vatRate) && (b.footerNote === undefined || isStr(b.footerNote)) &&
     (b.bankAccount === undefined || validAccount(b.bankAccount)) &&
+    (b.drive === undefined || validDriveStatus(b.drive)) &&
     isObj(b.customer) && SNAPSHOT_FIELDS.every((f) => isStr((b.customer as Record<string, unknown>)[f])) &&
     Array.isArray(b.lines) &&
     b.lines.every((l) => isObj(l) && LINE_TEXT_FIELDS.every((f) => isStr(l[f])) && isWhole(l.qty, 1) && isWhole(l.unitPrice, 0) &&
       (l.details === undefined || (Array.isArray(l.details) && l.details.every(isStr))))
   );
+}
+
+const strOrNull = (v: unknown): boolean => v === null || isStr(v);
+
+function validDriveStatus(d: unknown): boolean {
+  return isObj(d) && ['fileId', 'link', 'savedAt', 'error'].every((k) => strOrNull(d[k]));
 }
 
 function validAccount(a: unknown): boolean {
@@ -64,6 +71,8 @@ function validSettings(s: Record<string, unknown>): boolean {
   if (['bankBin', 'accountNumber', 'accountHolder'].some((k) => s[k] !== undefined && !isStr(s[k]))) return false;
   if (s.bankAccounts !== undefined && !(Array.isArray(s.bankAccounts) && s.bankAccounts.every((a) => validAccount(a) && isStr(a.id)))) return false;
   if (s.defaultBankAccountId !== undefined && !isStr(s.defaultBankAccountId)) return false;
+  if (['googleClientId', 'driveFolderName'].some((k) => s[k] !== undefined && !isStr(s[k]))) return false;
+  if (s.driveAutoUpload !== undefined && typeof s.driveAutoUpload !== 'boolean') return false;
   if (s.footerNote !== undefined && !isStr(s.footerNote)) return false;
   if (s.footerNotes !== undefined && !(Array.isArray(s.footerNotes) && s.footerNotes.every(isStr))) return false;
   if (s.defaultFooterIndex !== undefined && !isWhole(s.defaultFooterIndex, -1)) return false;

@@ -34,3 +34,10 @@ describe('overdue and locking', () => {
     expect(isLocked(sampleBill({ status: 'cancelled' }))).toBe(true);
   });
 });
+
+describe('drive status and bill status', () => {
+  it('keeps drive status when the bill status changes', () => {
+    const drive = { fileId: 'f1', link: null, savedAt: null, error: null };
+    expect(applyStatus(sampleBill({ status: 'sent', drive }), 'paid', '2026-10-01', 'x').drive).toEqual(drive);
+  });
+});

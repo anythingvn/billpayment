@@ -47,3 +47,10 @@ describe('bank accounts', () => {
     expect(normalizeSettings({ bankAccounts: accounts, defaultBankAccountId: 'gone' }).defaultBankAccountId).toBe('x');
   });
 });
+
+describe('Google Drive settings', () => {
+  it('adds Drive defaults to older settings', () => {
+    const s = normalizeSettings({ businessName: 'X' });
+    expect([s.googleClientId, s.driveFolderName, s.driveAutoUpload]).toEqual(['', 'Phiếu thanh toán', true]);
+  });
+});

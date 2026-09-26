@@ -167,3 +167,16 @@ describe('backups with bank account lists', () => {
     expect(parseBackup(file(DEFAULT_SETTINGS, { ...sampleBill(), bankAccount: { bankBin: '970436' } })).ok).toBe(false);
   });
 });
+
+describe('backups with Google Drive fields', () => {
+  const file = (settings: unknown, bill: unknown = sampleBill()) => JSON.stringify({
+    app: 'payment-bills', schemaVersion: 1, exportedAt: 'x', customers: [], services: [], counters: {}, settings, bills: [bill],
+  });
+  it('accepts bills with drive status and rejects damaged drive fields', () => {
+    const drive = { fileId: 'f1', link: 'https://drive.google.com/x', savedAt: '2026-09-26T07:00:00.000Z', error: null };
+    expect(parseBackup(file(DEFAULT_SETTINGS, { ...sampleBill({ status: 'sent' }), drive })).ok).toBe(true);
+    expect(parseBackup(file(DEFAULT_SETTINGS, { ...sampleBill(), drive: { fileId: 5 } })).ok).toBe(false);
+    expect(parseBackup(file({ ...DEFAULT_SETTINGS, driveAutoUpload: 'yes' })).ok).toBe(false);
+    expect(parseBackup(file({ ...DEFAULT_SETTINGS, googleClientId: 7 })).ok).toBe(false);
+  });
+});
