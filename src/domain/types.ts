@@ -49,6 +49,72 @@ export interface SavedBankAccount extends BankAccount {
   id: string;
 }
 
+export type ContractStatus = 'draft' | 'active' | 'completed' | 'terminated';
+export type ContractKind = 'contract' | 'addendum';
+export type AddendumEffect = 'addsWork' | 'changesTerms';
+export type InstalmentShare = { percent: number } | { amount: number };
+export type InstalmentDue = { on: 'signing' } | { on: 'acceptance' } | { on: 'date'; date: string };
+
+export interface Instalment {
+  id: string;
+  name: string;
+  share: InstalmentShare;
+  due: InstalmentDue;
+  /** Acceptance instalments: marked ready to bill, and the day that happened. */
+  ready: boolean;
+  readyOn: string | null;
+}
+
+export interface PeriodicPlan {
+  type: 'periodic';
+  every: 'month' | 'quarter';
+  /** Amount per period, before VAT. */
+  amount: number;
+  /** First and last period, YYYY-MM (a quarter uses its first month). */
+  first: string;
+  last: string;
+}
+
+export type Plan = { type: 'instalments'; items: Instalment[] } | PeriodicPlan | { type: 'perUse' };
+
+/** A contract or an addendum (phụ lục), which is a contract record pointing to its parent. */
+export interface Contract {
+  id: string;
+  kind: ContractKind;
+  parentId: string | null;
+  effect: AddendumEffect | null;
+  /** changesTerms addenda: the date the new terms apply from. */
+  effectiveDate: string | null;
+  number: string;
+  title: string;
+  status: ContractStatus;
+  signedDate: string;
+  startDate: string;
+  endDate: string | null;
+  customerId: string;
+  customer: CustomerSnapshot;
+  /** Copied when the contract is activated. */
+  business: BusinessSnapshot | null;
+  lines: BillLine[];
+  vatRate: VatRate;
+  plan: Plan;
+  paymentTerms: string;
+  paymentDays: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A bill's link to the contract/addendum it bills, with numbers and dates copied at save for printing. */
+export interface ContractRef {
+  contractId: string;
+  /** Instalment id or period key (YYYY-MM); null = not a specific item. */
+  itemKey: string | null;
+  number: string;
+  signedDate: string;
+  parentNumber: string | null;
+  parentSignedDate: string | null;
+}
+
 /** Business details printed on a bill, copied onto the bill when it is sent. */
 export interface BusinessSnapshot {
   businessName: string;
@@ -87,6 +153,8 @@ export interface Bill {
   drive?: DriveStatus;
   /** Business details as sent; missing on drafts and on bills sent before this was saved (use Settings). */
   business?: BusinessSnapshot;
+  /** The contract or addendum this bill is for. */
+  contractRef?: ContractRef;
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }
@@ -113,6 +181,9 @@ export interface Settings {
   googleClientId: string;
   driveFolderName: string;
   driveAutoUpload: boolean;
+  /** Contract number parts: {n}/{YYYY}/{contractType}[-{contractSuffix}]. */
+  contractType: string;
+  contractSuffix: string;
 }
 
 /**
@@ -141,4 +212,6 @@ export const DEFAULT_SETTINGS: Settings = {
   googleClientId: BUILT_IN_GOOGLE_CLIENT_ID,
   driveFolderName: 'Phiếu thanh toán',
   driveAutoUpload: true,
+  contractType: 'HĐDV',
+  contractSuffix: '',
 };

@@ -60,3 +60,10 @@ describe('Google Drive settings', () => {
     expect(normalizeSettings({ googleClientId: 'mine.apps.googleusercontent.com' }).googleClientId).toBe('mine.apps.googleusercontent.com');
   });
 });
+
+describe('contract settings', () => {
+  it('defaults the contract number type and suffix', () => {
+    const s = normalizeSettings({});
+    expect([s.contractType, s.contractSuffix]).toEqual(['HĐDV', '']);
+  });
+});

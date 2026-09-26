@@ -76,7 +76,7 @@ function validSettings(s: Record<string, unknown>): boolean {
   if (['bankBin', 'accountNumber', 'accountHolder'].some((k) => s[k] !== undefined && !isStr(s[k]))) return false;
   if (s.bankAccounts !== undefined && !(Array.isArray(s.bankAccounts) && s.bankAccounts.every((a) => validAccount(a) && isStr(a.id)))) return false;
   if (s.defaultBankAccountId !== undefined && !isStr(s.defaultBankAccountId)) return false;
-  if (['googleClientId', 'driveFolderName'].some((k) => s[k] !== undefined && !isStr(s[k]))) return false;
+  if (['googleClientId', 'driveFolderName', 'contractType', 'contractSuffix'].some((k) => s[k] !== undefined && !isStr(s[k]))) return false;
   if (s.driveAutoUpload !== undefined && typeof s.driveAutoUpload !== 'boolean') return false;
   if (s.footerNote !== undefined && !isStr(s.footerNote)) return false;
   if (s.footerNotes !== undefined && !(Array.isArray(s.footerNotes) && s.footerNotes.every(isStr))) return false;
