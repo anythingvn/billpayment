@@ -20,6 +20,7 @@ with a **VietQR** code, export them as A4 PDFs, track what's been paid, and opti
   Addenda add work or change the terms from a date. Bills fill in from a contract item and print *"Căn cứ Hợp đồng số … ký ngày …"*;
   each contract shows value, billed, paid and left; Home lists what's **to bill** and reminds you after 3 days.
 - **Google Drive (optional):** final bills saved to `My Drive / Phiếu thanh toán / <year> / <customer> / <bill number>.pdf`, automatically on export or with a button.
+- **Word documents:** your own .docx templates (letterhead) with `{placeholders}` for contracts, addenda and bills; starters included; download or save to Drive (`Phiếu thanh toán/Hợp đồng/<year>/<customer>/`, bill .docx next to its PDF). See [docs/word-templates.md](docs/word-templates.md).
 - **Works offline** and installs as an app (desktop or phone). **Backup / Restore** to a single file.
 
 ## Use
@@ -43,10 +44,11 @@ npm run dev      # http://localhost:5173
 npm test         # unit tests (Vitest)
 npm run build    # type-check + production build into dist/
 ```
-- **Stack:** Vite, Preact, TypeScript, IndexedDB (`idb`), `qrcode`, `vite-plugin-pwa`. Drive PDFs use `html2canvas` + `jspdf`, loaded only when uploading.
+- **Stack:** Vite, Preact, TypeScript, IndexedDB (`idb`), `qrcode`, `vite-plugin-pwa`. Drive PDFs use `html2canvas` + `jspdf`, loaded only when uploading. Word files use `docx-templates` + `jszip`, loaded only when generating.
 - **Code map:**
   - `src/domain/` — money, words, VietQR, banks, status and validation rules, contract plans/terms/auto-fill
   - `src/storage/` — IndexedDB, numbering, backup
+  - `src/docs/` — Word templates: placeholders, checker, render, starters (`npm run make-starters`)
   - `src/drive/` — Google sign-in, Drive API, folders, upload
   - `src/ui/` — bill page, PDF
   - `src/screens/` — the app's screens
@@ -55,8 +57,9 @@ npm run build    # type-check + production build into dist/
 - **Secrets:** only the public Google Client ID is in the code. Never commit `client_secret*.json` files (they're git-ignored).
 
 ## Docs
-- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md)
+- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md), [Word documents](docs/superpowers/specs/2026-09-26-word-documents-design.md)
 - Build plans: [docs/superpowers/plans/](docs/superpowers/plans/)
+- Word templates: [docs/word-templates.md](docs/word-templates.md)
 - Google Drive setup: [docs/google-drive-setup.md](docs/google-drive-setup.md)
 - Manual test checklist: [docs/manual-test-checklist.md](docs/manual-test-checklist.md)
 - Sample bill: [docs/sample-bill.pdf](docs/sample-bill.pdf)

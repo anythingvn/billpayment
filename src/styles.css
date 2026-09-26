@@ -36,3 +36,4 @@ table.list tr.click:hover { background: #f8fafc; }
 .preview-wrap { overflow-x: auto; padding: 12px 0; }
 @media (max-width: 720px) { .layout { flex-direction: column; } .nav { width: auto; display: flex; flex-wrap: wrap; } .nav h1 { width: 100%; } .nav button { width: auto; } }
 @media print { body { background: #fff; } .nav, .no-print { display: none !important; } .main { padding: 0; } }
+.table-scroll { overflow-x: auto; max-width: 100%; }

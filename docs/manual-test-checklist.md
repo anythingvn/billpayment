@@ -1,6 +1,6 @@
 # Manual test checklist
 
-Run before first real use, and again after changes to the bill page, VietQR, backup or Google Drive.
+Run before first real use, and again after changes to the bill page, VietQR, backup, Google Drive or Word templates.
 Automatic tests (`npm test`) cover the calculations and rules; this list covers what only a person,
 a real printer, a real bank app or a real Google account can confirm.
 
@@ -10,6 +10,7 @@ https://anythingvn.github.io/billpayment/ — the same checks apply to `http://l
 ## Last run
 | Date | Who | Result |
 |---|---|---|
+| 2026-09-26 | Claude (browser, test data, localhost:5199 dev + 5198 production build) | Word: 3 starters installed via Use starter; contract, addendum, sent bill (QR image) and draft bill (no QR, BẢN NHÁP) generated in the browser with no leftover placeholders; typo template → "Unknown placeholder: so_phieuu (did you mean so_phieu?)"; .txt refused; production build Word (.docx) download OK |
 | 2026-09-26 | Owner | Google Drive: Connect and first upload OK (Chrome, localhost:5173) |
 | 2026-09-26 | Automated test | Bank list = all 65 banks of the official VietQR list, BINs match (`npm test`) |
 | 2026-09-26 | Claude (browser, test data) | Contracts: 50/50 contract activated (50+40 refused); bill from Đợt 1 filled in with reference line; cancel → back in To bill + banner; Mark ready; adds-work monthly PL01 bill names "Phụ lục số 01"; DB upgraded to version 2 |
@@ -114,3 +115,19 @@ Uses the built-in Client ID (see `docs/google-drive-setup.md`). The Google clien
 - [ ] Browser blocking pop-ups: Connect shows "Your browser blocked Google's sign-in window…"
 - [ ] Disconnect in Settings, then Connect again works
 - [ ] Phone (online address): connect, then Save & export uploads
+
+## 8. Word documents
+Guide: `docs/word-templates.md`.
+- [ ] Settings → Documents → Download each starter; open it in **Word**: tables keep their column widths, marker rows `{FOR …}`/`{END-FOR …}` are visible
+- [ ] **Use starter** for contract, addendum and bill; contract starter is the Default
+- [ ] Contract page → **Word (.docx)**: opens in Word and in **Google Docs**; number, customer, services table, totals, words, instalments are right; marker rows are gone
+- [ ] Addendum row → **Word**: parent contract number and the addendum's own values
+- [ ] Bill → **Word (.docx)**: QR 3 × 3 cm scans in a bank app; a draft is named `…_DRAFT.docx` and has no QR
+- [ ] Your logo (PNG and JPEG) appears in the header at most 4 cm wide
+- [ ] Edit a starter (letterhead + one clause), upload it, generate: your changes are kept
+- [ ] Upload a template with a typo (`{so_hop_dongg}`): "Unknown placeholder: so_hop_dongg (did you mean so_hop_dong?)"; Word download shows the same message
+- [ ] Two contract templates: pick the second in the contract editor → its Word file uses it; Remove it → the contract uses the Default
+- [ ] Save & activate a contract with Drive connected: `Phiếu thanh toán/Hợp đồng/<year>/<customer>/HĐ … – <customer>.docx`; the contract page shows "Word saved to Drive …"
+- [ ] Save & export a bill with a bill template: the .docx lands next to the PDF; the bill shows "PDF: saved …" and "Word: saved …"
+- [ ] No template: Word buttons show "Add a template in Settings → Documents"; export still uploads the PDF
+- [ ] Backup, then Restore: templates come back

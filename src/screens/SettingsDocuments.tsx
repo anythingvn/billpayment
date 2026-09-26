@@ -159,7 +159,7 @@ export function SettingsDocuments() {
       )}
 
       <h4>Contract templates</h4>
-      <table class="list">
+      <div class="table-scroll"><table class="list">
         <thead><tr><th>Default</th><th>Name</th><th>File</th><th>Uploaded</th><th /></tr></thead>
         <tbody>
           {contracts.map((t) => (
@@ -179,7 +179,7 @@ export function SettingsDocuments() {
           ))}
           {contracts.length === 0 && <tr><td colSpan={5} class="muted">No contract templates yet.</td></tr>}
         </tbody>
-      </table>
+      </table></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
         <input placeholder="Name, e.g. Hợp đồng thiết kế" aria-label="New contract template name" value={newName}
           onInput={(e) => setNewName(e.currentTarget.value)} style="padding:8px;border:1px solid var(--border);border-radius:6px" />
@@ -202,7 +202,7 @@ export function SettingsDocuments() {
       })}
 
       <h4>Starter templates</h4>
-      <table class="list">
+      <div class="table-scroll"><table class="list">
         <tbody>
           {(['contract', 'addendum', 'bill'] as const).map((kind) => (
             <tr key={kind}>
@@ -214,7 +214,7 @@ export function SettingsDocuments() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       <h4>Check a template</h4>
       {fileButton('Check a template', 'Choose a .docx to check…', checkFile)}
@@ -231,7 +231,7 @@ export function SettingsDocuments() {
         {(Object.keys(GROUP_LABEL) as PlaceholderInfo['group'][]).map((g) => (
           <div key={g}>
             <h4>{GROUP_LABEL[g]}</h4>
-            <table class="list">
+            <div class="table-scroll"><table class="list">
               <tbody>
                 {PLACEHOLDERS.filter((p) => p.group === g).map((p) => (
                   <tr key={p.key}>
@@ -242,7 +242,7 @@ export function SettingsDocuments() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         ))}
       </details>
