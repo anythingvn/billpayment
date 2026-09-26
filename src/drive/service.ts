@@ -119,21 +119,7 @@ async function recordStatus(db: AppDb, target: DriveTarget, field: StatusField, 
     await setMeta(db, key, next);
     return next;
   }
-  // Read and write in one transaction: the PDF and Word jobs of one bill update the same record.
-  if (target.type === 'bill') {
-    const tx = db.transaction('bills', 'readwrite');
-    const bill = await tx.store.get(target.id);
-    const next = make(bill?.[field]);
-    if (bill) await tx.store.put({ ...bill, [field]: next });
-    await tx.done;
-    return next;
-  }
-  const tx = db.transaction('contracts', 'readwrite');
-  const c = await tx.store.get(target.id);
-  const next = make(c?.drive);
-  if (c) await tx.store.put({ ...c, drive: next });
-  await tx.done;
-  return next;
+  return db.updateDriveStatus(target, field, make);
 }
 
 const recordError = (db: AppDb, target: DriveTarget, field: StatusField, error: string) =>

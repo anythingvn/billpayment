@@ -12,12 +12,21 @@ export interface CustomerSnapshot {
   phone: string;
 }
 
-export interface Customer extends CustomerSnapshot {
+/** Set by the server on stored records (absent in the single-user browser app). */
+export interface Tracked {
+  /** Increments on every save; a save must send the version it started from. */
+  version?: number;
+  /** Display names of who created / last changed the record. */
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+export interface Customer extends CustomerSnapshot, Tracked {
   id: string;
   archived: boolean;
 }
 
-export interface Service {
+export interface Service extends Tracked {
   id: string;
   nameVi: string;
   nameEn: string;
@@ -78,7 +87,7 @@ export interface PeriodicPlan {
 export type Plan = { type: 'instalments'; items: Instalment[] } | PeriodicPlan | { type: 'perUse' };
 
 /** A contract or an addendum (phụ lục), which is a contract record pointing to its parent. */
-export interface Contract {
+export interface Contract extends Tracked {
   id: string;
   kind: ContractKind;
   parentId: string | null;
@@ -111,7 +120,7 @@ export interface Contract {
 export type DocKind = 'contract' | 'addendum' | 'bill' | 'statement';
 
 /** An uploaded Word (.docx) template with {placeholders}. */
-export interface DocTemplate {
+export interface DocTemplate extends Tracked {
   id: string;
   kind: DocKind;
   name: string;
@@ -152,7 +161,7 @@ export interface DriveStatus {
   error: string | null;
 }
 
-export interface Bill {
+export interface Bill extends Tracked {
   id: string;
   number: string;
   status: BillStatus;
@@ -179,7 +188,7 @@ export interface Bill {
   updatedAt: string; // ISO timestamp
 }
 
-export interface Settings {
+export interface Settings extends Tracked {
   businessName: string;
   taxId: string;
   address: string;

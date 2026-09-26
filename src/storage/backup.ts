@@ -1,5 +1,5 @@
 import type { AppDb } from './db';
-import { getMeta, getSettings, setMeta } from './db';
+import { getMeta, setMeta } from './db';
 import { normalizeSettings } from '../domain/settings';
 import { VAT_RATES, type Bill, type Contract, type DocTemplate, type Customer, type DriveStatus, type Service, type Settings } from '../domain/types';
 
@@ -41,36 +41,8 @@ export function base64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
-const REPORT_DRIVE = 'report-drive:';
-const STATEMENT_DRIVE = 'statement-drive:';
-
-export async function exportAll(db: AppDb, nowIso: string): Promise<BackupData> {
-  const counters: Record<string, number> = {};
-  const reportDrive: Record<string, DriveStatus> = {};
-  const statementDrive: Record<string, DriveStatus> = {};
-  const tx = db.transaction('meta');
-  for (const key of await tx.store.getAllKeys()) {
-    const k = String(key);
-    if (/^(contract-)?counter-/.test(k)) counters[k] = (await tx.store.get(key)) as number;
-    if (k.startsWith(REPORT_DRIVE)) reportDrive[k.slice(REPORT_DRIVE.length)] = (await tx.store.get(key)) as DriveStatus;
-    if (k.startsWith(STATEMENT_DRIVE)) statementDrive[k.slice(STATEMENT_DRIVE.length)] = (await tx.store.get(key)) as DriveStatus;
-  }
-  await tx.done;
-  return {
-    app: 'payment-bills',
-    schemaVersion: 1,
-    exportedAt: nowIso,
-    customers: await db.getAll('customers'),
-    services: await db.getAll('services'),
-    bills: await db.getAll('bills'),
-    contracts: await db.getAll('contracts'),
-    templates: (await db.getAll('templates')).map(({ data, ...t }) => ({ ...t, dataBase64: bytesToBase64(data) })),
-    settings: await getSettings(db),
-    counters,
-    reportDrive,
-    statementDrive,
-  };
-}
+/** All business data as a backup file. */
+export const exportAll = (db: AppDb, nowIso: string): Promise<BackupData> => db.exportAll(nowIso);
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isStr = (v: unknown): v is string => typeof v === 'string';
@@ -240,37 +212,8 @@ export function parseBackup(
   };
 }
 
-const DEVICE_META = ['lastBackupAt', 'driveConnected', 'driveFolders'];
-
-export async function restoreAll(db: AppDb, data: BackupData): Promise<void> {
-  const tx = db.transaction(['customers', 'services', 'bills', 'settings', 'meta', 'contracts', 'templates'], 'readwrite');
-  const meta = tx.objectStore('meta');
-  // Device-only facts survive a restore: last backup time and this device's Google Drive connection/folders.
-  const keep = await Promise.all(DEVICE_META.map(async (k) => [k, await meta.get(k)] as const));
-  await Promise.all([
-    tx.objectStore('customers').clear(),
-    tx.objectStore('services').clear(),
-    tx.objectStore('bills').clear(),
-    tx.objectStore('contracts').clear(),
-    tx.objectStore('templates').clear(),
-    tx.objectStore('settings').clear(),
-    meta.clear(),
-  ]);
-  for (const c of data.customers) await tx.objectStore('customers').put(c);
-  for (const s of data.services) await tx.objectStore('services').put(s);
-  for (const b of data.bills) await tx.objectStore('bills').put(b);
-  for (const c of data.contracts) await tx.objectStore('contracts').put(c);
-  for (const { dataBase64, ...t } of data.templates) {
-    const bytes = base64ToBytes(dataBase64);
-    await tx.objectStore('templates').put({ ...t, data: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer });
-  }
-  await tx.objectStore('settings').put(data.settings, 'settings');
-  for (const [k, v] of Object.entries(data.counters)) await meta.put(v, k);
-  for (const [name, status] of Object.entries(data.reportDrive)) await meta.put(status, `${REPORT_DRIVE}${name}`);
-  for (const [name, status] of Object.entries(data.statementDrive)) await meta.put(status, `${STATEMENT_DRIVE}${name}`);
-  for (const [k, v] of keep) if (v !== undefined) await meta.put(v, k);
-  await tx.done;
-}
+/** Replaces all business data with the backup's (device facts are kept). */
+export const restoreAll = (db: AppDb, data: BackupData): Promise<void> => db.restoreAll(data);
 
 export const backupFileName = (nowIso: string) => `payment-bills-backup-${nowIso.slice(0, 10)}.json`;
 
