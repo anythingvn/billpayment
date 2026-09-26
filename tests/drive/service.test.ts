@@ -267,8 +267,8 @@ describe('Word documents to Drive', () => {
       'createFile Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf', 'createFile Đối chiếu Công ty CP Hoa Sen Xanh 2026.docx',
     ]);
     expect([r.pdf.error, r.docx?.error]).toEqual([null, null]);
-    expect(await statementDriveStatus(db, 'Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf')).toEqual(r.pdf);
-    expect(await statementDriveStatus(db, 'Đối chiếu Công ty CP Hoa Sen Xanh 2026.docx')).toEqual(r.docx);
+    expect(await statementDriveStatus(db, 'c1', 'Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf')).toEqual(r.pdf);
+    expect(await statementDriveStatus(db, 'c1', 'Đối chiếu Công ty CP Hoa Sen Xanh 2026.docx')).toEqual(r.docx);
   });
   it('no statement template: PDF only', async () => {
     const { api } = setup({ makeStatementDocx: vi.fn(async () => null) });
@@ -285,6 +285,19 @@ describe('Word documents to Drive', () => {
     expect(api.byName('Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf')).toHaveLength(1);
     expect(api.byName('Đối chiếu Công ty CP Hoa Sen Xanh 2026.docx')).toHaveLength(1);
     expect(api.calls.filter((c) => c.startsWith('updateFile'))).toHaveLength(2);
+  });
+  it('two customers with the same name keep separate statement files', async () => {
+    const { api } = setup({ makeStatementDocx: vi.fn(async () => null) });
+    const db = await dbWith();
+    const other = buildStatement([], { id: 'c2', name: 'Công ty CP Hoa Sen Xanh', address: '', taxId: '0301234563', contactPerson: '', email: '', phone: '', archived: false },
+      '2026-01-01', '2026-12-31', '2027-01-10');
+    const a = await saveStatementToDrive(db, statement(), s);
+    const b = await saveStatementToDrive(db, other, s);
+    expect(api.calls.filter((c) => c.startsWith('createFile') || c.startsWith('updateFile'))).toEqual([
+      'createFile Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf', 'createFile Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf',
+    ]);
+    expect(b.pdf.fileId).not.toBe(a.pdf.fileId);
+    expect((await statementDriveStatus(db, 'c2', 'Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf'))?.fileId).toBe(b.pdf.fileId);
   });
 });
 

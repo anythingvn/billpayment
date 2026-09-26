@@ -315,12 +315,12 @@ describe('backups with Word templates', () => {
   it('statement Drive status survives restore', async () => {
     const src = await seeded();
     const status = { fileId: 'f7', link: 'https://drive.google.com/file/d/f7/view', savedAt: '2026-09-26T07:00:00.000Z', error: null };
-    await setMeta(src, 'statement-drive:Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf', status);
+    await setMeta(src, 'statement-drive:c1/Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf', status);
     const parsed = parseBackup(JSON.stringify(await exportAll(src, 'x')));
     if (!parsed.ok) throw new Error(parsed.error);
     const dst = await freshDb();
     await restoreAll(dst, parsed.data);
-    expect(await getMeta(dst, 'statement-drive:Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf')).toEqual(status);
+    expect(await getMeta(dst, 'statement-drive:c1/Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf')).toEqual(status);
     const old = parseBackup(file({}));
     expect(old.ok && old.data.statementDrive).toEqual({});
     expect(parseBackup(file({ statementDrive: { 'x.pdf': { fileId: 5 } } })).ok).toBe(false);

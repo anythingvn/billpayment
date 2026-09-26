@@ -12,7 +12,7 @@ import { printBill } from '../ui/print';
 import { DriveStatusText } from '../ui/DriveStatusLine';
 import { downloadBlob } from '../docs/download';
 import { buildStatementDocx } from '../docs/documents';
-import { driveConfigured, isUploadingFile, onDriveChange, prepareDrive, saveStatementToDrive, statementDriveStatus } from '../drive/service';
+import { driveConfigured, isUploadingFile, onDriveChange, prepareDrive, saveStatementToDrive, statementDriveKey, statementDriveStatus } from '../drive/service';
 
 const DATE_ERROR = 'The start date must be on or before the end date';
 
@@ -26,6 +26,7 @@ export function StatementScreen({ id }: { id: string }) {
   const [to, setTo] = useState(today);
   const [hasTemplate, setHasTemplate] = useState(false);
   const [status, setStatus] = useState<DriveStatus | undefined>(undefined);
+  const [docxStatus, setDocxStatus] = useState<DriveStatus | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Re-render on Drive start/finish even when the stored status hasn't changed (the first save).
@@ -46,15 +47,23 @@ export function StatementScreen({ id }: { id: string }) {
   const statement = useMemo(() => (customer && valid ? buildStatement(bills, customer, from, to, today) : null), [customer, bills, from, to, today, valid]);
   const base = statement ? statementFileBase(statement.customer.name, from, to) : '';
   const pdfName = base ? `${base}.pdf` : '';
+  const docxName = base ? `${base}.docx` : '';
   const qr = useQrDataUrl(statement ? statementQrPayload(statement, settings) : null);
 
-  // The Drive status of this period's PDF; reloads when its upload starts or finishes.
+  // The Drive status of this period's PDF and Word files; reloads when an upload starts or finishes.
   useEffect(() => {
-    if (!pdfName) return setStatus(undefined);
-    const load = () => { statementDriveStatus(db, pdfName).then(setStatus); };
+    if (!pdfName) {
+      setStatus(undefined);
+      setDocxStatus(undefined);
+      return;
+    }
+    const load = () => {
+      statementDriveStatus(db, id, pdfName).then(setStatus);
+      statementDriveStatus(db, id, docxName).then(setDocxStatus);
+    };
     load();
     return onDriveChange((changed) => {
-      if (changed !== pdfName && changed !== `${base}.docx`) return;
+      if (changed !== statementDriveKey(id, pdfName) && changed !== statementDriveKey(id, docxName)) return;
       tick((n) => n + 1);
       load();
     });
@@ -65,7 +74,9 @@ export function StatementScreen({ id }: { id: string }) {
 
   const presets = statementPresets(today, bills);
   const configured = driveConfigured(settings);
-  const uploading = pdfName !== '' && (isUploadingFile(pdfName, 'statement') || isUploadingFile(`${base}.docx`, 'statement'));
+  const pdfUploading = pdfName !== '' && isUploadingFile(statementDriveKey(id, pdfName), 'statement');
+  const docxUploading = hasTemplate && docxName !== '' && isUploadingFile(statementDriveKey(id, docxName), 'statement');
+  const uploading = pdfUploading || docxUploading;
   const word = async () => {
     if (!statement) return;
     setError('');
@@ -110,8 +121,16 @@ export function StatementScreen({ id }: { id: string }) {
           {configured
             ? <button class="btn ghost" disabled={!valid || uploading} onClick={save}>{status?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
             : <a href="#/settings" class="muted">Connect Google Drive in Settings</a>}
-          {valid && <DriveStatusText status={status} uploading={uploading} configured={configured} onSave={save}
-            saved={(when) => `Saved to Drive ${when}`} notSaved={(e) => `Not saved: ${e}`} />}
+          {/* With a Statement template, PDF and Word are shown separately so a failed Word upload is visible. */}
+          {valid && (hasTemplate
+            ? <>
+              <DriveStatusText status={status} uploading={pdfUploading} configured={configured} onSave={save}
+                saved={(when) => `PDF: saved to Drive ${when}`} notSaved={(e) => `PDF: not saved: ${e}`} />
+              <DriveStatusText status={docxStatus} uploading={docxUploading} configured={configured} onSave={save}
+                saved={(when) => `Word: saved to Drive ${when}`} notSaved={(e) => `Word: not saved: ${e}`} />
+            </>
+            : <DriveStatusText status={status} uploading={pdfUploading} configured={configured} onSave={save}
+              saved={(when) => `Saved to Drive ${when}`} notSaved={(e) => `Not saved: ${e}`} />)}
         </div>
         {error && <p class="errors">{error}</p>}
       </div>

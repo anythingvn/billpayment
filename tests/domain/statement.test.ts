@@ -76,6 +76,18 @@ describe('buildStatement', () => {
   });
 });
 
+describe('paid before the bill date (advance billing)', () => {
+  it('counts the payment on the bill date, so it never looks owed or negative', () => {
+    const rent = bill('2026-01-01', '2025-12-28');
+    const y2026 = buildStatement([rent], customer, '2026-01-01', '2026-12-31', '2026-03-01');
+    expect([y2026.opening, y2026.billed, y2026.paid, y2026.closing, y2026.unpaid.length]).toEqual([0, T, T, 0, 0]);
+    const y2025 = buildStatement([rent], customer, '2025-01-01', '2025-12-31', '2026-03-01');
+    expect([y2025.opening, y2025.billed, y2025.paid, y2025.closing]).toEqual([0, 0, 0, 0]);
+    const detail = y2026.details.find((r) => r.number === rent.number)!;
+    expect([detail.billed, detail.paid, detail.paidDate]).toEqual([T, T, '2025-12-28']);
+  });
+});
+
 describe('statementCode', () => {
   it('code falls back to the name', () => {
     expect(statementCode({ name: 'x', taxId: '0109876543' })).toBe('6543');
@@ -102,7 +114,9 @@ describe('balances always reconcile', () => {
       for (let i = rnd(13); i > 0; i--) {
         const status = statuses[rnd(4)];
         const billDate = date();
-        const paid = status === 'paid' ? date() : null;
+        // Half of the payments land within a few days of the bill date, on either side (advance payments included).
+        const near = () => new Date(Date.UTC(+billDate.slice(0, 4), +billDate.slice(5, 7) - 1, +billDate.slice(8, 10) + rnd(21) - 10)).toISOString().slice(0, 10);
+        const paid = status === 'paid' ? (rnd(2) ? near() : date()) : null;
         bills.push(bill(billDate, paid, {
           status, paidDate: paid, customerId: rnd(5) === 0 ? 'c2' : 'c1', vatRate: rates[rnd(5)], lines: [line(1000 * (1 + rnd(9000)))],
         }));
@@ -111,6 +125,7 @@ describe('balances always reconcile', () => {
       const unpaidSum = r.unpaid.reduce((a, u) => a + u.total, 0);
       expect(r.opening + r.billed - r.paid).toBe(r.closing);
       expect(unpaidSum).toBe(r.closing);
+      expect(r.closing).toBeGreaterThanOrEqual(0);
       const own = bills.filter((b) => b.customerId === 'c1' && (b.status === 'sent' || b.status === 'paid'));
       expect(r.unpaid.every((u) => u.total === computeTotals(own.find((b) => b.number === u.number)!.lines, own.find((b) => b.number === u.number)!.vatRate).total)).toBe(true);
     }

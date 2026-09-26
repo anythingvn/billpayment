@@ -308,8 +308,13 @@ export function saveReportToDrive(db: AppDb, report: Report, s: Settings): Promi
   });
 }
 
-/** Drive status of a saved statement file (.pdf or .docx), by file name. */
-export const statementDriveStatus = (db: AppDb, fileName: string) => getMeta<DriveStatus>(db, `${META_PREFIX.statement}${fileName}`);
+/**
+ * Drive status of a saved statement file (.pdf or .docx). Keyed by customer too: two customers with the same name have
+ * the same file names but must keep their own Drive files.
+ */
+export const statementDriveKey = (customerId: string, fileName: string) => `${customerId}/${fileName}`;
+export const statementDriveStatus = (db: AppDb, customerId: string, fileName: string) =>
+  getMeta<DriveStatus>(db, `${META_PREFIX.statement}${statementDriveKey(customerId, fileName)}`);
 
 const NO_STATEMENT_TEMPLATE = 'No Word template';
 
@@ -321,9 +326,9 @@ export async function saveStatementToDrive(db: AppDb, st: Statement, s: Settings
   const base = statementFileBase(st.customer.name, st.from, st.to);
   const folders = [safeName(s.driveFolderName), 'Đối chiếu', st.to.slice(0, 4), safeName(st.customer.name)];
   const job = (fileName: string, build: (deps: DriveDeps) => Promise<{ doc: BuiltDoc; mimeType: string } | null>, buildError: string) => runJob(db, s, {
-    key: `statement:${fileName}`, target: { type: 'statement', id: fileName }, field: 'drive',
+    key: `statement:${statementDriveKey(st.customer.id, fileName)}`, target: { type: 'statement', id: statementDriveKey(st.customer.id, fileName) }, field: 'drive',
     refuse: async () => null, build, buildError, missing: NO_STATEMENT_TEMPLATE,
-    existingFileId: async () => (await statementDriveStatus(db, fileName))?.fileId ?? null,
+    existingFileId: async () => (await statementDriveStatus(db, st.customer.id, fileName))?.fileId ?? null,
   });
   // Both are queued now (from the click); the queue uploads them one after the other.
   const pdf = job(`${base}.pdf`, async (deps) => ({ doc: { blob: await deps.makeStatementPdf(st, s), fileName: `${base}.pdf`, folders }, mimeType: 'application/pdf' }),

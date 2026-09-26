@@ -14,6 +14,7 @@ vi.mock('../../src/drive/service', () => ({
   reportDriveStatus: vi.fn(async () => undefined),
   saveStatementToDrive: vi.fn(async () => ({ pdf: { fileId: 'f', link: 'l', savedAt: 's', error: null }, docx: null })),
   statementDriveStatus: vi.fn(async () => undefined),
+  statementDriveKey: (customerId: string, fileName: string) => `${customerId}/${fileName}`,
   isUploading: vi.fn(() => false),
   isUploadingFile: vi.fn(() => false),
   onDriveChange: vi.fn(() => () => {}),
@@ -98,6 +99,15 @@ describe('customer statement screen', () => {
     fireEvent.click(await screen.findByText('Save to Google Drive'));
     expect(service.saveStatementToDrive).toHaveBeenCalledWith(expect.anything(),
       expect.objectContaining({ from: '2026-01-01', to: '2026-10-15', customer: expect.objectContaining({ id: 'c1' }) }), expect.anything());
+  });
+  it('shows the Word file Drive status separately', async () => {
+    vi.mocked(service.statementDriveStatus).mockImplementation(async (_db, customerId, name) => (customerId !== 'c1' ? undefined
+      : name.endsWith('.pdf') ? { fileId: 'p', link: 'https://drive.google.com/file/d/p/view', savedAt: '2026-10-01T03:05:00.000Z', error: null }
+        : { fileId: null, link: null, savedAt: null, error: 'Offline' }));
+    await open('#/customers/c1/statement', {}, true);
+    expect(await screen.findByText(/^PDF: saved to Drive 01\/10\/2026/)).toBeTruthy();
+    expect(await screen.findByText(/^Word: not saved: Offline/)).toBeTruthy();
+    vi.mocked(service.statementDriveStatus).mockResolvedValue(undefined);
   });
   it('from after to', async () => {
     await open('#/customers/c1/statement');

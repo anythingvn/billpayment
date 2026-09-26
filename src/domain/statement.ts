@@ -64,17 +64,19 @@ export function buildStatement(bills: Bill[], customer: Customer, from: string, 
   const own = bills.filter((b) => b.customerId === customer.id && (b.status === 'sent' || b.status === 'paid'));
   const rows = own.map((b): StatementRow & { owedAtStart: boolean; owedAtEnd: boolean } => {
     const total = computeTotals(b.lines, b.vatRate).total;
+    // A payment made before the bill date (advance billing) counts on the bill date, so a bill is never paid before it exists.
+    const paidOn = b.paidDate !== null && b.paidDate < b.billDate ? b.billDate : b.paidDate;
     const billedIn = b.billDate >= from && b.billDate <= to;
-    const paidIn = b.paidDate !== null && b.paidDate >= from && b.paidDate <= to;
+    const paidIn = paidOn !== null && paidOn >= from && paidOn <= to;
     const ref = b.contractRef;
     return {
       number: b.number, billDate: b.billDate, dueDate: b.dueDate, paidDate: b.paidDate, total,
       contract: !ref ? '' : ref.parentNumber ? `${ref.number} · ${ref.parentNumber}` : ref.number,
       billed: billedIn ? total : null, paid: paidIn ? total : null,
-      date: billedIn ? b.billDate : (b.paidDate ?? b.billDate),
+      date: billedIn ? b.billDate : (paidOn ?? b.billDate),
       daysOverdue: Math.max(0, Math.round((utc(asOf) - utc(b.dueDate)) / DAY)),
-      owedAtStart: b.billDate < from && (b.paidDate === null || b.paidDate >= from),
-      owedAtEnd: b.billDate <= to && (b.paidDate === null || b.paidDate > to),
+      owedAtStart: b.billDate < from && (paidOn === null || paidOn >= from),
+      owedAtEnd: b.billDate <= to && (paidOn === null || paidOn > to),
     };
   });
   const sum = (list: { total: number }[]) => list.reduce((a, r) => a + r.total, 0);
