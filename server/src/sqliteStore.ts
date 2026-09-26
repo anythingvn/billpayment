@@ -129,6 +129,8 @@ export class SqliteStore implements Store {
   }
 
   async listServices() { return this.list<Service>('services'); }
+  async getCustomer(id: string) { return this.get<Customer>('customers', id); }
+  async getService(id: string) { return this.get<Service>('services', id); }
   async putService(s: Service) { return this.putRecord('services', s); }
 
   async listBills(): Promise<Bill[]> {

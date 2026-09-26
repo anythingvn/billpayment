@@ -3,7 +3,8 @@ import type { FastifyInstance } from 'fastify';
 import { logActivity } from '../activity';
 import type { Ctx } from '../context';
 import { NOT_CONNECTED, type GoogleOAuth, type ServerDrive, type UploadTarget } from '../drive';
-import { invalid, requireAdmin, requireUser } from './auth';
+import { forbid, invalid, requireAdmin, requireUser } from './auth';
+import { can } from '../../../src/domain/permissions';
 
 const STATE_MINUTES = 10;
 
@@ -47,6 +48,8 @@ export function driveRoutes(app: FastifyInstance, ctx: Ctx, drive: ServerDrive, 
     const okTarget = b.target && ['bill', 'contract', 'report', 'statement'].includes(b.target.type) && typeof b.target.id === 'string' && b.target.id;
     if (!okTarget || typeof b.fileName !== 'string' || !Array.isArray(b.folders) || !b.folders.every((f) => typeof f === 'string' && f)
       || typeof b.mimeType !== 'string' || typeof b.dataBase64 !== 'string') return invalid(reply, ['The upload is incomplete']);
+    const needs = b.target!.type === 'bill' || b.target!.type === 'contract' ? 'drive.record' : 'reports.use';
+    if (!can(req.user!.role, needs)) return forbid(ctx, req, reply, needs, { kind: b.target!.type, id: b.target!.id });
     if (!drive.status().connected) return reply.code(409).send({ error: 'conflict', message: NOT_CONNECTED });
     return drive.upload({
       target: b.target!, field: b.field === 'driveDocx' ? 'driveDocx' : 'drive', fileName: b.fileName, folders: b.folders as string[],

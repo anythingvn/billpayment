@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { Accounts, BAD_SIGNIN, SESSION_MAX_AGE, USERNAME, passwordErrors, type PublicUser } from '../auth';
 import { logActivity } from '../activity';
 import type { Ctx } from '../context';
+import { can, type Action as PermAction } from '../../../src/domain/permissions';
 
 declare module 'fastify' {
   interface FastifyRequest { user?: PublicUser }
@@ -20,12 +21,19 @@ export const requireUser = (ctx: Ctx, opts: { beforePasswordChange?: boolean } =
   if (user.mustChangePassword && !opts.beforePasswordChange) return reply.code(403).send({ error: 'password-change' });
   req.user = user;
 };
-/** preHandler: needs a signed-in Admin. */
-export const requireAdmin = (ctx: Ctx) => async (req: FastifyRequest, reply: FastifyReply) => {
+/** Refuses a request the user's role doesn't allow: logged, 403, nothing changed. */
+export function forbid(ctx: Ctx, req: FastifyRequest, reply: FastifyReply, action: PermAction, detail: { kind?: string; id?: string } = {}) {
+  logActivity(ctx.store, req.user?.id ?? null, 'forbidden', { action, ...detail }, ctx.now());
+  return reply.code(403).send({ error: 'forbidden' });
+}
+/** preHandler: needs a signed-in user whose role may do `action`. */
+export const requireAllowed = (ctx: Ctx, action: PermAction) => async (req: FastifyRequest, reply: FastifyReply) => {
   await requireUser(ctx)(req, reply);
   if (reply.sent) return;
-  if (req.user!.role !== 'admin') return reply.code(403).send({ error: 'forbidden' });
+  if (!can(req.user!.role, action)) return forbid(ctx, req, reply, action);
 };
+/** preHandler: needs a signed-in Admin. */
+export const requireAdmin = (ctx: Ctx) => requireAllowed(ctx, 'admin');
 
 export function setSessionCookie(ctx: Ctx, reply: FastifyReply, sid: string): void {
   reply.setCookie('sid', sid, { httpOnly: true, sameSite: 'strict', path: '/', secure: ctx.env.secureCookies, maxAge: SESSION_MAX_AGE });

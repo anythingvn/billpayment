@@ -4,7 +4,8 @@ import { VersionConflict, stripTracked } from '../sqliteStore';
 import { validateWrite } from '../validate';
 import { logActivity } from '../activity';
 import type { Ctx } from '../context';
-import { invalid, requireUser } from './auth';
+import { forbid, invalid, requireAllowed, requireUser } from './auth';
+import { actionsFor, can } from '../../../src/domain/permissions';
 
 const KINDS = ['customers', 'services', 'bills', 'contracts'] as const;
 type RecordKind = (typeof KINDS)[number];
@@ -32,7 +33,11 @@ export function recordRoutes(app: FastifyInstance, ctx: Ctx): void {
       const { id } = req.params as { id: string };
       const body = (req.body ?? {}) as Record<string, unknown> & { id?: string; version?: number };
       if (typeof body !== 'object' || body.id !== id) return invalid(reply, ['The record id does not match the address']);
-      const prev = kind === 'bills' ? await store.getBill(id) : kind === 'contracts' ? await store.getContract(id) : undefined;
+      const prev = kind === 'bills' ? await store.getBill(id) : kind === 'contracts' ? await store.getContract(id)
+        : kind === 'customers' ? await store.getCustomer(id) : await store.getService(id);
+      // Permission before validation: a refused save never reveals validation messages.
+      const denied = actionsFor(kind, prev, body).find((a) => !can(req.user!.role, a));
+      if (denied) return forbid(ctx, req, reply, denied, { kind, id });
       const problems = validateWrite(kind, prev, stripTracked(body));
       if (problems.length) return invalid(reply, problems);
       // Drive status belongs to the server (its uploads write it): a save never changes it.
@@ -54,13 +59,13 @@ export function recordRoutes(app: FastifyInstance, ctx: Ctx): void {
   app.get('/api/bills/:id', signedIn, async (req, reply) => (await store.getBill((req.params as { id: string }).id)) ?? reply.code(404).send({ error: 'not-found' }));
   app.get('/api/contracts/:id', signedIn, async (req, reply) => (await store.getContract((req.params as { id: string }).id)) ?? reply.code(404).send({ error: 'not-found' }));
 
-  app.delete('/api/customers/:id', signedIn, async (req) => {
+  app.delete('/api/customers/:id', { preHandler: requireAllowed(ctx, 'record.remove') }, async (req) => {
     const { id } = req.params as { id: string };
     const result = await store.deleteOrArchiveCustomer(id);
     logActivity(store, req.user!.id, 'delete', { kind: 'customers', id, result }, ctx.now());
     return { result };
   });
-  app.delete('/api/contracts/:id', signedIn, async (req) => {
+  app.delete('/api/contracts/:id', { preHandler: requireAllowed(ctx, 'record.remove') }, async (req) => {
     const { id } = req.params as { id: string };
     const result = await store.deleteContract(id);
     logActivity(store, req.user!.id, 'delete', { kind: 'contracts', id, result }, ctx.now());
@@ -71,7 +76,7 @@ export function recordRoutes(app: FastifyInstance, ctx: Ctx): void {
   app.get('/api/templates', signedIn, async () => (await store.listTemplates())
     .sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt))
     .map(({ data, ...t }) => ({ ...t, dataBase64: Buffer.from(data).toString('base64') })));
-  app.put('/api/templates/:id', signedIn, async (req, reply) => {
+  app.put('/api/templates/:id', { preHandler: requireAllowed(ctx, 'settings.edit') }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const b = (req.body ?? {}) as Omit<DocTemplate, 'data'> & { dataBase64?: string };
     if (b.id !== id || typeof b.dataBase64 !== 'string') return invalid(reply, ['The template is incomplete']);
@@ -92,7 +97,7 @@ export function recordRoutes(app: FastifyInstance, ctx: Ctx): void {
     }
     return { ok: true };
   });
-  app.delete('/api/templates/:id', signedIn, async (req) => {
+  app.delete('/api/templates/:id', { preHandler: requireAllowed(ctx, 'settings.edit') }, async (req) => {
     const { id } = req.params as { id: string };
     const r = await store.removeTemplate(id);
     logActivity(store, req.user!.id, 'delete', { kind: 'templates', id }, ctx.now());
@@ -100,7 +105,7 @@ export function recordRoutes(app: FastifyInstance, ctx: Ctx): void {
   });
 
   app.get('/api/settings', signedIn, async () => store.getSettings());
-  app.put('/api/settings', signedIn, async (req, reply) => {
+  app.put('/api/settings', { preHandler: requireAllowed(ctx, 'settings.edit') }, async (req, reply) => {
     const body = (req.body ?? {}) as Record<string, unknown> & { id?: string; version?: number };
     try {
       store.putRecord('settings', body, { actor: actorOf(req.user!), expectVersion: body.version ?? 0, now: ctx.now().toISOString() });
@@ -119,12 +124,14 @@ export function recordRoutes(app: FastifyInstance, ctx: Ctx): void {
   app.put('/api/meta/:key', signedIn, async (req, reply) => {
     const { key } = req.params as { key: string };
     if (!WRITABLE_META(key)) return reply.code(403).send({ error: 'forbidden' });
+    const needs = key === 'lastBackupAt' ? 'admin' : 'reports.use';
+    if (!can(req.user!.role, needs)) return forbid(ctx, req, reply, needs);
     store.setMetaSync(key, ((req.body ?? {}) as { value?: unknown }).value ?? null);
     return { ok: true };
   });
 
   /** Atomically increments a bill or contract number counter (so two people never get the same number). */
-  app.post('/api/counters/:key', signedIn, async (req, reply) => {
+  app.post('/api/counters/:key', { preHandler: requireAllowed(ctx, 'record.edit') }, async (req, reply) => {
     const { key } = req.params as { key: string };
     if (!COUNTER.test(key)) return reply.code(403).send({ error: 'forbidden' });
     return { value: await store.nextCounter(key) };

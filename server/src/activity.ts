@@ -1,7 +1,7 @@
 import type { SqliteStore } from './sqliteStore';
 
 export type Action = 'setup' | 'signin' | 'signout' | 'signin-failed' | 'locked' | 'user-created' | 'user-changed' | 'user-disabled'
-  | 'password-reset' | 'password-changed' | 'delete' | 'import' | 'restore' | 'backup-download' | 'drive-connect' | 'drive-disconnect';
+  | 'password-reset' | 'password-changed' | 'delete' | 'import' | 'restore' | 'backup-download' | 'drive-connect' | 'drive-disconnect' | 'forbidden';
 
 /** Records who did what (never passwords, tokens or session ids). */
 export function logActivity(store: SqliteStore, userId: string | null, action: Action, detail: Record<string, unknown>, now: Date): void {
