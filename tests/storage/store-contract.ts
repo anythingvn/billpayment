@@ -72,7 +72,7 @@ export function storeContract(name: string, make: () => Promise<Store>) {
       expect((await db.getSettings()).businessName).toBe('Sao Mai');
       await db.setMeta('report-drive:x.xlsx', { a: 1 });
       expect(await db.getMeta('report-drive:x.xlsx')).toEqual({ a: 1 });
-      expect(await db.getMeta('nothing')).toBeUndefined();
+      expect(await db.getMeta('lastBackupAt')).toBeUndefined();
     });
     it('nextCounter counts per key', async () => {
       const db = await make();
