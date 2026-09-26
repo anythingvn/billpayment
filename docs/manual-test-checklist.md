@@ -11,6 +11,7 @@ https://anythingvn.github.io/billpayment/ — the same checks apply to `http://l
 | Date | Who | Result |
 |---|---|---|
 | 2026-09-26 | Owner | Google Drive: Connect and first upload OK (Chrome, localhost:5173) |
+| 2026-09-26 | Automated test | Bank list = all 65 banks of the official VietQR list, BINs match (`npm test`) |
 | 2026-09-26 | Automated print check | 3-line bill = 1 page, 25-line bill = 2 pages (no row cut, end block together), draft PDF label/watermark, no grey background, hidden Drive copy adds no page |
 
 Add a row each time you run the list.
@@ -23,7 +24,9 @@ Scan the QR (from screen and from a printed/PDF copy) with at least 3 apps, e.g.
 - [ ] Transfer content shows the reference (e.g. TT20260001)
 - [ ] (Optional) Make the 10.000 ₫ transfer and confirm it arrives with that content
 - [ ] **Second bank account:** repeat the scan with a bill that uses your other account (Bill options → Bank account)
-- [ ] Your banks' BINs in `src/domain/banks.ts` match https://api.vietqr.io/v2/banks
+- [ ] Your banks' BINs match https://api.vietqr.io/v2/banks (automatic: `npm test` compares all 65 with the saved copy in `tests/data/vietqr-banks.json`)
+- [ ] **A bank newly added to the list** (e.g. SCB, NCB, CAKE, Timo, MoMo): if you or a customer use one, scan a bill's QR with that bank's app — some entries (e.g. ViettelMoney, VNPT Money, HSBC, most foreign branches) are marked by VietQR as not supporting QR transfers
+- [ ] When VietQR's official list changes: refresh `tests/data/vietqr-banks.json` from the link above and update `src/domain/banks.ts` until `npm test` passes
 
 ## 2. PDF / print
 - [ ] 3-line bill: one A4 page, nothing cut off, Vietnamese accents correct, QR sharp, **white** page (no grey area)
@@ -45,6 +48,7 @@ Scan the QR (from screen and from a printed/PDF copy) with at least 3 apps, e.g.
 - [ ] **← Back to bills** returns to the list from any bill
 
 ## 4. Settings
+- [ ] Bank dropdown lists 65 banks, with Vietcombank, VietinBank, BIDV, Agribank, Techcombank, MB Bank at the top
 - [ ] Two bank accounts: add, pick the default, remove one; a number like `99x` is refused with a message
 - [ ] Footer notes: add, edit, pick default or "No footer by default"; blank notes disappear on Save
 - [ ] Settings survive a page reload
