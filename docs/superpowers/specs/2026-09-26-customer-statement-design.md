@@ -39,7 +39,7 @@ For customer `C` and the period `from … to`, only the bills of `C` (`bill.cust
 - **Number:** `ĐC-<YYYYMMDD of To>-<code>`.
 - **Payment reference:** `DC<YYYYMMDD of To><code>`. It uses letters and digits only, and is at most 25 characters.
   - **code:** the last 4 digits of the customer's tax ID.
-  - When the customer has no tax ID, the code is the first letters of up to 4 words of the name, without accents and upper-case (e.g. "Công ty CP Hoa Sen Xanh" → `CCHS`), or `KH` when the name has no letters.
+  - When the customer has no tax ID, the code is the first letters of up to 4 words of the name, without accents and upper-case (e.g. "Công ty CP Hoa Sen Xanh" → `CTCH`), or `KH` when the name has no letters.
 
 Sections, in order:
 1. **Header:**

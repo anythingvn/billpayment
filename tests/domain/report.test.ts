@@ -1,4 +1,4 @@
-import { buildReport, reportPresets, reportFileName } from '../../src/domain/report';
+import { buildReport, reportPresets, reportFileName, periodName } from '../../src/domain/report';
 import { DEFAULT_SETTINGS, type Bill, type VatRate } from '../../src/domain/types';
 import { sampleBill } from '../fixtures';
 
@@ -128,5 +128,14 @@ describe('reportFileName', () => {
     expect(reportFileName('2026-09-01', '2026-10-15')).toBe('Báo cáo 2026-09-01 – 2026-10-15.xlsx');
     expect(reportFileName('2026-02-01', '2026-02-28')).toBe('Báo cáo 2026-02.xlsx');
     expect(reportFileName('2026-09-02', '2026-09-30')).toBe('Báo cáo 2026-09-02 – 2026-09-30.xlsx');
+  });
+});
+
+describe('periodName', () => {
+  it('names a period', () => {
+    expect(periodName('2026-09-01', '2026-09-30')).toBe('2026-09');
+    expect(periodName('2026-07-01', '2026-09-30')).toBe('2026-Q3');
+    expect(periodName('2026-01-01', '2026-12-31')).toBe('2026');
+    expect(periodName('2026-01-01', '2026-09-26')).toBe('2026-01-01 – 2026-09-26');
   });
 });

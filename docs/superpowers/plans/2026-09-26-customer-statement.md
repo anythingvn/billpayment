@@ -125,7 +125,7 @@ export function periodName(from: string, to: string): string;
     - with taxId `0109876543` and to `2026-12-31`: number `ĐC-20261231-6543`, reference `DC202612316543`;
     - confirmBy is today + 10 days (`2027-01-20` for today `2027-01-10`).
   - `code falls back to the name`:
-    - `{ name: 'Công ty CP Hoa Sen Xanh', taxId: '' }` → `CCHS`;
+    - `{ name: 'Công ty CP Hoa Sen Xanh', taxId: '' }` → `CTCH`;
     - `{ name: 'Đức Anh', taxId: '' }` → `DA`;
     - `{ name: '---', taxId: '' }` → `KH`;
     - every reference matches `/^[A-Z0-9]{1,25}$/`.

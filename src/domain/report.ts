@@ -123,14 +123,17 @@ export function reportPresets(today: string): ReportPreset[] {
   ];
 }
 
-/** "Báo cáo 2026-09.xlsx" (a month), "Báo cáo 2026-Q3.xlsx" (a quarter), "Báo cáo 2026.xlsx" (a year), else the dates. */
-export function reportFileName(from: string, to: string): string {
+/** The period part of a file name: "2026-09" (a month), "2026-Q3" (a quarter), "2026" (a year), else "from – to". */
+export function periodName(from: string, to: string): string {
   const [y, m, d] = from.split('-').map(Number);
   const [ty] = to.split('-').map(Number);
   if (d === 1 && ty === y) {
-    if (m === 1 && to === `${y}-12-31`) return `Báo cáo ${y}.xlsx`;
-    if (to === monthEnd(y, m)) return `Báo cáo ${from.slice(0, 7)}.xlsx`;
-    if ((m - 1) % 3 === 0 && to === monthEnd(y, m + 2)) return `Báo cáo ${y}-Q${(m - 1) / 3 + 1}.xlsx`;
+    if (m === 1 && to === `${y}-12-31`) return `${y}`;
+    if (to === monthEnd(y, m)) return from.slice(0, 7);
+    if ((m - 1) % 3 === 0 && to === monthEnd(y, m + 2)) return `${y}-Q${(m - 1) / 3 + 1}`;
   }
-  return `Báo cáo ${from} – ${to}.xlsx`;
+  return `${from} – ${to}`;
 }
+
+/** "Báo cáo 2026-09.xlsx" (a month), "Báo cáo 2026-Q3.xlsx" (a quarter), "Báo cáo 2026.xlsx" (a year), else the dates. */
+export const reportFileName = (from: string, to: string): string => `Báo cáo ${periodName(from, to)}.xlsx`;
