@@ -75,7 +75,9 @@ export function Home() {
             {toBill.map((t) => (
               <li key={`${t.sourceId}-${t.key}`} style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #eef0f3">
                 <span>{`${t.contract.number} · ${t.contract.customer.name} · ${t.label.vi} · ${formatVnd(t.amount)} · due since ${formatDateVn(t.dueDate!)}`}</span>
-                <a class="btn" href={routeToHash({ name: 'newBillFromContract', contractId: t.sourceId, itemKey: t.key })}>Create bill</a>
+                {can('record.edit')
+                  ? <a class="btn" href={routeToHash({ name: 'newBillFromContract', contractId: t.sourceId, itemKey: t.key })}>Create bill</a>
+                  : <span class="muted">Due</span>}
               </li>
             ))}
           </ul>

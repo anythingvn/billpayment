@@ -140,4 +140,34 @@ describe('role permissions on the server', () => {
       expect.objectContaining({ user: 'lan', detail: { action: 'bill.cancel', kind: 'bills', id: 'b2' } }),
     ]);
   });
+
+  it('C1: accountant cannot turn a draft bill into paid, or reopen a terminated contract', async () => {
+    const w = await world();
+    const b1 = await w.get('/api/bills/b1');
+    expect((await w.accountant.put('/api/bills/b1', { ...b1, status: 'paid', paidDate: '2026-09-27' })).statusCode).toBe(403);
+    const k1 = await w.get('/api/contracts/k1');
+    const t = (await w.admin.put('/api/contracts/k1', { ...k1, status: 'terminated' })).json() as object;
+    expect((await w.accountant.put('/api/contracts/k1', { ...t, status: 'active' })).statusCode).toBe(403);
+    expect((await w.creator.put('/api/contracts/k1', { ...t, status: 'active' })).statusCode).toBe(403);
+    expect((await w.get('/api/contracts/k1')).status).toBe('terminated');
+    expect((await w.get('/api/bills/b1')).status).toBe('draft');
+  });
+
+  it('C1: manager gets 422 for a draft bill made paid, and for reopening a terminated contract', async () => {
+    const w = await world();
+    const b1 = await w.get('/api/bills/b1');
+    expect((await w.manager.put('/api/bills/b1', { ...b1, status: 'paid', paidDate: '2026-09-27' })).statusCode).toBe(422);
+    const k1 = await w.get('/api/contracts/k1');
+    const t = (await w.admin.put('/api/contracts/k1', { ...k1, status: 'terminated' })).json() as object;
+    expect((await w.manager.put('/api/contracts/k1', { ...t, status: 'active' })).statusCode).toBe(422);
+  });
+
+  it('I1: accountant cannot write fields on a customer, creator cannot change a paid date', async () => {
+    const w = await world();
+    const c1 = (await w.get('/api/customers'))[0];
+    expect((await w.accountant.put('/api/customers/c1', { ...c1, status: 'foo', drive: { x: 1 } })).statusCode).toBe(403);
+    const b2 = await w.get('/api/bills/b2');
+    const paid = (await w.admin.put('/api/bills/b2', { ...b2, status: 'paid', paidDate: '2026-09-27' })).json() as object;
+    expect((await w.creator.put('/api/bills/b2', { ...paid, paidDate: '2020-01-01' })).statusCode).toBe(403);
+  });
 });

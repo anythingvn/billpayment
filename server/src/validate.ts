@@ -14,6 +14,9 @@ const same = (a: object, b: object) => {
   return JSON.stringify(pick(a)) === JSON.stringify(pick(b));
 };
 
+/** Contract status changes the screens make (anything else is refused). */
+const CONTRACT_MOVES: Record<string, string[]> = { draft: ['active', 'terminated'], active: ['completed', 'terminated'], completed: ['terminated'], terminated: [] };
+
 /** The same rules the screens apply, checked again on the server for every write. Empty = OK. */
 export function validateWrite(kind: string, prev: unknown, next: Record<string, unknown>): string[] {
   switch (kind) {
@@ -25,6 +28,8 @@ export function validateWrite(kind: string, prev: unknown, next: Record<string, 
       // The editor's own checks first (same messages), then the contract rules.
       const c = next as unknown as Contract;
       const out: string[] = [];
+      const was = (prev as Contract | undefined)?.status;
+      if (was && was !== c.status && !CONTRACT_MOVES[was]?.includes(c.status)) return [`A ${was} contract can't become ${c.status}`];
       if (typeof c.customerId !== 'string' || !c.customerId) out.push('Choose a customer');
       if (typeof c.number !== 'string' || !c.number.trim()) out.push('Enter a number');
       if (!Array.isArray(c.lines) || !c.plan) return [...out, 'The contract is incomplete.'];
@@ -42,6 +47,7 @@ export function validateWrite(kind: string, prev: unknown, next: Record<string, 
         return [];
       }
       if (!p && !['draft', 'sent'].includes(b.status)) return ['A new bill must be a draft or sent'];
+      if (p && b.status !== 'draft' && !canTransition('draft', b.status)) return [`A draft bill can't become ${b.status}`];
       return [...draftSaveErrors(draftFromBill(b)), ...dateErrors(b.billDate, b.dueDate)];
     }
     default:

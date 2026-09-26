@@ -204,4 +204,13 @@ describe('roles: buttons', () => {
     expect(name.matches(':disabled')).toBe(false);
     expect(screen.queryByText('Only an Admin can change settings')).toBeNull();
   });
+
+  it('I2: Home "To bill" offers Create bill only with record.edit', async () => {
+    await renderAs('accountant', '#/', async (db) => { await putContract(db, sampleContract()); });
+    expect(await screen.findByText('To bill')).toBeTruthy();
+    expect(screen.queryByText('Create bill')).toBeNull();
+    cleanup();
+    await renderAs('creator', '#/', async (db) => { await putContract(db, sampleContract()); });
+    expect(await screen.findByText('Create bill')).toBeTruthy();
+  });
 });

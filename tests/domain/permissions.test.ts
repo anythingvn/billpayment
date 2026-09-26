@@ -19,6 +19,8 @@ const draft = sampleBill();
 const sent = sampleBill({ status: 'sent', business });
 const paid = sampleBill({ status: 'paid', paidDate: '2026-09-30', business });
 
+const customer = { id: 'c1', name: 'Hoa Sen', archived: false };
+
 describe('actionsFor', () => {
   it('new draft bill', () => expect(actionsFor('bills', undefined, draft)).toEqual(['record.edit']));
   it('new bill created as sent, with the business snapshot', () =>
@@ -51,9 +53,29 @@ describe('actionsFor', () => {
     const c = sampleContract({ status: 'draft' });
     expect(actionsFor('contracts', c, { ...c, status: 'terminated' })).toEqual(['contract.close']);
   });
-  const customer = { id: 'c1', name: 'Hoa Sen', archived: false };
   it('archive a customer', () => expect(actionsFor('customers', customer, { ...customer, archived: true })).toEqual(['record.remove']));
   it('unarchive a customer', () =>
     expect(actionsFor('customers', { ...customer, archived: true }, customer)).toEqual(['record.remove']));
   it('rename a customer', () => expect(actionsFor('customers', customer, { ...customer, name: 'Hoa Sen Xanh' })).toEqual(['record.edit']));
+
+  // Final review C1: a status change outside the known transitions still needs a permission.
+  it('draft → paid (not a real transition) needs the strictest bill action', () =>
+    expect(actionsFor('bills', draft, { ...draft, status: 'paid', paidDate: '2026-09-30' })).toEqual(['bill.cancel']));
+  it('reopening a terminated contract needs contract.close', () => {
+    const c = sampleContract({ status: 'terminated' });
+    expect(actionsFor('contracts', c, { ...c, status: 'active' })).toEqual(['contract.close']);
+  });
+  it('contract back to draft needs contract.close', () => {
+    const c = sampleContract();
+    expect(actionsFor('contracts', c, { ...c, status: 'draft' })).toEqual(['contract.close']);
+  });
+  it('new contract created completed needs contract.close', () =>
+    expect(actionsFor('contracts', undefined, sampleContract({ status: 'completed' }))).toEqual(['record.edit', 'contract.close']));
+  // Final review I1: skipped fields depend on the kind; paidDate alone is a payment change.
+  it('changing only the paid date of a paid bill needs bill.pay', () =>
+    expect(actionsFor('bills', paid, { ...paid, paidDate: '2020-01-01' })).toEqual(['bill.pay']));
+  it('status, drive and updatedAt on a customer are content', () =>
+    expect(actionsFor('customers', customer, { ...customer, status: 'x', drive: { x: 1 }, updatedAt: 'z' })).toEqual(['record.edit']));
+  it('archived on a bill is content, not a removal', () =>
+    expect(actionsFor('bills', draft, { ...draft, archived: true })).toEqual(['record.edit']));
 });
