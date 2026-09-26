@@ -1,5 +1,7 @@
-import { render } from 'preact';
+import { render, type VNode } from 'preact';
 import type { Bill, Settings } from '../domain/types';
+import type { Statement } from '../domain/statement';
+import { StatementPage, statementQrPayload } from './StatementPage';
 import { draftFromBill } from '../domain/draft';
 import { BillPage, billQrPayload } from './BillPage';
 import { qrToDataUrl } from './useQrDataUrl';
@@ -9,21 +11,33 @@ const MARGIN_TOP_MM = 14;
 const PRINTABLE_HEIGHT_MM = 297 - 2 * MARGIN_TOP_MM;
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
 
-/**
- * Builds an A4 PDF of the bill as it looks on screen: renders the bill off-screen, snapshots it at 2x
- * and slices the snapshot into pages without cutting through service rows or the totals/QR/signature block.
- */
+/** A4 PDF of the bill as it looks on screen; service rows and the totals/QR/signature block are never cut. */
 export async function makeBillPdf(bill: Bill, settings: Settings): Promise<Blob> {
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
   const draft = draftFromBill(bill);
   const payload = billQrPayload(draft, settings);
   const qr = payload ? await qrToDataUrl(payload) : null;
+  return makePagePdf(<BillPage bill={draft} settings={settings} qrDataUrl={qr} />, '.bill-table:not(.bill-sum) > tbody > tr, .bill-end');
+}
 
+/** A4 PDF of a customer statement; the header, headings, every table row and the two end blocks are never cut. */
+export async function makeStatementPdf(st: Statement, settings: Settings): Promise<Blob> {
+  const payload = statementQrPayload(st, settings);
+  const qr = payload ? await qrToDataUrl(payload) : null;
+  return makePagePdf(<StatementPage statement={st} settings={settings} qrDataUrl={qr} />, '.stmt-top, .stmt-h, .stmt tr, .stmt-keep');
+}
+
+/**
+ * Builds an A4 PDF of a page component as it looks on screen: renders it off-screen, snapshots it at 2x and slices
+ * the snapshot into pages without cutting through the elements matching `keepSelector`. Everything above the first
+ * of them (and it) stays together on page 1.
+ */
+export async function makePagePdf(page: VNode, keepSelector: string): Promise<Blob> {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
   const container = document.createElement('div');
   container.className = 'pdf-render';
   document.body.appendChild(container);
   try {
-    render(<BillPage bill={draft} settings={settings} qrDataUrl={qr} />, container);
+    render(page, container);
     await nextFrame();
     await nextFrame();
 
@@ -34,13 +48,11 @@ export async function makeBillPdf(bill: Bill, settings: Settings): Promise<Blob>
       const r = el.getBoundingClientRect();
       return { top: r.top - contentTop, bottom: r.bottom - contentTop };
     };
-    const rows = [...container.querySelectorAll('.bill-table:not(.bill-sum) > tbody > tr')];
-    const end = container.querySelector('.bill-end');
+    const keep = [...container.querySelectorAll(keepSelector)];
     const blocks = [
-      // Header, title, customer, table head and the first row stay together on page 1.
-      { top: 0, bottom: rows[0] ? rel(rows[0]).bottom : 0 },
-      ...rows.slice(1).map(rel),
-      ...(end ? [rel(end)] : []),
+      // Everything down to the first kept element (e.g. header, title, customer, table head, first row) stays on page 1.
+      { top: 0, bottom: keep[0] ? rel(keep[0]).bottom : 0 },
+      ...keep.slice(1).map(rel),
     ];
     const contentHeight = container.offsetHeight - 2 * MARGIN_TOP_MM * pxPerMm;
 
