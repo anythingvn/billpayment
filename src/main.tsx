@@ -6,7 +6,15 @@ import { openAppDb, getSettings } from './storage/db';
 async function boot() {
   const root = document.getElementById('app')!;
   try {
-    const db = await openAppDb();
+    const db = await openAppDb(undefined, {
+      onBlocked: () => render(
+        <div style="max-width:560px;margin:60px auto;font-family:system-ui;padding:0 16px">
+          <h2>Updating the app…</h2>
+          <p>Please close other tabs of this app to finish updating, then reload.</p>
+        </div>,
+        root,
+      ),
+    });
     const settings = await getSettings(db);
     navigator.storage?.persist?.().catch(() => undefined);
     render(<App db={db} initialSettings={settings} />, root);
