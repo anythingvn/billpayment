@@ -21,7 +21,7 @@ export interface BackupTemplate extends Omit<DocTemplate, 'data'> {
   dataBase64: string;
 }
 
-const MAX_TEMPLATE_BYTES = 5 * 1024 * 1024;
+export const MAX_TEMPLATE_BYTES = 5 * 1024 * 1024;
 
 export function bytesToBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);

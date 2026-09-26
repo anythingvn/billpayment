@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
+import { SettingsDocuments } from './SettingsDocuments';
 import { newId, putSettings } from '../storage/db';
 import { BANKS } from '../domain/banks';
 import { isValidAccount } from '../domain/vietqr';
@@ -180,6 +181,7 @@ export function SettingsScreen() {
           </label>
         </details>
       </div>
+      <SettingsDocuments />
     </div>
   );
 }
