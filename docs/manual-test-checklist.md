@@ -213,3 +213,16 @@ Setup guide: `docs/server-setup.md`.
 - [ ] `docker compose exec app node server/dist/resetPassword.js admin` lets the Admin back in with a new password
 - [ ] On your server: HTTPS with your domain (`PUBLIC_URL=https://…`), then the checks above once more
 
+## 12. Roles (server)
+Add one user of each role (Users → Add user), then sign each in, two at a time (a normal and a private window).
+- [ ] **Order Creator:** no Reports in the menu, and `#/reports` says "Your role can't open this page"
+- [ ] Order Creator: makes a bill and sends it (Save & export PDF); on the sent bill there is no Mark as paid or Cancel bill
+- [ ] Order Creator: a draft contract has Edit and Save & activate, but no Terminate, Mark completed or Delete
+- [ ] Order Creator: Customers has Edit but no Delete and no Statement; Services has Edit but no Archive
+- [ ] **Accountant:** no + New bill or + New contract; `#/bills/new` says "Your role can't open this page"
+- [ ] Accountant: marks a sent bill paid, then Undo paid; no Duplicate, Cancel bill or Save to Google Drive on the bill
+- [ ] Accountant: Reports → Download Excel and Save to Google Drive work; a customer's Statement opens and saves to Drive
+- [ ] **Manager:** cancels a bill, terminates a contract, archives a customer; Settings shows "Only an Admin can change settings" and nothing can be changed
+- [ ] **Admin:** everything as before; Settings can be changed
+- [ ] Forced request: as the Order Creator, in the browser console run `fetch('/api/customers/<id>', {method: 'DELETE', headers: {'X-Requested-With': 'billpayment'}}).then(r => r.status)` → 403; Activity (Admin) shows "Refused: record.remove"
+- [ ] The Admin changes someone's role: after they reload, their menu and buttons follow the new role

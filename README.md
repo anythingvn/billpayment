@@ -47,6 +47,17 @@ See [docs/server-setup.md](docs/server-setup.md).
 - **Shared server (optional):** run it on your own server with Docker; sign-in per person, the Admin manages users,
   every change shows who made it, simultaneous edits are caught ("Someone else changed this"), bill numbers are never
   handed out twice, one company Google Drive, nightly backups, and read-only viewing when offline.
+- **Roles (server):** each person sees only what their role allows, and the server refuses anything else.
+
+  | | Admin | Manager | Order Creator | Accountant |
+  |---|---|---|---|---|
+  | View bills, contracts, customers, services; print and download them | ✓ | ✓ | ✓ | ✓ |
+  | Create and edit customers, services, draft bills and contracts; send bills; activate contracts; save them to Drive | ✓ | ✓ | ✓ | |
+  | Mark bills paid (and undo) | ✓ | ✓ | | ✓ |
+  | Cancel bills; complete or terminate contracts; delete or archive anything | ✓ | ✓ | | |
+  | Reports and customer statements (download, save to Drive) | ✓ | ✓ | | ✓ |
+  | Settings (business details, bank accounts, VAT, footer) and Word templates | ✓ | | | |
+  | Users, Activity, backup, restore, import, connect Google Drive | ✓ | | | |
 
 ## Use
 1. Open the live app in Chrome, Edge or Safari. Install it: the install icon in the address bar, or *Add to Home screen* on a phone.
@@ -102,7 +113,7 @@ npm run build    # type-check + production build into dist/
 
 ## Docs
 - Server setup: [docs/server-setup.md](docs/server-setup.md)
-- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [contracts](docs/superpowers/specs/2026-09-26-contracts-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md), [Word documents](docs/superpowers/specs/2026-09-26-word-documents-design.md), [accountant report](docs/superpowers/specs/2026-09-26-accountant-report-design.md), [customer statement](docs/superpowers/specs/2026-09-26-customer-statement-design.md), [shared server](docs/superpowers/specs/2026-09-26-shared-server-design.md)
+- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [contracts](docs/superpowers/specs/2026-09-26-contracts-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md), [Word documents](docs/superpowers/specs/2026-09-26-word-documents-design.md), [accountant report](docs/superpowers/specs/2026-09-26-accountant-report-design.md), [customer statement](docs/superpowers/specs/2026-09-26-customer-statement-design.md), [shared server](docs/superpowers/specs/2026-09-26-shared-server-design.md), [role permissions](docs/superpowers/specs/2026-09-27-role-permissions-design.md)
 - Build plans: [docs/superpowers/plans/](docs/superpowers/plans/)
 - Word templates: [docs/word-templates.md](docs/word-templates.md)
 - Google Drive setup: [docs/google-drive-setup.md](docs/google-drive-setup.md)
