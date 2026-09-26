@@ -10,11 +10,11 @@ import { formatDateVn } from '../domain/format';
 import type { DocKind, DocTemplate } from '../domain/types';
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const KIND_LABEL: Record<DocKind, string> = { contract: 'contract', addendum: 'addendum', bill: 'bill' };
-const STARTER_NAME: Record<DocKind, string> = { contract: 'Hợp đồng mẫu', addendum: 'Addendum', bill: 'Bill' };
+const KIND_LABEL: Record<DocKind, string> = { contract: 'contract', addendum: 'addendum', bill: 'bill', statement: 'statement' };
+const STARTER_NAME: Record<DocKind, string> = { contract: 'Hợp đồng mẫu', addendum: 'Addendum', bill: 'Bill', statement: 'Statement' };
 const GROUP_LABEL: Record<PlaceholderInfo['group'], string> = {
   benA: 'Party A (your business)', benB: 'Party B (customer)', contract: 'Contract', addendum: 'Addendum',
-  bill: 'Bill', tables: 'Tables (repeat per row)', flags: 'Conditions (IF … END-IF)', images: 'Images',
+  bill: 'Bill', statement: 'Customer statement', tables: 'Tables (repeat per row)', flags: 'Conditions (IF … END-IF)', images: 'Images',
 };
 
 /** The exact text to type into Word for a placeholder. */
@@ -188,11 +188,11 @@ export function SettingsDocuments() {
         {fileButton('Upload contract template', '+ Upload contract template', (e) => upload('contract', e, null))}
       </div>
 
-      {(['addendum', 'bill'] as const).map((kind) => {
+      {(['addendum', 'bill', 'statement'] as const).map((kind) => {
         const t = slot(kind);
         return (
           <div key={kind}>
-            <h4>{kind === 'addendum' ? 'Addendum template' : 'Bill template'}</h4>
+            <h4>{{ addendum: 'Addendum template', bill: 'Bill template', statement: 'Statement template' }[kind]}</h4>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
               {t ? <span>{t.fileName} <span class="muted">· {uploaded(t)}</span></span> : <span class="muted">None</span>}
               {fileButton(`Upload ${kind} template`, t ? 'Replace' : 'Upload', (e) => upload(kind, e, t))}
@@ -206,7 +206,7 @@ export function SettingsDocuments() {
       <h4>Starter templates</h4>
       <div class="table-scroll"><table class="list">
         <tbody>
-          {(['contract', 'addendum', 'bill'] as const).map((kind) => (
+          {(['contract', 'addendum', 'bill', 'statement'] as const).map((kind) => (
             <tr key={kind}>
               <td style="text-transform:capitalize">{KIND_LABEL[kind]}</td>
               <td style="display:flex;gap:6px">

@@ -107,6 +107,13 @@ describe('Settings → Documents', () => {
     await waitFor(async () => expect((await listTemplates(db))[0].uploadedAt).not.toBe(first.uploadedAt));
     expect((await listTemplates(db)).map((t) => [t.id, t.name, t.isDefault])).toEqual([[first.id, 'Hợp đồng mẫu', true]]);
   });
+  it('statement template slot and starter', async () => {
+    const db = await openApp('#/settings');
+    const p = await panel();
+    expect(within(p).getByText('Statement template')).toBeTruthy();
+    fireEvent.click(within(p).getByLabelText('Use starter statement template'));
+    await waitFor(async () => expect((await listTemplates(db)).map((t) => [t.kind, t.name])).toEqual([['statement', 'Statement']]));
+  });
   it('placeholder list with copy', async () => {
     await openApp('#/settings');
     const writeText = vi.fn(async () => {});

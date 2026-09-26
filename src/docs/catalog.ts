@@ -2,7 +2,7 @@ import type { DocKind } from '../domain/types';
 
 export interface PlaceholderInfo {
   key: string;
-  group: 'benA' | 'benB' | 'contract' | 'addendum' | 'bill' | 'tables' | 'flags' | 'images';
+  group: 'benA' | 'benB' | 'contract' | 'addendum' | 'bill' | 'statement' | 'tables' | 'flags' | 'images';
   vi: string;
   en: string;
   example: string;
@@ -13,13 +13,16 @@ const ALL: DocKind[] = ['contract', 'addendum', 'bill'];
 const CA: DocKind[] = ['contract', 'addendum'];
 const A: DocKind[] = ['addendum'];
 const B: DocKind[] = ['bill'];
+/** Party details and the logo also fill statements. */
+const ALL_S: DocKind[] = [...ALL, 'statement'];
+const S: DocKind[] = ['statement'];
 
 const p = (group: PlaceholderInfo['group'], kinds: DocKind[], rows: [string, string, string, string][]): PlaceholderInfo[] =>
   rows.map(([key, vi, en, example]) => ({ key, group, vi, en, example, kinds }));
 
 /** Every placeholder a template can use (spec §4), for the help list, the checker and suggestions. */
 export const PLACEHOLDERS: PlaceholderInfo[] = [
-  ...p('benA', ALL, [
+  ...p('benA', ALL_S, [
     ['ben_a_ten', 'Tên bên A (doanh nghiệp của bạn)', 'Party A name (your business)', 'CÔNG TY TNHH THIẾT KẾ SAO MAI'],
     ['ben_a_mst', 'Mã số thuế bên A', 'Party A tax ID', '0312345678'],
     ['ben_a_dia_chi', 'Địa chỉ bên A', 'Party A address', '12 Lê Lợi, Q.1, TP.HCM'],
@@ -27,7 +30,7 @@ export const PLACEHOLDERS: PlaceholderInfo[] = [
     ['ben_a_email', 'Email bên A', 'Party A email', 'hello@saomai.vn'],
     ['nguoi_lap', 'Người lập', 'Prepared by', 'Nguyễn Văn An'],
   ]),
-  ...p('benB', ALL, [
+  ...p('benB', ALL_S, [
     ['ben_b_ten', 'Tên bên B (khách hàng)', 'Party B name (customer)', 'Công ty CP Hoa Sen Xanh'],
     ['ben_b_mst', 'Mã số thuế bên B', 'Party B tax ID', '0109876543'],
     ['ben_b_dia_chi', 'Địa chỉ bên B', 'Party B address', '45 Trần Phú, Hà Nội'],
@@ -111,8 +114,37 @@ export const PLACEHOLDERS: PlaceholderInfo[] = [
     ['theo_ky', 'Thanh toán theo kỳ', 'Paid per period', '{IF theo_ky} … {END-IF}'],
     ['theo_thuc_te', 'Theo thực tế sử dụng', 'Pay per use', '{IF theo_thuc_te} … {END-IF}'],
   ]),
-  ...p('images', B, [['qr', 'Mã VietQR (3 × 3 cm)', 'VietQR code (3 × 3 cm)', '{IMAGE qr()}']]),
-  ...p('images', ALL, [['logo', 'Logo (rộng tối đa 4 cm)', 'Logo (max 4 cm wide)', '{IMAGE logo()}']]),
+  ...p('statement', S, [
+    ['so_doi_chieu', 'Số đối chiếu', 'Statement number', 'ĐC-20261231-6543'],
+    ['ngay_lap', 'Ngày lập', 'Statement date', '10/01/2027'],
+    ['tu_ngay', 'Từ ngày', 'Period from', '01/01/2026'],
+    ['den_ngay', 'Đến ngày', 'Period to', '31/12/2026'],
+    ['so_du_dau_ky', 'Số dư đầu kỳ', 'Opening balance', '2.160.000'],
+    ['phat_sinh', 'Phát sinh trong kỳ', 'Billed in period', '3.240.000'],
+    ['da_thanh_toan', 'Đã thanh toán trong kỳ', 'Paid in period', '2.160.000'],
+    ['so_du_cuoi_ky', 'Số dư cuối kỳ', 'Closing balance', '3.240.000'],
+    ['so_du_cuoi_ky_chu', 'Số dư cuối kỳ bằng chữ', 'Closing balance in words (VI)', 'Ba triệu hai trăm bốn mươi nghìn đồng.'],
+    ['so_du_cuoi_ky_chu_en', 'Số dư cuối kỳ bằng chữ (tiếng Anh)', 'Closing balance in words (EN)', 'Three million two hundred forty thousand dong.'],
+    ['ngan_hang', 'Ngân hàng', 'Bank', 'Vietcombank – Ngân hàng TMCP Ngoại thương Việt Nam'],
+    ['so_tai_khoan', 'Số tài khoản', 'Account number', '0071000123456'],
+    ['chu_tai_khoan', 'Chủ tài khoản', 'Account holder', 'CONG TY TNHH SAO MAI'],
+    ['noi_dung_ck', 'Nội dung chuyển khoản', 'Payment reference', 'DC202612316543'],
+    ['han_xac_nhan', 'Hạn xác nhận', 'Confirm by', '20/01/2027'],
+  ]),
+  ...p('tables', S, [
+    ['chi_tiet_cong_no', 'Bảng chi tiết trong kỳ', 'Details table', 'Row above: {FOR r IN chi_tiet_cong_no} · row: {$r.so_phieu} … · row below: {END-FOR r}'],
+    ['chi_tiet_cong_no.stt', 'STT', 'No.', '1'], ['chi_tiet_cong_no.so_phieu', 'Số phiếu', 'Bill number', 'TT-2026-0012'],
+    ['chi_tiet_cong_no.ngay', 'Ngày lập', 'Bill date', '01/03/2026'], ['chi_tiet_cong_no.hop_dong', 'Hợp đồng', 'Contract', '12/2026/HĐDV-SM'],
+    ['chi_tiet_cong_no.phat_sinh', 'Phát sinh', 'Billed', '1.080.000'], ['chi_tiet_cong_no.ngay_thanh_toan', 'Ngày thanh toán', 'Paid on', '20/03/2026'],
+    ['chi_tiet_cong_no.thanh_toan', 'Thanh toán', 'Paid', '1.080.000'],
+    ['chua_thanh_toan', 'Bảng chưa thanh toán', 'Unpaid table', 'Row above: {FOR u IN chua_thanh_toan} · row: {$u.so_phieu} … · row below: {END-FOR u}'],
+    ['chua_thanh_toan.stt', 'STT', 'No.', '1'], ['chua_thanh_toan.so_phieu', 'Số phiếu', 'Bill number', 'TT-2026-0014'],
+    ['chua_thanh_toan.ngay', 'Ngày lập', 'Bill date', '01/11/2026'], ['chua_thanh_toan.han', 'Hạn thanh toán', 'Due date', '11/11/2026'],
+    ['chua_thanh_toan.so_ngay_qua_han', 'Số ngày quá hạn', 'Days overdue', '50'], ['chua_thanh_toan.so_tien', 'Số tiền', 'Amount', '1.080.000'],
+  ]),
+  ...p('flags', S, [['con_no', 'Còn nợ (số dư cuối kỳ > 0)', 'Balance owed', '{IF con_no} … {END-IF}']]),
+  ...p('images', ['bill', 'statement'], [['qr', 'Mã VietQR (3 × 3 cm)', 'VietQR code (3 × 3 cm)', '{IMAGE qr()}']]),
+  ...p('images', ALL_S, [['logo', 'Logo (rộng tối đa 4 cm)', 'Logo (max 4 cm wide)', '{IMAGE logo()}']]),
 ];
 
 const KEYS = new Set(PLACEHOLDERS.map((x) => x.key));

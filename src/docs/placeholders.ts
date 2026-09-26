@@ -4,7 +4,8 @@ import { formatDateVn, formatVnd } from '../domain/format';
 import { vndToWordsEn, vndToWordsVi } from '../domain/words';
 import { contractValue, instalmentAmounts, periodKeys, periodLabel, planValueBeforeVat, valueBeforeVat } from '../domain/contractPlan';
 import { referenceLine } from '../domain/contractFill';
-import { billBankAccount, businessSnapshot, defaultFooterText } from '../domain/settings';
+import { billBankAccount, businessSnapshot, defaultBankAccount, defaultFooterText } from '../domain/settings';
+import type { Statement } from '../domain/statement';
 import { bankByBin } from '../domain/banks';
 import { paymentReference } from '../domain/vietqr';
 
@@ -121,5 +122,29 @@ export function billDocData(bill: Bill, s: Settings): DocData {
     dich_vu: serviceRows(bill.lines, bill.vatRate), dot_thanh_toan: [], ky_thanh_toan: [],
     co_vat: bill.vatRate !== 'none', co_hop_dong: !!bill.contractRef, la_phu_luc: false, la_ban_nhap: bill.status === 'draft',
     theo_dot: false, theo_ky: false, theo_thuc_te: false,
+  };
+}
+
+/** Values for a Statement template. The QR itself is an image passed separately. */
+export function statementDocData(st: Statement, s: Settings): DocData {
+  const acc = defaultBankAccount(s);
+  const bank = acc ? bankByBin(acc.bankBin) : undefined;
+  const c = st.customer;
+  return {
+    ...benA(businessSnapshot(s)),
+    ...benB({ name: c.name, address: c.address, taxId: c.taxId, contactPerson: c.contactPerson, email: c.email, phone: c.phone }),
+    so_doi_chieu: st.number, ngay_lap: date(st.today), tu_ngay: date(st.from), den_ngay: date(st.to),
+    so_du_dau_ky: formatVnd(st.opening), phat_sinh: formatVnd(st.billed), da_thanh_toan: formatVnd(st.paid), so_du_cuoi_ky: formatVnd(st.closing),
+    so_du_cuoi_ky_chu: vndToWordsVi(st.closing), so_du_cuoi_ky_chu_en: vndToWordsEn(st.closing),
+    ngan_hang: bank ? `${bank.shortName} – ${bank.name}` : '', so_tai_khoan: acc?.accountNumber ?? '', chu_tai_khoan: acc?.accountHolder ?? '',
+    noi_dung_ck: st.reference, han_xac_nhan: date(st.confirmBy),
+    con_no: st.closing > 0,
+    chi_tiet_cong_no: st.details.map((r, i) => ({
+      stt: String(i + 1), so_phieu: r.number, ngay: date(r.billDate), hop_dong: r.contract,
+      phat_sinh: r.billed === null ? '' : formatVnd(r.billed), ngay_thanh_toan: r.paid === null ? '' : date(r.paidDate), thanh_toan: r.paid === null ? '' : formatVnd(r.paid),
+    })),
+    chua_thanh_toan: st.unpaid.map((r, i) => ({
+      stt: String(i + 1), so_phieu: r.number, ngay: date(r.billDate), han: date(r.dueDate), so_ngay_qua_han: r.daysOverdue ? String(r.daysOverdue) : '', so_tien: formatVnd(r.total),
+    })),
   };
 }

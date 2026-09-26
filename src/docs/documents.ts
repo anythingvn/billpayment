@@ -5,7 +5,11 @@ import { businessSnapshot } from '../domain/settings';
 import { draftFromBill } from '../domain/draft';
 import { billQrPayload } from '../ui/BillPage';
 import { qrToDataUrl } from '../ui/useQrDataUrl';
-import { addendumDocData, billDocData, contractDocData } from './placeholders';
+import { addendumDocData, billDocData, contractDocData, statementDocData } from './placeholders';
+import type { Statement } from '../domain/statement';
+import { statementFileBase } from '../domain/statement';
+import { statementQrPayload } from '../ui/StatementPage';
+import { safeName } from '../drive/paths';
 import { renderDocx, type DocImages } from './render';
 import { billDocxName, contractDrivePath } from './fileNames';
 import { billDrivePath } from '../drive/paths';
@@ -60,4 +64,18 @@ export async function buildDocx(db: AppDb, target: DocxTarget, s: Settings): Pro
   }
   const c = await getContract(db, target.id);
   return c ? buildContractDocx(db, c, s) : null;
+}
+
+/** A customer statement's Word document, or null when there is no Statement template. QR only when something is owed. */
+export async function buildStatementDocx(db: AppDb, st: Statement, s: Settings): Promise<BuiltDoc | null> {
+  const template = await templateFor(db, 'statement');
+  if (!template) return null;
+  const payload = statementQrPayload(st, s);
+  const qr = payload ? dataUrlBytes(await qrToDataUrl(payload)) : null;
+  const blob = await renderDocx(template.data, statementDocData(st, s), { qr, logo: logoImage(s.logoDataUrl) });
+  return {
+    blob,
+    fileName: `${statementFileBase(st.customer.name, st.from, st.to)}.docx`,
+    folders: [safeName(s.driveFolderName), 'Đối chiếu', st.to.slice(0, 4), safeName(st.customer.name)],
+  };
 }

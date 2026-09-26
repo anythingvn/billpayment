@@ -108,7 +108,7 @@ export interface Contract {
   updatedAt: string;
 }
 
-export type DocKind = 'contract' | 'addendum' | 'bill';
+export type DocKind = 'contract' | 'addendum' | 'bill' | 'statement';
 
 /** An uploaded Word (.docx) template with {placeholders}. */
 export interface DocTemplate {

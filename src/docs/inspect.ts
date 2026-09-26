@@ -65,7 +65,8 @@ export async function inspectTemplate(template: ArrayBuffer, kind?: DocKind): Pr
   return {
     used: names,
     unknown: names.filter((n) => !isKnownPlaceholder(n)).map((name) => ({ name, suggestion: suggestPlaceholder(name) })),
-    unavailable: kind ? names.filter((n) => PLACEHOLDERS.some((p) => p.key === n && !p.kinds.includes(kind))) : [],
+    // Known, but no catalog entry of that name fills this kind (a name may be listed for several kinds).
+    unavailable: kind ? names.filter((n) => isKnownPlaceholder(n) && !PLACEHOLDERS.some((p) => p.key === n && p.kinds.includes(kind))) : [],
     errors,
   };
 }

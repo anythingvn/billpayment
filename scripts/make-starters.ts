@@ -162,7 +162,64 @@ const bill = doc([
   p([t('{ghi_chu_cuoi}', { size: 18, color: '555555' })], { center: true }),
 ]);
 
-for (const [name, d] of [['contract', contract], ['addendum', addendum], ['bill', bill]] as const) {
+const statement = doc([
+  table([60, 40], [row([
+    new TableCell({ children: [p([t('{ben_a_ten}', { bold: true })], { after: 0 }), p(['MST / Tax ID: {ben_a_mst}'], { after: 0 }), p(['{ben_a_dia_chi}'], { after: 0 }), p(['{ben_a_dien_thoai}'], { after: 0 })] }),
+    new TableCell({ children: [p(['Số / No.: ', t('{so_doi_chieu}', { bold: true })], { right: true, after: 0 }), p(['Ngày lập / Date: {ngay_lap}'], { right: true, after: 0 })] }),
+  ])]),
+  p([''], { after: 120 }),
+  p([t('BẢNG ĐỐI CHIẾU CÔNG NỢ', { bold: true, size: 32 })], { center: true, after: 0 }),
+  p([en('STATEMENT OF ACCOUNT')], { center: true, after: 80 }),
+  p(['Kỳ đối chiếu / Period: ', t('{tu_ngay} – {den_ngay}', { bold: true })], { center: true, after: 200 }),
+  p(['Kính gửi / To: ', t('{ben_b_ten}', { bold: true })], { after: 0 }),
+  p(['Địa chỉ / Address: {ben_b_dia_chi}'], { after: 0 }),
+  p(['MST / Tax ID: {ben_b_mst}'], { after: 160 }),
+  table([70, 30], [
+    row([cell([p(['Số dư đầu kỳ / ', en('Opening balance')], { after: 0 })]), cell([p(['{so_du_dau_ky}'], { right: true, after: 0 })])]),
+    row([cell([p(['Phát sinh trong kỳ / ', en('Billed in period')], { after: 0 })]), cell([p(['{phat_sinh}'], { right: true, after: 0 })])]),
+    row([cell([p(['Đã thanh toán trong kỳ / ', en('Paid in period')], { after: 0 })]), cell([p(['{da_thanh_toan}'], { right: true, after: 0 })])]),
+    row([cell([p([t('Số dư cuối kỳ / Closing balance', { bold: true })], { after: 0 })]), cell([p([t('{so_du_cuoi_ky}', { bold: true })], { right: true, after: 0 })])]),
+  ]),
+  p(['Bằng chữ / In words: ', t('{so_du_cuoi_ky_chu}', { italics: true })], { after: 0 }),
+  p([en('{so_du_cuoi_ky_chu_en}')], { after: 160 }),
+  heading('Chi tiết trong kỳ', 'Details'),
+  table([7, 18, 13, 20, 14, 13, 15], [
+    row([headCell('STT', 'No.'), headCell('Số phiếu', 'Bill no.'), headCell('Ngày lập', 'Date'), headCell('Hợp đồng', 'Contract'),
+      headCell('Phát sinh', 'Billed'), headCell('Ngày TT', 'Paid on'), headCell('Thanh toán', 'Paid')]),
+    ...loopRows('{FOR r IN chi_tiet_cong_no}', '{END-FOR r}', [
+      cell([p(['{$r.stt}'], { after: 0 })]), cell([p(['{$r.so_phieu}'], { after: 0 })]), cell([p(['{$r.ngay}'], { after: 0 })]),
+      cell([p(['{$r.hop_dong}'], { after: 0 })]), cell([p(['{$r.phat_sinh}'], { right: true, after: 0 })]),
+      cell([p(['{$r.ngay_thanh_toan}'], { after: 0 })]), cell([p(['{$r.thanh_toan}'], { right: true, after: 0 })]),
+    ]),
+  ]),
+  p([''], { after: 120 }),
+  heading('Chưa thanh toán đến cuối kỳ', 'Unpaid at end of period'),
+  table([7, 22, 16, 16, 17, 22], [
+    row([headCell('STT', 'No.'), headCell('Số phiếu', 'Bill no.'), headCell('Ngày lập', 'Date'), headCell('Hạn TT', 'Due'),
+      headCell('Quá hạn (ngày)', 'Days overdue'), headCell('Số tiền', 'Amount')]),
+    ...loopRows('{FOR u IN chua_thanh_toan}', '{END-FOR u}', [
+      cell([p(['{$u.stt}'], { after: 0 })]), cell([p(['{$u.so_phieu}'], { after: 0 })]), cell([p(['{$u.ngay}'], { after: 0 })]),
+      cell([p(['{$u.han}'], { after: 0 })]), cell([p(['{$u.so_ngay_qua_han}'], { right: true, after: 0 })]),
+      cell([p(['{$u.so_tien}'], { right: true, after: 0 })]),
+    ]),
+  ]),
+  p([''], { after: 120 }),
+  table([25, 75], [row([
+    new TableCell({ children: [p(['{IMAGE qr()}'])] }),
+    new TableCell({ children: [
+      p(['{IF con_no}', t('Thông tin chuyển khoản', { bold: true }), ' ', en('/ Bank transfer'), '{END-IF}'], { after: 0 }),
+      p(['{IF con_no}Ngân hàng / Bank: {ngan_hang}{END-IF}'], { after: 0 }),
+      p(['{IF con_no}Số tài khoản / Account: {so_tai_khoan}{END-IF}'], { after: 0 }),
+      p(['{IF con_no}Chủ tài khoản / Holder: {chu_tai_khoan}{END-IF}'], { after: 0 }),
+      p(['{IF con_no}Nội dung / Reference: {noi_dung_ck}{END-IF}'], { after: 0 }),
+    ] }),
+  ])]),
+  p(['Đề nghị Quý khách kiểm tra, xác nhận số dư trên và phản hồi trước ngày {han_xac_nhan}.'], { after: 0 }),
+  p([en('Please check and confirm the balance above by {han_xac_nhan}.')], { after: 200 }),
+  signatures('Bên A / Party A', 'Sign and name', 'Bên B / Customer', 'Sign and name', '{nguoi_lap}'),
+]);
+
+for (const [name, d] of [['contract', contract], ['addendum', addendum], ['bill', bill], ['statement', statement]] as const) {
   writeFileSync(`src/docs/starters/${name}.docx`, await Packer.toBuffer(d));
   console.log(`wrote src/docs/starters/${name}.docx`);
 }

@@ -135,7 +135,7 @@ function validContract(c: unknown): boolean {
 }
 
 function validTemplate(t: unknown): boolean {
-  if (!isObj(t) || !isStr(t.id) || !['contract', 'addendum', 'bill'].includes(t.kind as string) || !isStr(t.name) || !isStr(t.fileName)
+  if (!isObj(t) || !isStr(t.id) || !['contract', 'addendum', 'bill', 'statement'].includes(t.kind as string) || !isStr(t.name) || !isStr(t.fileName)
     || !isStr(t.uploadedAt) || typeof t.isDefault !== 'boolean' || !isStr(t.dataBase64)) return false;
   try {
     const bytes = base64ToBytes(t.dataBase64);

@@ -309,5 +309,8 @@ describe('backups with Word templates', () => {
     expect(r.ok && r.data.reportDrive).toEqual({});
     expect(parseBackup(file({ reportDrive: { 'Báo cáo 2026-08.xlsx': { fileId: 5 } } })).ok).toBe(false);
   });
+  it('statement templates restore', () => {
+    expect(parseBackup(file({ templates: [{ ...good, kind: 'statement' }] })).ok).toBe(true);
+  });
 });
 
