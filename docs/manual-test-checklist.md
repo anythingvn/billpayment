@@ -117,17 +117,25 @@ Uses the built-in Client ID (see `docs/google-drive-setup.md`). The Google clien
 - [ ] Phone (online address): connect, then Save & export uploads
 
 ## 8. Word documents
-Guide: `docs/word-templates.md`.
+Guide: `docs/word-templates.md`. Items marked *(generated in browser)* were checked by unzipping the file, not by opening it in Word.
 - [ ] Settings → Documents → Download each starter; open it in **Word**: tables keep their column widths, marker rows `{FOR …}`/`{END-FOR …}` are visible
-- [ ] **Use starter** for contract, addendum and bill; contract starter is the Default
-- [ ] Contract page → **Word (.docx)**: opens in Word and in **Google Docs**; number, customer, services table, totals, words, instalments are right; marker rows are gone
-- [ ] Addendum row → **Word**: parent contract number and the addendum's own values
-- [ ] Bill → **Word (.docx)**: QR 3 × 3 cm scans in a bank app; a draft is named `…_DRAFT.docx` and has no QR
+- [x] **Use starter** for contract, addendum and bill; contract starter is the Default *(2026-09-26, localhost dev + production build)*
+- [ ] Contract page → **Word (.docx)**: opens in Word and in **Google Docs**; number, customer, services table, totals, words, instalments are right; marker rows are gone *(generated in browser 2026-09-26: text right, no placeholders left)*
+- [ ] Addendum row → **Word**: parent contract number and the addendum's own values *(generated in browser 2026-09-26)*
+- [ ] Bill → **Word (.docx)**: QR 3 × 3 cm scans in a bank app; a draft is named `…_DRAFT.docx`, shows "BẢN NHÁP / DRAFT" and has no QR *(generated in browser 2026-09-26: QR image only in the sent bill; not yet scanned)*
+- [ ] Detail lines of a service appear on separate lines in Word
 - [ ] Your logo (PNG and JPEG) appears in the header at most 4 cm wide
 - [ ] Edit a starter (letterhead + one clause), upload it, generate: your changes are kept
-- [ ] Upload a template with a typo (`{so_hop_dongg}`): "Unknown placeholder: so_hop_dongg (did you mean so_hop_dong?)"; Word download shows the same message
+- [ ] Upload a template with a typo (`{so_hop_dongg}`): "Unknown placeholder: so_hop_dongg (did you mean so_hop_dong?)"; Word download shows the same message *(Check a template message seen 2026-09-26)*
+- [ ] Put a contract placeholder in the bill template (e.g. `{so_hop_dong}`): upload says "so_hop_dong isn't filled in bill documents (it prints empty)"; the bill's Word file generates with it empty
+- [ ] Put a formula in a template (e.g. `{ben_b_ten + "x"}`): Check and upload say "Only simple placeholders are allowed: …"; Word download refuses it
+- [x] A non-Word file (.txt) is refused: "This isn't a Word .docx file" *(2026-09-26)*
 - [ ] Two contract templates: pick the second in the contract editor → its Word file uses it; Remove it → the contract uses the Default
 - [ ] Save & activate a contract with Drive connected: `Phiếu thanh toán/Hợp đồng/<year>/<customer>/HĐ … – <customer>.docx`; the contract page shows "Word saved to Drive …"
+- [ ] The same Save & activate as the **first** Drive action after opening the app (also in Safari): Google's window is not blocked
+- [ ] Addendum row → **Save to Drive**: the addendum's .docx lands in the same customer folder
 - [ ] Save & export a bill with a bill template: the .docx lands next to the PDF; the bill shows "PDF: saved …" and "Word: saved …"
+- [ ] Offline, Update in Google Drive on a bill: both lines show "not saved: Offline"; each Retry works online
 - [ ] No template: Word buttons show "Add a template in Settings → Documents"; export still uploads the PDF
+- [ ] The same Word download on the **online app** and on a phone
 - [ ] Backup, then Restore: templates come back
