@@ -22,7 +22,7 @@ fill your own **Word templates** (company letterhead), and optionally save every
   each contract shows value, billed, paid and left; Home lists what's **to bill** and reminds you after 3 days.
 - **Word documents:** your own .docx templates with `{placeholders}` for contracts, addenda and bills, so documents match your letterhead.
   - Several contract templates (one default, chosen per contract), one addendum and one bill template; three starters to begin from.
-  - A checker catches typos (*"did you mean so_hop_dong?"*); only plain placeholders are accepted, so a template can't run code.
+  - **Check a template** ticks known placeholders and flags typos (*"did you mean so_hop_dong?"*) and ones the document type doesn't fill; only plain placeholders are accepted, so a template can't run code.
   - Bills get the VietQR code; drafts are named `…_DRAFT.docx` and have no QR. See [docs/word-templates.md](docs/word-templates.md).
 - **Google Drive (optional)**, automatically or with a button:
   - bills: `My Drive / Phiếu thanh toán / <year> / <customer> / <bill number>.pdf` on export, with the Word file next to it when you have a bill template;
@@ -53,7 +53,7 @@ npm run dev      # http://localhost:5173
 npm test         # unit tests (Vitest)
 npm run build    # type-check + production build into dist/
 ```
-- **Stack:** Vite, Preact, TypeScript, IndexedDB (`idb`), `qrcode`, `vite-plugin-pwa`. Drive PDFs use `html2canvas` + `jspdf`, loaded only when uploading. Word files use `docx-templates` (its polyfilled browser bundle) + `jszip`, loaded only when generating.
+- **Stack:** Vite, Preact, TypeScript, IndexedDB (`idb`), `qrcode`, `vite-plugin-pwa`. Drive PDFs use `html2canvas` + `jspdf`, loaded only when uploading. Word files use `docx-templates`, loaded only when generating.
 - **Code map:**
   - `src/domain/` — money, words, VietQR, banks, status and validation rules, contract plans/terms/auto-fill
   - `src/storage/` — IndexedDB, numbering, backup
@@ -62,6 +62,7 @@ npm run build    # type-check + production build into dist/
   - `src/ui/` — bill page, PDF, lines editor, Drive status line
   - `src/screens/` — the app's screens
 - **Deploy:** every push to `main` runs the tests and publishes to GitHub Pages (`.github/workflows/deploy-pages.yml`); nothing is published if a test fails.
+- **Word in the browser:** `docx-templates` must be imported from `docx-templates/lib/browser.js` (its Node entry breaks in browsers); a test enforces this. Tests build sample .docx files with `docx` and read them with `jszip` (dev only).
 - **Bank list:** `src/domain/banks.ts` is checked against the saved official list in `tests/data/vietqr-banks.json`.
 - **Secrets:** only the public Google Client ID is in the code. Never commit `client_secret*.json` files (they're git-ignored).
 
