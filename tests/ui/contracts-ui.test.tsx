@@ -225,3 +225,33 @@ describe('bills from contracts', () => {
     expect(link.getAttribute('href')).toBe('#/contracts/k1');
   });
 });
+
+describe('Home → To bill', () => {
+  it('lists due contract items with Create bill', async () => {
+    await openApp('#/', { contracts: [sampleContract()] });
+    const box = (await screen.findByText('To bill')).closest('.panel') as HTMLElement;
+    const row = within(box).getByText('12/2026/HĐDV-SM · Công ty CP Hoa Sen Xanh · Đợt 1 – Tạm ứng · 10.000.000 · due since 15/09/2026');
+    expect((within(row.closest('li')!).getByText('Create bill') as HTMLAnchorElement).getAttribute('href')).toBe('#/bills/new/contract/k1/i1');
+  });
+  it('no box when nothing is due', async () => {
+    const future = sampleContract({ plan: { type: 'instalments', items: [
+      { id: 'f', name: 'Later', share: { percent: 100 }, due: { on: 'date', date: '2099-01-01' }, ready: false, readyOn: null },
+    ] } });
+    await openApp('#/', { contracts: [future] });
+    await screen.findByText('Bills');
+    expect(screen.queryByText('To bill')).toBeNull();
+    expect(screen.queryByText(/waiting to be billed/)).toBeNull();
+  });
+  it('reminder banner after 3 days', async () => {
+    await openApp('#/', { contracts: [sampleContract()] });
+    expect(await screen.findByText('1 contract item is waiting to be billed')).toBeTruthy();
+  });
+  it('plural reminder', async () => {
+    const two = sampleContract({ plan: { type: 'instalments', items: [
+      { id: 'a', name: 'A', share: { percent: 50 }, due: { on: 'signing' }, ready: false, readyOn: null },
+      { id: 'b', name: 'B', share: { percent: 50 }, due: { on: 'date', date: '2026-09-16' }, ready: false, readyOn: null },
+    ] } });
+    await openApp('#/', { contracts: [two] });
+    expect(await screen.findByText('2 contract items are waiting to be billed')).toBeTruthy();
+  });
+});

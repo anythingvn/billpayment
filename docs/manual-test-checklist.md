@@ -47,6 +47,20 @@ Scan the QR (from screen and from a printed/PDF copy) with at least 3 apps, e.g.
 - [ ] Draft view: red "BẢN NHÁP / DRAFT" label and watermark, no QR, "not for payment"; **Download draft PDF** saves `<number>_<customer>_DRAFT` and the bill stays a Draft
 - [ ] **← Back to bills** returns to the list from any bill
 
+## 3b. Contracts
+- [ ] New contract: number suggested as `n/YYYY/HĐDV[-suffix]` (Settings → Bill defaults sets type and suffix); editable; a duplicate number warns
+- [ ] 2 instalments (50% on signing, 50% on acceptance): Save & activate works; 50% + 40% is refused with a message
+- [ ] Contract page: value / billed / paid / left; Đợt 1 shows **Create bill**; Đợt 2 shows **Mark ready**, then Create bill
+- [ ] Create bill from Đợt 1: customer, line "… – 50% giá trị hợp đồng", VAT and due date filled in; the printed bill shows "Căn cứ Hợp đồng số … ký ngày …"
+- [ ] Cancel that bill: Đợt 1 is back in **To bill** on Home
+- [ ] Add an addendum "Adds work" with a monthly plan: its periods appear on the contract page and in To bill; the bill's reference line also names "Phụ lục số 01"
+- [ ] Add an addendum "Changes terms" from a date: later unbilled periods show "Replaced by PLnn"; billed ones stay
+- [ ] Home: To bill lists due items; the banner appears when one has waited more than 3 days
+- [ ] Bill options → Contract picker: lists active contracts, items and "Other"; clearing it keeps the lines
+- [ ] Delete a contract with bills → refused, Terminate offered; a customer with contracts is archived, not deleted
+- [ ] Backup → restore: contracts and addenda come back; the next contract number continues
+- [ ] Open the app in two tabs, then load a new version in one: the other tab reloads (or you're asked to close it)
+
 ## 4. Settings
 - [ ] Bank dropdown lists 65 banks, with Vietcombank, VietinBank, BIDV, Agribank, Techcombank, MB Bank at the top
 - [ ] Two bank accounts: add, pick the default, remove one; a number like `99x` is refused with a message

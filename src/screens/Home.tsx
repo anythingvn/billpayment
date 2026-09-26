@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { navigate } from '../router';
-import { listBills } from '../storage/db';
+import { listBills, listContracts } from '../storage/db';
+import { dueItems, needsBillingReminder } from '../domain/contractTerms';
+import { routeToHash } from '../router';
+import type { Contract } from '../domain/types';
 import { lastBackupAt, needsBackupReminder } from '../storage/backup';
 import type { Bill } from '../domain/types';
 import { homeSummary } from '../domain/summary';
@@ -21,12 +24,14 @@ export function Home() {
   const { db } = useApp();
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [remind, setRemind] = useState(false);
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const today = todayIso();
 
   useEffect(() => {
     (async () => {
+      setContracts(await listContracts(db));
       setBills(await listBills(db));
       setRemind(needsBackupReminder(await lastBackupAt(db), new Date().toISOString()));
     })();
@@ -40,6 +45,9 @@ export function Home() {
       (!needle || b.number.toLowerCase().includes(needle) || b.customer.name.toLowerCase().includes(needle)),
   );
 
+  const toBill = dueItems(contracts, bills, today);
+  const toBillReminder = needsBillingReminder(toBill, today);
+
   return (
     <div>
       {remind && (
@@ -48,7 +56,26 @@ export function Home() {
           <button class="btn" onClick={() => navigate({ name: 'backup' })}>Back up now</button>
         </div>
       )}
+      {toBillReminder && (
+        <div class="banner">
+          <span>{toBill.length === 1 ? '1 contract item is waiting to be billed' : `${toBill.length} contract items are waiting to be billed`}</span>
+          <a class="btn" href="#to-bill" onClick={(e) => { e.preventDefault(); document.getElementById('to-bill')?.scrollIntoView(); }}>See list</a>
+        </div>
+      )}
       <div class="page-head"><h2>Bills</h2><button class="btn" onClick={() => navigate({ name: 'newBill' })}>+ New bill</button></div>
+      {toBill.length > 0 && (
+        <div class="panel" id="to-bill">
+          <h3 style="margin-top:0">To bill</h3>
+          <ul style="list-style:none;margin:0;padding:0">
+            {toBill.map((t) => (
+              <li key={`${t.sourceId}-${t.key}`} style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #eef0f3">
+                <span>{`${t.contract.number} · ${t.contract.customer.name} · ${t.label.vi} · ${formatVnd(t.amount)} · due since ${formatDateVn(t.dueDate!)}`}</span>
+                <a class="btn" href={routeToHash({ name: 'newBillFromContract', contractId: t.sourceId, itemKey: t.key })}>Create bill</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div class="grid2" style="margin-bottom:16px">
         <Kpi label="Unpaid" stat={sum.unpaid} />
         <Kpi label="Overdue" stat={sum.overdue} color="var(--danger)" />

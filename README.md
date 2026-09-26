@@ -16,6 +16,9 @@ with a **VietQR** code, export them as A4 PDFs, track what's been paid, and opti
 - **Status tracking:** Draft → Sent → Paid, Cancelled; Overdue is shown automatically. Home shows Unpaid / Overdue / Paid this month.
 - **Drafts** show a red "BẢN NHÁP / DRAFT" label and no QR; *Download draft PDF* keeps them as drafts.
 - **Sent bills are locked** and keep the business details, bank account and footer they were sent with.
+- **Contracts and addenda (phụ lục):** numbered `12/2026/HĐDV-SM` / `PL01`; billed by instalments, a fixed amount per month/quarter, or per use.
+  Addenda add work or change the terms from a date. Bills fill in from a contract item and print *"Căn cứ Hợp đồng số … ký ngày …"*;
+  each contract shows value, billed, paid and left; Home lists what's **to bill** and reminds you after 3 days.
 - **Google Drive (optional):** final bills saved to `My Drive / Phiếu thanh toán / <year> / <customer> / <bill number>.pdf`, automatically on export or with a button.
 - **Works offline** and installs as an app (desktop or phone). **Backup / Restore** to a single file.
 
@@ -42,7 +45,7 @@ npm run build    # type-check + production build into dist/
 ```
 - **Stack:** Vite, Preact, TypeScript, IndexedDB (`idb`), `qrcode`, `vite-plugin-pwa`. Drive PDFs use `html2canvas` + `jspdf`, loaded only when uploading.
 - **Code map:**
-  - `src/domain/` — money, words, VietQR, banks, status and validation rules
+  - `src/domain/` — money, words, VietQR, banks, status and validation rules, contract plans/terms/auto-fill
   - `src/storage/` — IndexedDB, numbering, backup
   - `src/drive/` — Google sign-in, Drive API, folders, upload
   - `src/ui/` — bill page, PDF
