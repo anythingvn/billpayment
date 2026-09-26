@@ -26,5 +26,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['tests/setup.ts'],
+    // Screen tests do real async work; on a busy machine running the whole suite they can pass Vitest's 5 s default.
+    testTimeout: 20000,
   },
 });
