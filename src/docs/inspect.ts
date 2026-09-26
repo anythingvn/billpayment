@@ -18,10 +18,11 @@ function nameOf(type: string, code: string): string | null {
 
 /** Lists the placeholders a .docx template uses, the unknown ones (with a suggestion), and unbalanced FOR/IF. */
 export async function inspectTemplate(template: ArrayBuffer): Promise<TemplateReport> {
-  const { listCommands } = await import('docx-templates');
+  const { listCommands } = await import('docx-templates/lib/browser.js');
   let commands: { type: string; code: string }[];
   try {
-    commands = await listCommands(template, DELIMITERS);
+    // The browser bundle's zip reader wants a plain byte array (a Node Buffer or a view of one fails).
+    commands = await listCommands(new Uint8Array(template) as unknown as ArrayBuffer, DELIMITERS);
   } catch (e) {
     return { used: [], unknown: [], errors: [`The template can't be read: ${e instanceof Error ? e.message : String(e)}`] };
   }

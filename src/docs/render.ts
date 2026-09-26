@@ -64,7 +64,7 @@ export async function renderDocx(template: ArrayBuffer, data: DocData, images: D
   if (unknown) {
     throw new DocTemplateError('unknown', `Unknown placeholder: ${unknown.name}${unknown.suggestion ? ` (did you mean ${unknown.suggestion}?)` : ''}`, unknown.name);
   }
-  const lib = await import('docx-templates');
+  const lib = await import('docx-templates/lib/browser.js');
   const qr = () => (images.qr ? { width: 3, height: 3, data: images.qr, extension: '.png' } : null);
   const logo = () => {
     if (!images.logo) return null;
@@ -81,6 +81,8 @@ export async function renderDocx(template: ArrayBuffer, data: DocData, images: D
       additionalJsContext: { qr, logo },
       rejectNullish: false,
       failFast: true,
+      // Browsers have no Node `vm`; templates are trusted by the owner (see the warning in Settings → Documents).
+      noSandbox: true,
     });
     return new Blob([await moveBreaksOutOfText(out) as BlobPart], { type: DOCX_MIME });
   } catch (e) {
