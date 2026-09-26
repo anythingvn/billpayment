@@ -2,7 +2,13 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import type { Env } from './env';
+import fastifyCookie from '@fastify/cookie';
 import type { SqliteStore } from './sqliteStore';
+import { Accounts } from './auth';
+import { addSecurity } from './security';
+import { authRoutes } from './routes/auth';
+import { userRoutes } from './routes/users';
+import type { Ctx } from './context';
 
 export interface AppOptions {
   store: SqliteStore;
@@ -17,7 +23,12 @@ export interface AppOptions {
 /** The server: the built app at / and the JSON API under /api. */
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 20 * 1024 * 1024 });
+  const ctx: Ctx = { store: opts.store, accounts: new Accounts(opts.store), env: opts.env, now: opts.now ?? (() => new Date()) };
+  await app.register(fastifyCookie);
+  addSecurity(app, opts.env);
   app.get('/api/health', async () => ({ ok: true }));
+  authRoutes(app, ctx);
+  userRoutes(app, ctx);
 
   const dist = opts.distDir ?? 'dist';
   if (existsSync(dist)) await app.register(fastifyStatic, { root: dist.startsWith('/') ? dist : `${process.cwd()}/${dist}`, prefix: '/' });
