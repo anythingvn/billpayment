@@ -28,10 +28,18 @@ git clone https://github.com/anythingvn/billpayment.git && cd billpayment
 git checkout feat/role-permissions     # until it is merged (includes the shared server)
 npm run make-env                        # needs Node; without Node on the server, see "Making .env without Node" below
 # edit .env: PUBLIC_URL=https://bills.your-domain.vn  (DATA_DIR is ignored — Docker uses /data)
-mkdir -p data && sudo chown 1000:1000 data   # the container runs as user 1000 and must be able to write here
+mkdir -p data && sudo chown 1000:1000 data   # Linux only: the container runs as user 1000 and must write here
 docker compose up -d --build
 docker compose logs app                      # shows the one-time setup code
 ```
+
+**On a Mac (Docker Desktop):**
+- **Skip the `chown`**: just `mkdir -p data`. Docker Desktop writes to the folder as you. A folder given to user 1000
+  makes the server stop at start with "unable to open database file". To fix that on an empty folder:
+  `docker compose down`, then `rmdir data && mkdir data` and `docker compose up -d`.
+- macOS `sed` needs `sed -i ''` instead of `sed -i` in the commands below.
+- Keep the server in its own folder (e.g. `~/billpayment-server`), not inside a development checkout. Run the
+  `docker compose` commands from that folder: it holds `.env` and `data/`.
 
 **Making `.env` without Node** (only Docker installed):
 
