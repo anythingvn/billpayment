@@ -70,3 +70,32 @@ describe('Drive sign-in', () => {
     expect(await auth.getToken()).toBe('B');
   });
 });
+
+describe('stuck Google window', () => {
+  it('gives up after 2 minutes so uploads are not blocked forever', async () => {
+    vi.useFakeTimers();
+    const gis: Gis = { initTokenClient: () => ({ requestAccessToken() { /* never answers */ } }), revoke: (_t, d) => d() };
+    const p = createDriveAuth('cid', { gis: async () => gis, wasConnected: false }).getToken();
+    const assertion = expect(p).rejects.toMatchObject({ kind: 'auth' });
+    await vi.advanceTimersByTimeAsync(120_000);
+    await assertion;
+    vi.useRealTimers();
+  });
+  it('a new explicit request replaces a pending one', async () => {
+    let answer: ((r: { access_token: string; expires_in: number }) => void) | null = null;
+    let calls = 0;
+    const gis: Gis = {
+      initTokenClient: (cfg) => ({ requestAccessToken() { calls++; if (calls === 2) answer = cfg.callback; } }),
+      revoke: (_t, d) => d(),
+    };
+    const auth = createDriveAuth('cid', { gis: async () => gis, wasConnected: false });
+    const first = auth.getToken();
+    first.catch(() => undefined);
+    await Promise.resolve(); await Promise.resolve();
+    const second = auth.getToken({ refresh: true });
+    await vi.waitFor(() => expect(answer).not.toBeNull());
+    answer!({ access_token: 'NEW', expires_in: 3600 });
+    expect(await second).toBe('NEW');
+    await expect(first).rejects.toMatchObject({ kind: 'auth' });
+  });
+});

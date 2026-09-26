@@ -2,6 +2,8 @@ import { DriveError } from './api';
 
 export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
+/** Give up on a Google window nobody answers, so uploads and Connect don't wait forever. */
+const REQUEST_TIMEOUT_MS = 120_000;
 
 type TokenResponse = { access_token?: string; expires_in?: number; error?: string; error_description?: string };
 
@@ -83,15 +85,36 @@ export function createDriveAuth(
       },
     });
     return new Promise<string>((resolve, reject) => {
-      settle = { resolve, reject };
+      const timer = setTimeout(() => {
+        if (settle === mine) {
+          settle = null;
+          reject(new DriveError('auth', 'Not connected to Google Drive'));
+        }
+      }, REQUEST_TIMEOUT_MS);
+      const mine = {
+        resolve: (t: string) => { clearTimeout(timer); resolve(t); },
+        reject: (e: Error) => { clearTimeout(timer); reject(e); },
+      };
+      settle = mine;
       client!.requestAccessToken({ prompt: consented ? '' : 'consent' });
     });
+  }
+
+  /** Drops a pending request (e.g. a window left open) so a new explicit request can start. */
+  function abandon() {
+    settle?.reject(new DriveError('auth', 'Not connected to Google Drive'));
+    settle = null;
+    inFlight = null;
   }
 
   return {
     getToken(o) {
       if (!o?.refresh && token && now() < expiresAt - 60_000) return Promise.resolve(token);
-      inFlight ??= request().finally(() => { inFlight = null; });
+      if (o?.refresh && inFlight) abandon();
+      if (!inFlight) {
+        const p: Promise<string> = request().finally(() => { if (inFlight === p) inFlight = null; });
+        inFlight = p;
+      }
       return inFlight;
     },
     async revoke() {

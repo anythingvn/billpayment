@@ -32,6 +32,8 @@ const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 const FOLDER = 'application/vnd.google-apps.folder';
 const FILE_FIELDS = 'id,name,trashed,parents,webViewLink';
+/** A stalled request must not hold the upload queue forever. */
+const REQUEST_TIMEOUT_MS = 90_000;
 
 const quote = (s: string) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
@@ -55,8 +57,10 @@ export function createDriveApi(getToken: GetToken, fetchFn: typeof fetch = fetch
       const headers = new Headers(init.headers);
       headers.set('Authorization', `Bearer ${token}`);
       try {
-        res = await fetchFn(url, { ...init, headers });
-      } catch {
+        res = await fetchFn(url, { ...init, headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      } catch (e) {
+        const name = (e as { name?: string } | null)?.name;
+        if (name === 'TimeoutError' || name === 'AbortError') throw new DriveError('other', 'Google Drive did not respond. Try again.');
         throw new DriveError('offline', 'Offline');
       }
       if (res.status !== 401) break;

@@ -125,3 +125,12 @@ describe('Save & export → Google Drive', () => {
     expect(service.saveBillToDrive).not.toHaveBeenCalled();
   });
 });
+
+describe('connect failure hint', () => {
+  it('names this address and the setup guide when Google refuses', async () => {
+    vi.mocked(service.connectDrive).mockRejectedValueOnce(new Error('Not connected to Google Drive'));
+    await open('#/settings', CID);
+    fireEvent.click(await screen.findByText('Connect Google Drive'));
+    expect(await screen.findByText(new RegExp(`${location.origin.replace(/[.:/]/g, '\\$&')}.*Authorized JavaScript origins`))).toBeTruthy();
+  });
+});

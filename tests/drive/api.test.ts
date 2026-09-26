@@ -83,3 +83,13 @@ describe('Drive REST client', () => {
     expect([u.pathname, u.searchParams.get('addParents'), u.searchParams.get('removeParents')]).toEqual(['/upload/drive/v3/files/P', 'b', 'a']);
   });
 });
+
+describe('stalled requests', () => {
+  it('passes a timeout signal and reports a stalled request plainly', async () => {
+    const seen: (AbortSignal | null | undefined)[] = [];
+    const fn = (async (_u: string, init: RequestInit) => { seen.push(init.signal); throw new DOMException('timed out', 'TimeoutError'); }) as unknown as typeof fetch;
+    const e = await createDriveApi(async () => 't', fn).getFile('x').catch((x) => x);
+    expect(seen[0]).toBeInstanceOf(AbortSignal);
+    expect([e.kind, e.message]).toEqual(['other', 'Google Drive did not respond. Try again.']);
+  });
+});

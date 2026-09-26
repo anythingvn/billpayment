@@ -143,3 +143,13 @@ describe('drive service', () => {
     expect(everything).not.toContain('ya29.fake');
   });
 });
+
+describe('connection remembered from uploads', () => {
+  it('records this device as connected after a successful upload', async () => {
+    setup();
+    const db = await dbWith(sampleBill({ status: 'sent' }));
+    expect(await driveConnection(db)).toBeNull();
+    await saveBillToDrive(db, 'b1', s);
+    expect(await driveConnection(db)).toEqual({ email: null, at: '2026-09-26T07:00:00.000Z' });
+  });
+});

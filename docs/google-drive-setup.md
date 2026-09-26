@@ -38,6 +38,6 @@ and allow access in Google's window.
 ## Troubleshooting
 | Message | Fix |
 |---|---|
-| "Google refused this address. Add … to the Authorized JavaScript origins" | Add the address shown to the client's JavaScript origins (step 3), wait a few minutes, retry |
+| Google shows "Error 400: origin_mismatch", or the app says "Could not connect … check that <address> is listed under Authorized JavaScript origins" | Add that address to the client's JavaScript origins (step 3), wait a few minutes, retry |
 | "Not connected to Google Drive" | Click Retry or Connect again; if you're not a test user, add yourself (step 2) |
 | "Offline" | Reconnect to the internet and click Retry |

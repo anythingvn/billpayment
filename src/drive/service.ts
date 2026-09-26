@@ -115,6 +115,11 @@ export function saveBillToDrive(db: AppDb, billId: string, s: Settings): Promise
     } catch (e) {
       return recordError(db, billId, errorText(e));
     }
+    // Uploading without pressing Connect still counts as connected, so Google won't ask for consent every session.
+    if (!knownConnected || (await driveConnection(db)) === null) {
+      await setMeta(db, 'driveConnected', { email: null, at: deps.now() });
+      knownConnected = true;
+    }
     let pdf: Blob;
     try {
       pdf = await deps.makePdf(bill, s);
@@ -155,7 +160,8 @@ export async function driveConnection(db: AppDb): Promise<{ email: string | null
 /** Opens Google's permission window (from a click), then records the connected account on this device. */
 export async function connectDrive(db: AppDb, s: Settings): Promise<{ email: string | null }> {
   const deps = depsFor(s);
-  await deps.auth.getToken();
+  // An explicit Connect replaces any Google window still waiting for an answer.
+  await deps.auth.getToken({ refresh: true });
   const email = await deps.api.aboutEmail();
   await setMeta(db, 'driveConnected', { email, at: deps.now() });
   knownConnected = true;
