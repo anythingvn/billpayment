@@ -1,8 +1,9 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { newId, putSettings } from '../storage/db';
 import { BANKS } from '../domain/banks';
 import { isValidAccount } from '../domain/vietqr';
+import { connectDrive, disconnectDrive, driveConfigured, driveConnection, prepareDrive } from '../drive/service';
 import { VAT_RATES, type SavedBankAccount, type Settings, type VatRate } from '../domain/types';
 
 const MAX_LOGO_BYTES = 300 * 1024;
@@ -26,14 +27,35 @@ export function SettingsScreen() {
     r.readAsDataURL(file);
   };
 
+  const [drive, setDrive] = useState<{ email: string | null } | null>(null);
+  const [driveMsg, setDriveMsg] = useState('');
+  useEffect(() => {
+    driveConnection(db).then(setDrive);
+    prepareDrive(db, settings);
+  }, [settings.googleClientId]);
+  const connect = async () => {
+    setDriveMsg('');
+    try {
+      setDrive(await connectDrive(db, settings));
+    } catch (e) {
+      setDriveMsg(e instanceof Error && /origin/i.test(e.message) ? e.message : 'Could not connect to Google Drive. Try again.');
+    }
+  };
+  const disconnect = async () => {
+    await disconnectDrive(db, settings).catch(() => undefined);
+    setDrive(null);
+  };
+
   const save = async () => {
+    if (s.driveFolderName.includes('/')) { setMsg('Main folder name cannot contain /'); return; }
+    if (s.googleClientId.trim() && !s.driveFolderName.trim()) { setMsg('Enter a main folder name for Google Drive'); return; }
     if (!/^[A-Za-z0-9]{1,6}$/.test(s.numberPrefix)) { setMsg('Bill number prefix must be 1–6 letters or digits.'); return; }
     const badAccount = s.bankAccounts.findIndex((a) => !a.bankBin || !isValidAccount(a.accountNumber));
     if (badAccount >= 0) { setMsg(`Bank account ${badAccount + 1}: choose a bank and enter an account number with digits only (spaces, dots and dashes are fine).`); return; }
     if (!Number.isInteger(s.defaultPaymentDays) || s.defaultPaymentDays < 0) { setMsg('Payment days must be a whole number ≥ 0.'); return; }
     try {
       const keep = s.footerNotes.map((n, i) => ({ n: n.trim(), i })).filter((x) => x.n);
-      const cleaned = { ...s, footerNotes: keep.map((x) => x.n), defaultFooterIndex: keep.findIndex((x) => x.i === s.defaultFooterIndex) };
+      const cleaned = { ...s, googleClientId: s.googleClientId.trim(), driveFolderName: s.driveFolderName.trim(), footerNotes: keep.map((x) => x.n), defaultFooterIndex: keep.findIndex((x) => x.i === s.defaultFooterIndex) };
       setS(cleaned);
       await putSettings(db, cleaned);
       await reloadSettings();
@@ -125,6 +147,28 @@ export function SettingsScreen() {
           ))}
           <button class="btn ghost" onClick={() => set('footerNotes', [...s.footerNotes, ''])}>+ Add footer note</button>
         </div>
+      </div>
+      <div class="panel"><h3>Google Drive</h3>
+        <p class="muted" style="margin-top:0">Save final bills as PDF to <b>My Drive / {s.driveFolderName || '…'} / year / customer</b>.{' '}
+          <a href="https://github.com/anythingvn/billpayment/blob/main/docs/google-drive-setup.md" target="_blank" rel="noopener">How to set up</a></p>
+        <div class="grid2">
+          <label class="field">Google Client ID
+            <input value={s.googleClientId} placeholder="….apps.googleusercontent.com" onInput={(e) => set('googleClientId', e.currentTarget.value)} />
+          </label>
+          <label class="field">Main folder name
+            <input value={s.driveFolderName} onInput={(e) => set('driveFolderName', e.currentTarget.value)} />
+          </label>
+        </div>
+        <label style="display:block;margin:10px 0">
+          <input type="checkbox" checked={s.driveAutoUpload} onChange={(e) => set('driveAutoUpload', e.currentTarget.checked)} /> Upload automatically on export
+        </label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          {drive
+            ? <><span>{drive.email ? `Connected as ${drive.email}` : 'Connected'}</span><button class="btn ghost" onClick={disconnect}>Disconnect</button></>
+            : <><button class="btn" disabled={!driveConfigured(settings)} onClick={connect}>Connect Google Drive</button>
+              <span class="muted">{driveConfigured(settings) ? 'Not connected on this device' : 'Save a Client ID first'}</span></>}
+        </div>
+        {driveMsg && <p class="errors">{driveMsg}</p>}
       </div>
     </div>
   );
