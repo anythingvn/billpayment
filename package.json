@@ -12,15 +12,21 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "make-starters": "tsx scripts/make-starters.ts"
+    "make-starters": "tsx scripts/make-starters.ts",
+    "server": "tsx server/src/main.ts",
+    "build:server": "esbuild server/src/main.ts --bundle --platform=node --format=esm --packages=external --outfile=server/dist/main.js",
+    "make-env": "tsx scripts/make-env.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/static": "^10.1.5",
     "docx-templates": "^4.15.0",
     "exceljs": "^4.4.0",
+    "fastify": "^5.12.5",
     "html2canvas": "^1.4.1",
     "idb": "^8.0.3",
     "jspdf": "^4.2.1",
@@ -30,8 +36,10 @@
   "devDependencies": {
     "@preact/preset-vite": "^2.10.6",
     "@testing-library/preact": "^3.2.4",
+    "@types/node": "^24.19.0",
     "@types/qrcode": "^1.5.6",
     "docx": "^9.7.2",
+    "esbuild": "^0.28.2",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.1.1",
     "jszip": "^3.10.2",

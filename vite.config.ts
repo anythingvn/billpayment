@@ -4,6 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   base: './',
+  // In development the app talks to the server on :8080 (npm run server).
+  server: { proxy: { '/api': 'http://localhost:8080' } },
   plugins: [
     preact(),
     VitePWA({

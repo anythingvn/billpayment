@@ -5,3 +5,6 @@ dist/
 
 # Google OAuth client secret files — never commit (the app only needs the public Client ID)
 client_secret*.json
+.env
+data/
+server/dist/
