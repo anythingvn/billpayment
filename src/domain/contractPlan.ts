@@ -1,11 +1,44 @@
-import type { Contract, Instalment, PeriodicPlan } from './types';
+import type { BillLine, Contract, Instalment, PeriodicPlan } from './types';
 import { computeTotals } from './money';
 import { formatVnd } from './format';
 
 export const valueBeforeVat = (c: Pick<Contract, 'lines'>): number => computeTotals(c.lines, 'none').subtotal;
 
+/**
+ * Value before VAT of what the plan bills: amount × number of periods for a periodic plan
+ * (its service lines describe one period), otherwise the service lines.
+ */
+export function planValueBeforeVat(c: Pick<Contract, 'lines' | 'plan'>): number {
+  return c.plan.type === 'periodic' ? c.plan.amount * periodKeys(c.plan).length : valueBeforeVat(c);
+}
+
 /** Contract value including VAT (same maths as bills). */
-export const contractValue = (c: Pick<Contract, 'lines' | 'vatRate'>): number => computeTotals(c.lines, c.vatRate).total;
+export function contractValue(c: Pick<Contract, 'lines' | 'vatRate' | 'plan'>): number {
+  if (c.plan.type !== 'periodic') return computeTotals(c.lines, c.vatRate).total;
+  const line: BillLine = { nameVi: '', nameEn: '', unitVi: '', unitEn: '', qty: 1, unitPrice: planValueBeforeVat(c), details: [] };
+  return computeTotals([line], c.vatRate).total;
+}
+
+const whole = (v: number, min: number) => Number.isInteger(v) && v >= min;
+
+/** Checks every contract save (draft too) so nothing is stored that can't be shown or backed up. */
+export function contractSaveErrors(c: Contract): string[] {
+  const errs: string[] = [];
+  c.lines.forEach((l, i) => {
+    if (!whole(l.qty, 1)) errs.push(`Line ${i + 1}: Quantity must be a whole number of at least 1`);
+    if (!whole(l.unitPrice, 0)) errs.push(`Line ${i + 1}: Unit price must be a whole number of at least 0`);
+  });
+  if (!whole(c.paymentDays, 0)) errs.push('Payment days must be a whole number of at least 0');
+  if (c.plan.type === 'periodic' && !whole(c.plan.amount, 0)) errs.push('The amount per period must be a whole number of at least 0');
+  if (c.plan.type === 'instalments') {
+    c.plan.items.forEach((i, n) => {
+      if ('percent' in i.share) {
+        if (!Number.isFinite(i.share.percent) || i.share.percent < 0) errs.push(`Instalment ${n + 1}: the percentage must be a number of at least 0`);
+      } else if (!whole(i.share.amount, 0)) errs.push(`Instalment ${n + 1}: the amount must be a whole number of at least 0`);
+    });
+  }
+  return errs;
+}
 
 /**
  * Amount (before VAT) of each instalment. Percent shares are rounded to the đồng;

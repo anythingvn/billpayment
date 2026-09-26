@@ -54,6 +54,15 @@ export function ContractView({ id }: { id: string }) {
     await putContract(db, { ...source, plan, updatedAt: new Date().toISOString() });
     await load();
   };
+  const setAddendumStatus = async (a: Contract, status: ContractStatus) => {
+    await putContract(db, { ...a, status, updatedAt: new Date().toISOString() });
+    await load();
+  };
+  const removeAddendum = async (a: Contract) => {
+    if (!confirm(`Delete addendum ${a.number}?`)) return;
+    if ((await deleteContract(db, a.id)) === 'refused') setMsg('This addendum has bills. Terminate it instead.');
+    await load();
+  };
   const remove = async () => {
     if (!confirm(`Delete contract ${contract.number}?`)) return;
     if ((await deleteContract(db, contract.id)) === 'refused') {
@@ -156,7 +165,11 @@ export function ContractView({ id }: { id: string }) {
                 <td>{a.effectiveDate ? formatDateVn(a.effectiveDate) : '—'}</td>
                 <td class="r">{formatVnd(contractValue(a))}</td>
                 <td><ContractStatusBadge status={a.status} /></td>
-                <td><a href={routeToHash({ name: 'editContract', id: a.id })}>Edit</a></td>
+                <td style="white-space:nowrap">
+                  <a href={routeToHash({ name: 'editContract', id: a.id })}>Edit</a>
+                  {a.status !== 'terminated' && <> · <button class="btn ghost" onClick={() => setAddendumStatus(a, 'terminated')}>Terminate</button></>}
+                  {a.status === 'draft' && <> · <button class="btn ghost" onClick={() => removeAddendum(a)}>Delete</button></>}
+                </td>
               </tr>
             ))}
             {addenda.length === 0 && <tr><td colSpan={7} class="muted">No addenda.</td></tr>}

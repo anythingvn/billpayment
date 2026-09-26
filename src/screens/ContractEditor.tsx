@@ -5,7 +5,8 @@ import { getContract, listContracts, listCustomers, listServices, newId, putCont
 import { allocateContractNumber, peekContractNumber } from '../storage/contractNumbering';
 import type { Contract, Customer, Instalment, Plan, Service, VatRate } from '../domain/types';
 import { VAT_RATES } from '../domain/types';
-import { contractValue, isDuplicateNumber, nextAddendumNumber, planErrors } from '../domain/contractPlan';
+import { contractSaveErrors, contractValue, isDuplicateNumber, nextAddendumNumber, planErrors } from '../domain/contractPlan';
+import { lineErrors } from '../domain/validate';
 import { businessSnapshot } from '../domain/settings';
 import { formatVnd, todayIso } from '../domain/format';
 import { LinesEditor } from '../ui/LinesEditor';
@@ -94,10 +95,14 @@ export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
     const problems: string[] = [];
     if (!c.customerId) problems.push('Choose a customer');
     if (!c.number.trim()) problems.push('Enter a number');
+    problems.push(...contractSaveErrors(c));
     const status = activate ? 'active' : c.status;
     if (status === 'active') {
       if (!c.title.trim()) problems.push('Enter a title');
       if (c.lines.length === 0) problems.push('Add at least one service line');
+      c.lines.forEach((l, i) => {
+        if (!l.nameVi.trim()) problems.push(`Line ${i + 1}: ${lineErrors(l)[0] ?? 'Service name is required'}`);
+      });
       problems.push(...planErrors(c, parent));
     }
     setErrors(problems);

@@ -74,3 +74,23 @@ describe('numbers', () => {
     expect(isDuplicateNumber(all, '13/2026/HĐDV-SM', null)).toBe(false);
   });
 });
+
+describe('review fixes: save checks and periodic value', () => {
+  it('contractSaveErrors rejects numbers that would break backups', async () => {
+    const { contractSaveErrors } = await import('../../src/domain/contractPlan');
+    expect(contractSaveErrors(sampleContract())).toEqual([]);
+    expect(contractSaveErrors(sampleContract({ lines: [{ ...sampleContract().lines[0], unitPrice: NaN }] })))
+      .toContain('Line 1: Unit price must be a whole number of at least 0');
+    expect(contractSaveErrors(sampleContract({ paymentDays: 2.5 }))).toContain('Payment days must be a whole number of at least 0');
+    expect(contractSaveErrors(sampleContract({ plan: { type: 'periodic', every: 'month', amount: NaN, first: '2026-10', last: '2026-12' } })))
+      .toContain('The amount per period must be a whole number of at least 0');
+    expect(contractSaveErrors(sampleContract({ plan: { type: 'instalments', items: [inst({ amount: 1.5 })] } })))
+      .toContain('Instalment 1: the amount must be a whole number of at least 0');
+    expect(contractSaveErrors(sampleContract({ plan: { type: 'instalments', items: [inst({ percent: NaN })] } })))
+      .toContain('Instalment 1: the percentage must be a number of at least 0');
+  });
+  it('periodic value is the amount per period times the number of periods', () => {
+    const k = sampleContract({ plan: { type: 'periodic', every: 'month', amount: 800000, first: '2026-10', last: '2027-09' } });
+    expect(contractValue(k)).toBe(10368000); // 12 × 800.000 = 9.600.000 + 8%
+  });
+});

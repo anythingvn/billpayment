@@ -118,3 +118,26 @@ describe('due list, reminder, totals', () => {
     expect(contractSummary(k, [ch], []).totalValue).toBe(10200000);
   });
 });
+
+describe('review fixes: several changes-terms addenda', () => {
+  const k = () => sampleContract({ startDate: '2026-10-01', vatRate: 'none', plan: monthly('2026-10', '2027-09', 1000000) });
+  const ch = (id: string, from: string, first: string, amount: number) => sampleAddendum({
+    id, number: id, effect: 'changesTerms', effectiveDate: from, startDate: from, vatRate: 'none', plan: monthly(first, '2027-09', amount),
+  });
+  it('each month is billable once, from the change that governs it', () => {
+    const adds = [ch('PL01', '2027-01-01', '2027-01', 1200000), ch('PL02', '2027-06-01', '2027-06', 1500000)];
+    const due = dueItems([k(), ...adds], [], '2027-07-10');
+    const keys = due.map((d) => `${d.sourceId}:${d.key}`);
+    expect(keys.filter((x) => x.endsWith('2027-06'))).toEqual(['PL02:2027-06']);
+    expect(keys.filter((x) => x.endsWith('2027-02'))).toEqual(['PL01:2027-02']);
+    expect(keys.filter((x) => x.endsWith('2026-12'))).toEqual(['k1:2026-12']);
+    // 3 × 1.000.000 + 5 × 1.200.000 + 4 × 1.500.000 = 15.000.000
+    expect(contractSummary(k(), adds, []).totalValue).toBe(15000000);
+  });
+  it("keeps an addendum's own items that fall before its effective date", () => {
+    const add = sampleAddendum({ id: 'PL01', effect: 'changesTerms', effectiveDate: '2027-06-01', signedDate: '2027-05-20', startDate: '2027-05-20',
+      plan: { type: 'instalments', items: [{ id: 's', name: 'Đợt 1', share: { percent: 100 }, due: { on: 'signing' }, ready: false, readyOn: null }] } });
+    const rows = contractItems(k(), [add], [], '2027-05-25');
+    expect(rows.find((r) => r.sourceId === 'PL01' && r.key === 's')).toMatchObject({ state: 'due', dueDate: '2027-05-20' });
+  });
+});

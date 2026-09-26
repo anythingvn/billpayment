@@ -69,24 +69,28 @@ function billOf(item: PlanItem, bills: Bill[]): Bill | undefined {
   return mine.find((b) => b.status === 'paid') ?? mine[0];
 }
 
-/** All items of a contract and its active addenda, with their state on `today`. */
+/**
+ * All items of a contract and its active addenda, with their state on `today`.
+ * Each unbilled item is billable only from the record that governs its due date (the latest effective
+ * "changes terms" addendum, else the contract); items of other records are superseded.
+ */
 export function contractItems(contract: Contract, addenda: Contract[], bills: Bill[], today: string): ItemRow[] {
   const mine = addenda.filter((a) => a.parentId === contract.id);
-  const changes = mine.filter(isChange);
-  const firstChange = changes.map((a) => a.effectiveDate!).sort()[0] ?? null;
-  const row = (item: PlanItem, supersedable: boolean): ItemRow => {
+  const governing = (date: string) => applicableTerms(contract, mine, date).id;
+  const row = (item: PlanItem, isSuperseded: (i: PlanItem) => boolean): ItemRow => {
     const bill = billOf(item, bills);
     let state: ItemState;
     if (bill) state = bill.status === 'paid' ? 'paid' : 'billed';
-    else if (supersedable && firstChange && item.dueDate !== null && item.dueDate >= firstChange) state = 'superseded';
+    else if (isSuperseded(item)) state = 'superseded';
     else if (item.dueDate === null) state = 'waiting';
     else state = item.dueDate <= today ? 'due' : 'notDue';
     return { ...item, state, billId: bill?.id ?? null, billNumber: bill?.number ?? null };
   };
-  const rows = planItems(contract).map((i) => row(i, true));
-  for (const a of mine.filter(isAddWork)) rows.push(...planItems(a).map((i) => row(i, false)));
-  for (const a of changes) {
-    rows.push(...planItems(a).filter((i) => i.dueDate === null || i.dueDate >= a.effectiveDate!).map((i) => row(i, false)));
+  const rows = planItems(contract).map((i) => row(i, (x) => x.dueDate !== null && governing(x.dueDate) !== contract.id));
+  for (const a of mine.filter(isAddWork)) rows.push(...planItems(a).map((i) => row(i, () => false)));
+  for (const a of mine.filter(isChange)) {
+    // Items due before the addendum's own effective date (e.g. "on signing") stay billable from it.
+    rows.push(...planItems(a).map((i) => row(i, (x) => x.dueDate !== null && x.dueDate >= a.effectiveDate! && governing(x.dueDate) !== a.id)));
   }
   return rows;
 }
@@ -122,12 +126,12 @@ export function contractSummary(contract: Contract, addenda: Contract[], bills: 
   let totalValue = value + mine.filter(isAddWork).reduce((s, a) => s + contractValue(a), 0);
   const changes = mine.filter(isChange);
   if (changes.length) {
-    // Replace the superseded part of the contract's plan with the addenda's own items.
+    // Replace the superseded part of the contract's plan with the change addenda's items that apply.
     const rows = contractItems(contract, mine, bills, '9999-12-31');
     const superseded = rows.filter((r) => r.sourceId === contract.id && r.state === 'superseded');
     totalValue -= superseded.reduce((s, r) => s + withVat(r.amount, contract.vatRate), 0);
     for (const a of changes) {
-      totalValue += rows.filter((r) => r.sourceId === a.id).reduce((s, r) => s + withVat(r.amount, a.vatRate), 0);
+      totalValue += rows.filter((r) => r.sourceId === a.id && r.state !== 'superseded').reduce((s, r) => s + withVat(r.amount, a.vatRate), 0);
     }
   }
   const linked = linkedBills(contract, addenda, bills).filter(live);

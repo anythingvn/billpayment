@@ -255,3 +255,24 @@ describe('Home → To bill', () => {
     expect(await screen.findByText('2 contract items are waiting to be billed')).toBeTruthy();
   });
 });
+
+describe('review fixes: contract editor and addenda actions', () => {
+  it('an empty price is refused on save instead of stored', async () => {
+    const db = await openApp('#/contracts/new');
+    await fillBasics();
+    fireEvent.input(screen.getAllByLabelText('Unit price')[0], { target: { value: '' } });
+    fireEvent.click(screen.getByText('Save draft'));
+    expect(await screen.findByText('Line 1: Unit price must be a whole number of at least 0')).toBeTruthy();
+    expect(await listContracts(db)).toEqual([]);
+  });
+  it('addenda can be terminated, and deleted while draft', async () => {
+    const db = await openApp('#/contracts/k1', { contracts: [sampleContract(), sampleAddendum(), sampleAddendum({ id: 'a2', number: 'PL02', status: 'draft' })] });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const row1 = (await screen.findByText('PL01')).closest('tr')!;
+    fireEvent.click(within(row1).getByText('Terminate'));
+    await waitFor(async () => expect((await getContract(db, 'a1'))!.status).toBe('terminated'));
+    const row2 = screen.getByText('PL02').closest('tr')!;
+    fireEvent.click(within(row2).getByText('Delete'));
+    await waitFor(async () => expect(await getContract(db, 'a2')).toBeUndefined());
+  });
+});
