@@ -80,9 +80,10 @@ function summarySheet(ws: Worksheet, r: Report) {
   total.font = { bold: true };
   money(total, 3);
   ws.addRow([]);
-  money(ws.addRow(['Đã thu / Received', r.received]), 2);
-  money(ws.addRow(['Đã lập / Billed', r.billed.count, r.billed.total]), 3);
-  money(ws.addRow(['Còn phải thu / Owed at end', r.owed.count, r.owed.total]), 3);
+  // Count under "Bills", amount under "Total", like the VAT table above.
+  money(ws.addRow(['Đã thu / Received', r.vatTotal.count, null, null, r.received]), 5);
+  money(ws.addRow(['Đã lập / Billed', r.billed.count, null, null, r.billed.total]), 5);
+  money(ws.addRow(['Còn phải thu / Owed at end', r.owed.count, null, null, r.owed.total]), 5);
 }
 
 /** The accountant report as an .xlsx file: Summary, Paid, Billed and Owed sheets. ExcelJS loads only when called. */

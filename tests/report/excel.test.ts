@@ -48,9 +48,11 @@ describe('reportToXlsx', () => {
     const moneyCell = vat8.getCell(5);
     expect([moneyCell.value, moneyCell.numFmt]).toEqual([2160000, '#,##0']);
     expect(nums(findRow(ws, 'Tổng cộng / Total'))).toEqual([2, 2000000, 160000, 2160000]);
-    expect(nums(findRow(ws, 'Đã thu / Received'))).toEqual([2160000]);
-    expect(nums(findRow(ws, 'Đã lập / Billed'))).toEqual([3, 3160000]);
-    expect(nums(findRow(ws, 'Còn phải thu / Owed at end'))).toEqual([1, 1000000]);
+    // Totals line up with the VAT table: count under "Bills" (B), amount under "Total" (E).
+    const at = (text: string) => { const r = findRow(ws, text); return [r.getCell(2).value, r.getCell(5).value, r.getCell(5).numFmt]; };
+    expect(at('Đã thu / Received')).toEqual([2, 2160000, '#,##0']);
+    expect(at('Đã lập / Billed')).toEqual([3, 3160000, '#,##0']);
+    expect(at('Còn phải thu / Owed at end')).toEqual([1, 1000000, '#,##0']);
   });
 
   it('paid sheet', async () => {
@@ -89,6 +91,6 @@ describe('reportToXlsx', () => {
       const ws = wb.getWorksheet(name)!;
       expect(ws.getRow(2).getCell(2).value).toBe('Không có / None');
     }
-    expect(nums(findRow(wb.getWorksheet('Tổng hợp')!, 'Đã thu / Received'))).toEqual([0]);
+    expect(nums(findRow(wb.getWorksheet('Tổng hợp')!, 'Đã thu / Received'))).toEqual([0, 0]);
   });
 });
