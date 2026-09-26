@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { listServices, newId, putService } from '../storage/db';
+import { ignoreHandled } from '../storage/errors';
 import type { Service } from '../domain/types';
 import { formatVnd } from '../domain/format';
 import { useWrite } from '../ui/useOnline';
@@ -42,7 +43,8 @@ export function Services() {
   const [showArchived, setShowArchived] = useState(false);
   const load = async () => setItems((await listServices(db)).sort((a, b) => a.nameVi.localeCompare(b.nameVi, 'vi')));
   useEffect(() => { load(); }, []);
-  const save = async (s: Service) => { await putService(db, s); setEditing(null); load(); };
+  // A failed write was already reported (guardStore); the form stays open with its input.
+  const save = (s: Service) => putService(db, s).then(() => { setEditing(null); load(); }, ignoreHandled);
   const shown = items.filter((s) => showArchived || !s.archived);
   return (
     <div>

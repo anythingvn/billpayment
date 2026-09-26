@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { navigate } from '../router';
 import { deleteOrArchiveCustomer, listCustomers, newId, putCustomer } from '../storage/db';
+import { ignoreHandled } from '../storage/errors';
 import type { Customer } from '../domain/types';
 import { useWrite } from '../ui/useOnline';
 
@@ -41,10 +42,12 @@ export function Customers() {
   const load = async () => setItems((await listCustomers(db)).sort((a, b) => a.name.localeCompare(b.name, 'vi')));
   useEffect(() => { load(); }, []);
 
-  const save = async (c: Customer) => { await putCustomer(db, c); setEditing(null); load(); };
+  // A failed write was already reported (guardStore); the form stays open with its input.
+  const save = (c: Customer) => putCustomer(db, c).then(() => { setEditing(null); load(); }, ignoreHandled);
   const remove = async (c: Customer) => {
     if (!confirm(`Delete ${c.name}?`)) return;
-    const r = await deleteOrArchiveCustomer(db, c.id);
+    const r = await deleteOrArchiveCustomer(db, c.id).catch(ignoreHandled);
+    if (r === undefined) return;
     if (r === 'archived') alert(`${c.name} is used on bills, so it was archived instead of deleted.`);
     load();
   };

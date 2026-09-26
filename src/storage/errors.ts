@@ -23,6 +23,8 @@ export class HandledError extends Error {
   constructor(readonly cause: Error) { super(cause.message); this.name = 'HandledError'; }
 }
 export const isHandled = (e: unknown): e is HandledError => e instanceof HandledError;
+/** For `.catch`: swallows an error that was already reported to the user, rethrows anything else. */
+export const ignoreHandled = (e: unknown): undefined => { if (isHandled(e)) return undefined; throw e; };
 
 export class ServerError extends Error {
   constructor() { super('Something went wrong on the server'); this.name = 'ServerError'; }
