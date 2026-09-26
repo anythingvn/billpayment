@@ -20,8 +20,8 @@ fill your own **Word templates** (company letterhead), and optionally save every
 - **Contracts and addenda (phụ lục):** numbered `12/2026/HĐDV-SM` / `PL01`; billed by instalments, a fixed amount per month/quarter, or per use.
   Addenda add work or change the terms from a date. Bills fill in from a contract item and print *"Căn cứ Hợp đồng số … ký ngày …"*;
   each contract shows value, billed, paid and left; Home lists what's **to bill** and reminds you after 3 days.
-- **Word documents:** your own .docx templates with `{placeholders}` for contracts, addenda and bills, so documents match your letterhead.
-  - Several contract templates (one default, chosen per contract), one addendum and one bill template; three starters to begin from.
+- **Word documents:** your own .docx templates with `{placeholders}` for contracts, addenda, bills and customer statements, so documents match your letterhead.
+  - Several contract templates (one default, chosen per contract), one addendum, one bill and one statement template; four starters to begin from.
   - **Check a template** ticks known placeholders and flags typos (*"did you mean so_hop_dong?"*) and ones the document type doesn't fill; only plain placeholders are accepted, so a template can't run code.
   - Bills get the VietQR code; drafts are named `…_DRAFT.docx` and have no QR. See [docs/word-templates.md](docs/word-templates.md).
 - **Accountant report:** Reports → pick a period (This/Last month, This/Last quarter, This year, or any dates) → an Excel file (`Báo cáo 2026-09.xlsx`, `Báo cáo 2026-Q3.xlsx`, …):
@@ -29,8 +29,10 @@ fill your own **Word templates** (company letterhead), and optionally save every
   - **Đã thanh toán / Paid**, **Đã lập / Billed** and **Còn phải thu / Owed** (with days overdue, up to today for a period not yet ended);
   - real numbers and dates, so SUM and sorting work; the same figures are shown on screen.
 - **Customer statement (đối chiếu công nợ):** Customers → **Statement** → pick a period (This year, Last year, quarters, All time, or any dates):
-  opening balance, billed, paid and closing balance; every bill in the period; what's unpaid with days overdue; a VietQR for the balance;
-  and signature boxes for both sides. Export PDF (same look as bills), **Word** from your own Statement template, or save both to Drive.
+  - opening balance, billed, paid and closing balance (in words too); every bill billed or paid in the period; what's unpaid at the end, with days overdue (up to today);
+  - a VietQR for the closing balance (reference `DC<date><code>`, the code from the customer's tax ID or name) and a "please confirm by …" line with signature boxes for both sides;
+  - a bill paid in advance (before its bill date) counts as paid on its bill date, so it never shows as owed;
+  - Export PDF (same look as bills), **Word** from your own Statement template, or save both to Drive (PDF and Word status shown separately).
 - **Google Drive (optional)**, automatically or with a button:
   - bills: `My Drive / Phiếu thanh toán / <year> / <customer> / <bill number>.pdf` on export, with the Word file next to it when you have a bill template;
   - contracts and addenda: `Phiếu thanh toán / Hợp đồng / <year> / <customer> / HĐ … .docx` on **Save & activate**;
@@ -53,6 +55,7 @@ Then use **Word (.docx)** on a contract, addendum or bill. How to write template
 
 **Chasing a payment or year-end reconciliation:** Customers → **Statement** on the customer → pick the period → **Export PDF**
 (or **Word**, or **Save to Google Drive**), send it, and ask the customer to sign and return it.
+For year-end, pick **Last year**; for chasing, the default **This year** (up to today) shows everything still owed.
 
 **Report for your accountant:** Reports → pick the period (e.g. **Last month** or **Last quarter**) → **Download Excel**
 or **Save to Google Drive**. Compare its VAT per rate with the e-invoices you issued for the same period.
@@ -72,9 +75,9 @@ npm run build    # type-check + production build into dist/
 ```
 - **Stack:** Vite, Preact, TypeScript, IndexedDB (`idb`), `qrcode`, `vite-plugin-pwa`. Drive PDFs use `html2canvas` + `jspdf`, loaded only when uploading. Word files use `docx-templates`, loaded only when generating; Excel reports use `exceljs`, loaded only on export.
 - **Code map:**
-  - `src/domain/` — money, words, VietQR, banks, status and validation rules, contract plans/terms/auto-fill
+  - `src/domain/` — money, words, VietQR, banks, status and validation rules, contract plans/terms/auto-fill, report and statement figures
   - `src/storage/` — IndexedDB, numbering, backup
-  - `src/report/` — accountant report Excel file (ExcelJS, loaded only on export); figures in `src/domain/report.ts`; customer statements in `src/domain/statement.ts`
+  - `src/report/` — accountant report Excel file (ExcelJS, loaded only on export)
   - `src/docs/` — Word templates: placeholders, checker, render, starters (`npm run make-starters`)
   - `src/drive/` — Google sign-in, Drive API, folders, upload
   - `src/ui/` — bill and statement pages, PDF, lines editor, Drive status line
