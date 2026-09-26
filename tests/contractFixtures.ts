@@ -16,7 +16,7 @@ export const sampleContract = (over: Partial<Contract> = {}): Contract => ({
       { id: 'i2', name: 'Đợt 2 – Nghiệm thu', share: { percent: 50 }, due: { on: 'acceptance' }, ready: false, readyOn: null },
     ],
   },
-  paymentTerms: '', paymentDays: 10,
+  paymentTerms: '', paymentDays: 10, templateId: null,
   createdAt: '2026-09-15T00:00:00.000Z', updatedAt: '2026-09-15T00:00:00.000Z',
   ...over,
 });

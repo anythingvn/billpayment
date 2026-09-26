@@ -19,7 +19,7 @@ function blankContract(s: { defaultVatRate: VatRate; defaultPaymentDays: number 
   return {
     id: newId(), kind: 'contract', parentId: null, effect: null, effectiveDate: null, number: '', title: '', status: 'draft',
     signedDate: today, startDate: today, endDate: null, customerId: '', customer: { ...EMPTY_CUSTOMER }, business: null,
-    lines: [], vatRate: s.defaultVatRate, plan: { type: 'perUse' }, paymentTerms: '', paymentDays: s.defaultPaymentDays,
+    lines: [], vatRate: s.defaultVatRate, plan: { type: 'perUse' }, paymentTerms: '', paymentDays: s.defaultPaymentDays, templateId: null,
     createdAt: '', updatedAt: '',
   };
 }

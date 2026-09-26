@@ -100,8 +100,26 @@ export interface Contract {
   plan: Plan;
   paymentTerms: string;
   paymentDays: number;
+  /** Word template for the contract document; null = the default contract template. */
+  templateId: string | null;
+  /** Google Drive status of the contract's Word document. */
+  drive?: DriveStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export type DocKind = 'contract' | 'addendum' | 'bill';
+
+/** An uploaded Word (.docx) template with {placeholders}. */
+export interface DocTemplate {
+  id: string;
+  kind: DocKind;
+  name: string;
+  fileName: string;
+  data: ArrayBuffer;
+  uploadedAt: string;
+  /** Contract templates: the one new contracts use. */
+  isDefault: boolean;
 }
 
 /** A bill's link to the contract/addendum it bills, with numbers and dates copied at save for printing. */
@@ -155,6 +173,8 @@ export interface Bill {
   business?: BusinessSnapshot;
   /** The contract or addendum this bill is for. */
   contractRef?: ContractRef;
+  /** Google Drive status of the bill's Word document (drive = the PDF). */
+  driveDocx?: DriveStatus;
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Bill, Contract, Customer, Service, Settings } from '../domain/types';
+import type { Bill, Contract, Customer, DocKind, DocTemplate, Service, Settings } from '../domain/types';
 import { normalizeSettings } from '../domain/settings';
 
 export interface AppSchema extends DBSchema {
@@ -9,16 +9,17 @@ export interface AppSchema extends DBSchema {
   settings: { key: string; value: Settings };
   meta: { key: string; value: unknown };
   contracts: { key: string; value: Contract; indexes: { byCustomer: string; byParent: string } };
+  templates: { key: string; value: DocTemplate };
 }
 
 export type AppDb = IDBPDatabase<AppSchema>;
 
 /**
- * Opens (and upgrades) the app database. Version 2 adds the `contracts` store; existing data is untouched.
+ * Opens (and upgrades) the app database. Version 2 adds `contracts`, version 3 `templates`; existing data is untouched.
  * `onBlocked` runs when another open tab still uses the old version and holds up the upgrade.
  */
 export function openAppDb(name = 'payment-bills', opts: { onBlocked?: () => void } = {}): Promise<AppDb> {
-  return openDB<AppSchema>(name, 2, {
+  return openDB<AppSchema>(name, 3, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         db.createObjectStore('customers', { keyPath: 'id' });
@@ -33,6 +34,7 @@ export function openAppDb(name = 'payment-bills', opts: { onBlocked?: () => void
         contracts.createIndex('byCustomer', 'customerId');
         contracts.createIndex('byParent', 'parentId');
       }
+      if (oldVersion < 3) db.createObjectStore('templates', { keyPath: 'id' });
     },
     blocked() {
       opts.onBlocked?.();
@@ -102,4 +104,50 @@ export async function deleteContract(db: AppDb, id: string): Promise<'deleted' |
   if (!hasAddenda && !hasBills) await tx.objectStore('contracts').delete(id);
   await tx.done;
   return hasAddenda || hasBills ? 'refused' : 'deleted';
+}
+
+export const listTemplates = (db: AppDb) => db.getAll('templates');
+
+/** Saves a template; a default contract template clears the other contract templates' default. */
+export async function putTemplate(db: AppDb, t: DocTemplate): Promise<void> {
+  const tx = db.transaction('templates', 'readwrite');
+  if (t.kind === 'contract' && t.isDefault) {
+    for (const other of await tx.store.getAll()) {
+      if (other.kind === 'contract' && other.id !== t.id && other.isDefault) await tx.store.put({ ...other, isDefault: false });
+    }
+  }
+  await tx.store.put(t);
+  await tx.done;
+}
+
+/**
+ * Removes a template. Contracts that used it go back to the default; when the default contract template
+ * is removed, the oldest remaining contract template becomes the default.
+ */
+export async function removeTemplate(db: AppDb, id: string): Promise<{ contractsReset: number }> {
+  const tx = db.transaction(['templates', 'contracts'], 'readwrite');
+  const templates = tx.objectStore('templates');
+  const removed = await templates.get(id);
+  await templates.delete(id);
+  if (removed?.kind === 'contract' && removed.isDefault) {
+    const oldest = (await templates.getAll()).filter((t) => t.kind === 'contract').sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt))[0];
+    if (oldest) await templates.put({ ...oldest, isDefault: true });
+  }
+  let contractsReset = 0;
+  const contracts = tx.objectStore('contracts');
+  for (const c of await contracts.getAll()) {
+    if (c.templateId === id) {
+      await contracts.put({ ...c, templateId: null });
+      contractsReset++;
+    }
+  }
+  await tx.done;
+  return { contractsReset };
+}
+
+/** The template to use: for contracts the chosen one (if it still exists) else the default; else the one of that kind. */
+export async function templateFor(db: AppDb, kind: DocKind, templateId?: string | null): Promise<DocTemplate | null> {
+  const all = (await db.getAll('templates')).filter((t) => t.kind === kind);
+  if (kind !== 'contract') return all[0] ?? null;
+  return all.find((t) => t.id === templateId) ?? all.find((t) => t.isDefault) ?? all[0] ?? null;
 }

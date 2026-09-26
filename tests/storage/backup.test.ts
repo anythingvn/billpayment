@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { openAppDb, putCustomer, putBill, putSettings, listBills, listCustomers, getSettings, getMeta, setMeta, putContract, listContracts } from '../../src/storage/db';
 import { allocateContractNumber } from '../../src/storage/contractNumbering';
+import { putTemplate, listTemplates } from '../../src/storage/db';
 import { sampleContract, sampleAddendum } from '../contractFixtures';
 import { allocateBillNumber } from '../../src/storage/numbering';
 import {
@@ -28,7 +29,7 @@ describe('backup round trip', () => {
     const text = JSON.stringify(await exportAll(src, '2026-09-25T10:00:00.000Z'));
     const parsed = parseBackup(text);
     if (!parsed.ok) throw new Error(parsed.error);
-    expect(parsed.summary).toBe('1 bills, 1 customers, 0 services, 0 contracts');
+    expect(parsed.summary).toBe('1 bills, 1 customers, 0 services, 0 contracts, 0 templates');
 
     const dst = await freshDb();
     await restoreAll(dst, parsed.data);
@@ -218,7 +219,7 @@ describe('backups with contracts', () => {
     await allocateContractNumber(src, DEFAULT_SETTINGS, '2026-09-15');
     const parsed = parseBackup(JSON.stringify(await exportAll(src, 'x')));
     if (!parsed.ok) throw new Error(parsed.error);
-    expect(parsed.summary).toBe('1 bills, 1 customers, 0 services, 2 contracts');
+    expect(parsed.summary).toBe('1 bills, 1 customers, 0 services, 2 contracts, 0 templates');
     const dst = await freshDb();
     await restoreAll(dst, parsed.data);
     expect((await listContracts(dst)).map((c) => c.id).sort()).toEqual(['a1', 'k1']);
@@ -227,7 +228,7 @@ describe('backups with contracts', () => {
   it('old backup without contracts restores', async () => {
     const r = parseBackup(file({}));
     expect(r.ok && r.data.contracts).toEqual([]);
-    expect(r.ok && r.summary).toBe('0 bills, 0 customers, 0 services, 0 contracts');
+    expect(r.ok && r.summary).toBe('0 bills, 0 customers, 0 services, 0 contracts, 0 templates');
   });
   it('rejects damaged contracts', () => {
     const k = sampleContract();
@@ -249,5 +250,39 @@ describe('backups with contracts', () => {
   it('counter keys', () => {
     expect(parseBackup(file({ counters: { 'counter-2026': 3, 'contract-counter-2026': 2 } })).ok).toBe(true);
     expect(parseBackup(file({ counters: { 'contract-counter-abc': 2 } })).ok).toBe(false);
+  });
+});
+
+describe('backups with Word templates', () => {
+  const file = (over: Record<string, unknown>) => JSON.stringify({
+    app: 'payment-bills', schemaVersion: 1, exportedAt: 'x', customers: [], services: [], counters: {}, settings: DEFAULT_SETTINGS, bills: [], ...over,
+  });
+  const good = { id: 't1', kind: 'bill', name: 'Bill', fileName: 'bill.docx', dataBase64: btoa('PK\u0003\u0004abc'), uploadedAt: '2026-09-26T00:00:00.000Z', isDefault: false };
+  it('round trip keeps template bytes identical', async () => {
+    const src = await seeded();
+    const data = new Uint8Array([0x50, 0x4b, 3, 4, 0, 255, 128, 7]).buffer;
+    await putTemplate(src, { id: 't1', kind: 'bill', name: 'Bill', fileName: 'bill.docx', data, uploadedAt: '2026-09-26T00:00:00.000Z', isDefault: false });
+    const parsed = parseBackup(JSON.stringify(await exportAll(src, 'x')));
+    if (!parsed.ok) throw new Error(parsed.error);
+    expect(parsed.summary).toBe('1 bills, 1 customers, 0 services, 0 contracts, 1 templates');
+    const dst = await freshDb();
+    await restoreAll(dst, parsed.data);
+    const [t] = await listTemplates(dst);
+    expect([...new Uint8Array(t.data)]).toEqual([0x50, 0x4b, 3, 4, 0, 255, 128, 7]);
+  });
+  it('old backup without templates restores', () => {
+    const r = parseBackup(file({}));
+    expect(r.ok && r.data.templates).toEqual([]);
+  });
+  it('rejects damaged templates', () => {
+    expect(parseBackup(file({ templates: [good] })).ok).toBe(true);
+    expect(parseBackup(file({ templates: [{ ...good, dataBase64: btoa('not a zip') }] })).ok).toBe(false);
+    expect(parseBackup(file({ templates: [{ ...good, kind: 'poster' }] })).ok).toBe(false);
+    const big = btoa('PK' + 'x'.repeat(5 * 1024 * 1024));
+    expect(parseBackup(file({ templates: [{ ...good, dataBase64: big }] })).ok).toBe(false);
+  });
+  it('rejects damaged Word Drive fields', () => {
+    expect(parseBackup(file({ bills: [{ ...sampleBill(), driveDocx: { fileId: 5 } }] })).ok).toBe(false);
+    expect(parseBackup(file({ contracts: [{ ...sampleContract(), drive: { fileId: 5 } }] })).ok).toBe(false);
   });
 });
