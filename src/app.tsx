@@ -14,6 +14,7 @@ import { BackupScreen } from './screens/Backup';
 import { Contracts } from './screens/Contracts';
 import { ContractEditor } from './screens/ContractEditor';
 import { ContractView } from './screens/ContractView';
+import { Reports } from './screens/Reports';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 
 interface AppCtx {
@@ -27,6 +28,7 @@ export const useApp = (): AppCtx => useContext(Ctx)!;
 const NAV: { label: string; route: Route; match: Route['name'][] }[] = [
   { label: 'Bills', route: { name: 'home' }, match: ['home', 'bill', 'newBill', 'editBill', 'duplicateBill', 'newBillFromContract'] },
   { label: 'Contracts', route: { name: 'contracts' }, match: ['contracts', 'newContract', 'contract', 'editContract', 'newAddendum'] },
+  { label: 'Reports', route: { name: 'reports' }, match: ['reports'] },
   { label: 'Customers', route: { name: 'customers' }, match: ['customers'] },
   { label: 'Services', route: { name: 'services' }, match: ['services'] },
   { label: 'Settings', route: { name: 'settings' }, match: ['settings'] },
@@ -44,6 +46,7 @@ function Screen({ route }: { route: Route }) {
     case 'services': return <Services />;
     case 'settings': return <SettingsScreen />;
     case 'backup': return <BackupScreen />;
+    case 'reports': return <Reports />;
     case 'contracts': return <Contracts />;
     case 'newContract': return <ContractEditor key="new-contract" mode={{ kind: 'new' }} />;
     case 'editContract': return <ContractEditor key={`ec-${route.id}`} mode={{ kind: 'edit', id: route.id }} />;

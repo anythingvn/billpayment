@@ -10,6 +10,7 @@ export type Route =
   | { name: 'services' }
   | { name: 'settings' }
   | { name: 'backup' }
+  | { name: 'reports' }
   | { name: 'contracts' }
   | { name: 'newContract' }
   | { name: 'contract'; id: string }
@@ -37,7 +38,7 @@ export function parseRoute(hash: string): Route {
     if (parts[2] === 'edit') return { name: 'editContract', id };
     if (parts[2] === 'addendum') return { name: 'newAddendum', parentId: id };
   }
-  if (parts.length === 1 && ['customers', 'services', 'settings', 'backup'].includes(parts[0])) {
+  if (parts.length === 1 && ['customers', 'services', 'settings', 'backup', 'reports'].includes(parts[0])) {
     return { name: parts[0] } as Route;
   }
   return { name: 'home' };
