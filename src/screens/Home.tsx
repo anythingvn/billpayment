@@ -22,7 +22,7 @@ export function StatusBadge({ bill, today }: { bill: Bill; today: string }) {
 }
 
 export function Home() {
-  const { db } = useApp();
+  const { db, auth } = useApp();
   const w = useWrite();
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [remind, setRemind] = useState(false);
@@ -35,7 +35,8 @@ export function Home() {
     (async () => {
       setContracts(await listContracts(db));
       setBills(await listBills(db));
-      setRemind(needsBackupReminder(await lastBackupAt(db), new Date().toISOString()));
+      // Only this browser's own data needs the reminder; the server backs itself up every night.
+      if (!auth) setRemind(needsBackupReminder(await lastBackupAt(db), new Date().toISOString()));
     })();
   }, []);
 

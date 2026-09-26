@@ -1,0 +1,12 @@
+# docker compose up -d --build   (settings in .env — run `npm run make-env` or copy .env.example)
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

@@ -159,6 +159,13 @@ describe('server mode', () => {
     expect(await screen.findByText('Customers', { selector: 'h2' })).toBeTruthy();
   });
 
+  it('no browser-backup reminder on the server (it backs up nightly)', async () => {
+    await root(fakeAuth());
+    await screen.findByText('+ New bill');
+    await new Promise((r) => setTimeout(r, 300)); // the reminder is decided after the list loads
+    expect(screen.queryByText(/haven't backed up/)).toBeNull();
+  });
+
   it('sign out ends the session', async () => {
     const auth = fakeAuth();
     await root(auth);

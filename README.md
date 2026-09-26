@@ -6,7 +6,11 @@ fill your own **Word templates** (company letterhead), and optionally save every
 
 > This is **not** an official VAT e-invoice (hóa đơn điện tử). Issue those through a licensed e-invoice provider.
 
-**Live app:** https://anythingvn.github.io/billpayment/
+**Live app:** https://anythingvn.github.io/billpayment/ (single-user: data stays in each browser)
+
+**Shared server (branch `feat/shared-server`):** the same app on your own server, so several people work on the same
+data with their own accounts (Admin, Manager, Order Creator, Accountant — permissions per role come next).
+See [docs/server-setup.md](docs/server-setup.md).
 
 ## Features
 - **Bills in 3 steps:** Bill options + customer → services → review & export. Classic Vietnamese A4 layout with English under each label.
@@ -39,6 +43,10 @@ fill your own **Word templates** (company letterhead), and optionally save every
   - reports: `Phiếu thanh toán / Báo cáo / <year> / Báo cáo … .xlsx` with a button; saving the same period again updates the same file;
   - customer statements: `Phiếu thanh toán / Đối chiếu / <year> / <customer> / Đối chiếu … .pdf` (and `.docx`) with a button.
 - **Works offline** and installs as an app (desktop or phone). **Backup / Restore** to a single file (Word templates and the Drive links of saved reports and statements included).
+
+- **Shared server (optional):** run it on your own server with Docker; sign-in per person, the Admin manages users,
+  every change shows who made it, simultaneous edits are caught ("Someone else changed this"), bill numbers are never
+  handed out twice, one company Google Drive, nightly backups, and read-only viewing when offline.
 
 ## Use
 1. Open the live app in Chrome, Edge or Safari. Install it: the install icon in the address bar, or *Add to Home screen* on a phone.
@@ -87,8 +95,14 @@ npm run build    # type-check + production build into dist/
 - **Bank list:** `src/domain/banks.ts` is checked against the saved official list in `tests/data/vietqr-banks.json`.
 - **Secrets:** only the public Google Client ID is in the code. Never commit `client_secret*.json` files (they're git-ignored).
 
+- **Server:** `server/` (Fastify + Node's built-in SQLite) reuses `src/domain/`. The app talks to it through the
+  `Store` interface (`src/storage/store.ts`): `IdbStore` (browser), `SqliteStore` (server), `ApiStore` (browser → server).
+  Run locally: `npm run make-env && npm run build && npm run build:server && node server/dist/main.js` → http://localhost:8080,
+  or `docker compose up --build`. The app picks its mode at start: server when `/api/health` answers, else single-user.
+
 ## Docs
-- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [contracts](docs/superpowers/specs/2026-09-26-contracts-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md), [Word documents](docs/superpowers/specs/2026-09-26-word-documents-design.md), [accountant report](docs/superpowers/specs/2026-09-26-accountant-report-design.md), [customer statement](docs/superpowers/specs/2026-09-26-customer-statement-design.md)
+- Server setup: [docs/server-setup.md](docs/server-setup.md)
+- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [contracts](docs/superpowers/specs/2026-09-26-contracts-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md), [Word documents](docs/superpowers/specs/2026-09-26-word-documents-design.md), [accountant report](docs/superpowers/specs/2026-09-26-accountant-report-design.md), [customer statement](docs/superpowers/specs/2026-09-26-customer-statement-design.md), [shared server](docs/superpowers/specs/2026-09-26-shared-server-design.md)
 - Build plans: [docs/superpowers/plans/](docs/superpowers/plans/)
 - Word templates: [docs/word-templates.md](docs/word-templates.md)
 - Google Drive setup: [docs/google-drive-setup.md](docs/google-drive-setup.md)

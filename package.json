@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "make-starters": "tsx scripts/make-starters.ts",
     "server": "tsx server/src/main.ts",
-    "build:server": "esbuild server/src/main.ts --bundle --platform=node --format=esm --packages=external --outfile=server/dist/main.js",
+    "build:server": "esbuild server/src/main.ts server/src/resetPassword.ts --bundle --platform=node --format=esm --packages=external --outdir=server/dist",
     "make-env": "tsx scripts/make-env.ts"
   },
   "keywords": [],

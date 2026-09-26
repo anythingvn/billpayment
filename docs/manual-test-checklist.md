@@ -188,3 +188,22 @@ Guide: `docs/word-templates.md`. Items marked *(generated in browser)* were chec
 - [ ] Back up, restore, then **Update in Google Drive** for a saved statement: still one file of each in Drive
 - [ ] Send one to a customer and ask them to sign and return it
 
+## 11. Shared server (branch feat/shared-server)
+Setup guide: `docs/server-setup.md`.
+- [ ] `npm run make-env && npm run build && npm run build:server && node server/dist/main.js` → http://localhost:8080 shows **Set up the server**
+- [ ] With Docker Desktop running: `docker compose up --build` starts the same; data appears in `./data`
+- [ ] Set up the Admin, then **Import** a backup from the current app: bills, customers, contracts, templates and settings are there; the next bill continues the numbering
+- [ ] **Users**: add a Manager and an Order Creator; each signs in and must choose their own password first
+- [ ] 5 wrong passwords lock the username for 15 minutes (same message as a wrong password)
+- [ ] Two browsers (or a normal + private window) as two users edit the same customer: the second save says "Someone else changed this — reload to see their changes" and keeps what was typed
+- [ ] Both create a bill at the same moment: different numbers
+- [ ] A bill shows "Created by … · changed by …"; a new bill's "Prepared by" is the signed-in person
+- [ ] Stop the server (or go offline): the banner "Offline — viewing only · last updated hh:mm"; bills, contracts and statements open and print; save buttons are greyed with "Needs a connection"
+- [ ] Sign out, sign in as someone else: they don't see the first person's offline copy
+- [ ] **Activity** (Admin) lists sign-ins, failed sign-ins, deletions, user changes
+- [ ] Settings → Google Drive → **Connect Google Drive** (Admin, after adding the Web client to `.env`): a bill, a contract, a report and a statement save to the company Drive; other users' saves go there too
+- [ ] **Download backup** (Admin) contains no passwords or Google token; **Restore** needs the word RESTORE and keeps the users
+- [ ] Next morning: `data/backups/billpayment-<date>.db` exists
+- [ ] `docker compose exec app node server/dist/resetPassword.js admin` lets the Admin back in with a new password
+- [ ] On your server: HTTPS with your domain (`PUBLIC_URL=https://…`), then the checks above once more
+
