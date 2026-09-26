@@ -18,7 +18,13 @@ export function addDays(iso: string, days: number): string {
   return todayIso(new Date(y, m - 1, d + days));
 }
 
+/** Whole days from one ISO date to another (can be negative). */
+export function daysBetween(fromIso: string, toIso: string): number {
+  const [a, b] = [fromIso, toIso].map((iso) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); });
+  return Math.round((b - a) / 86_400_000);
+}
+
 export function pdfFileName(number: string, customerName: string, draft = false): string {
   const safe = customerName.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return `${number}_${safe}${draft ? '_DRAFT' : ''}`;
+  return `${number}${safe ? `_${safe}` : ''}${draft ? '_DRAFT' : ''}`;
 }

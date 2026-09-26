@@ -29,7 +29,10 @@ export function loadGis(): Promise<Gis> {
     script.onload = () => {
       const oauth2 = (window as unknown as { google?: { accounts?: { oauth2?: Gis } } }).google?.accounts?.oauth2;
       if (oauth2) resolve(oauth2);
-      else reject(new DriveError('other', 'Google sign-in did not load'));
+      else {
+        gisPromise = null;
+        reject(new DriveError('other', 'Google sign-in did not load'));
+      }
     };
     script.onerror = () => {
       gisPromise = null;

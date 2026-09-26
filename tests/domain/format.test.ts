@@ -36,3 +36,10 @@ describe('draft file name', () => {
     expect(pdfFileName('TT-2026-0005', 'Hoa Sen Xanh', true)).toBe('TT-2026-0005_Hoa Sen Xanh_DRAFT');
   });
 });
+
+describe('file name when the customer name is only symbols', () => {
+  it('falls back to the bill number alone', () => {
+    expect(pdfFileName('TT-2026-0001', '/:*?')).toBe('TT-2026-0001');
+    expect(pdfFileName('TT-2026-0001', '  ', true)).toBe('TT-2026-0001_DRAFT');
+  });
+});

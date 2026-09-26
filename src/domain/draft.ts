@@ -1,5 +1,5 @@
 import type { Bill, BillLine, Customer, CustomerSnapshot, Service, Settings } from './types';
-import { addDays } from './format';
+import { addDays, daysBetween } from './format';
 import { defaultBankAccount, defaultFooterText } from './settings';
 
 export type DraftBill = Omit<Bill, 'id' | 'number' | 'status' | 'paidDate' | 'createdAt' | 'updatedAt' | 'drive'> & {
@@ -47,8 +47,9 @@ export function removeLine(d: DraftBill, index: number): DraftBill {
   return { ...d, lines: d.lines.filter((_, i) => i !== index) };
 }
 
-export function setBillDate(d: DraftBill, billDate: string, paymentDays: number): DraftBill {
-  return { ...d, billDate, dueDate: addDays(billDate, paymentDays) };
+/** Moves the bill date and keeps the same number of days until the due date. */
+export function setBillDate(d: DraftBill, billDate: string): DraftBill {
+  return { ...d, billDate, dueDate: addDays(billDate, daysBetween(d.billDate, d.dueDate)) };
 }
 
 export function draftFromBill(b: Bill): DraftBill {
@@ -57,13 +58,14 @@ export function draftFromBill(b: Bill): DraftBill {
     customer: { ...b.customer }, lines: b.lines.map((l) => ({ ...l, details: [...(l.details ?? [])] })), vatRate: b.vatRate,
     ...(b.footerNote !== undefined && { footerNote: b.footerNote }),
     ...(b.bankAccount && { bankAccount: { ...b.bankAccount } }),
+    ...(b.business && { business: { ...b.business } }),
   };
 }
 
 export function duplicateAsDraft(b: Bill, settings: Settings, today: string): DraftBill {
-  return {
-    ...draftFromBill(b), id: null, number: null, billDate: today, dueDate: addDays(today, settings.defaultPaymentDays),
-  };
+  // A new bill prints today's business details, so the old bill's copy is not carried over.
+  const { business: _old, ...rest } = draftFromBill(b);
+  return { ...rest, id: null, number: null, billDate: today, dueDate: addDays(today, settings.defaultPaymentDays) };
 }
 
 /** Raw lines from the editor's details box; blanks are kept so pressing Enter works while typing. */

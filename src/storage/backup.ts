@@ -50,6 +50,7 @@ function validBill(b: unknown): boolean {
     isStr(b.customerId) && isVat(b.vatRate) && (b.footerNote === undefined || isStr(b.footerNote)) &&
     (b.bankAccount === undefined || validAccount(b.bankAccount)) &&
     (b.drive === undefined || validDriveStatus(b.drive)) &&
+    (b.business === undefined || validBusiness(b.business)) &&
     isObj(b.customer) && SNAPSHOT_FIELDS.every((f) => isStr((b.customer as Record<string, unknown>)[f])) &&
     Array.isArray(b.lines) &&
     b.lines.every((l) => isObj(l) && LINE_TEXT_FIELDS.every((f) => isStr(l[f])) && isWhole(l.qty, 1) && isWhole(l.unitPrice, 0) &&
@@ -58,6 +59,10 @@ function validBill(b: unknown): boolean {
 }
 
 const strOrNull = (v: unknown): boolean => v === null || isStr(v);
+
+function validBusiness(x: unknown): boolean {
+  return isObj(x) && ['businessName', 'taxId', 'address', 'phone', 'email', 'preparedBy'].every((k) => isStr(x[k])) && strOrNull(x.logoDataUrl);
+}
 
 function validDriveStatus(d: unknown): boolean {
   return isObj(d) && ['fileId', 'link', 'savedAt', 'error'].every((k) => strOrNull(d[k]));
@@ -118,10 +123,13 @@ export function parseBackup(
   };
 }
 
+const DEVICE_META = ['lastBackupAt', 'driveConnected', 'driveFolders'];
+
 export async function restoreAll(db: AppDb, data: BackupData): Promise<void> {
   const tx = db.transaction(['customers', 'services', 'bills', 'settings', 'meta'], 'readwrite');
   const meta = tx.objectStore('meta');
-  const keepLastBackup = await meta.get('lastBackupAt');
+  // Device-only facts survive a restore: last backup time and this device's Google Drive connection/folders.
+  const keep = await Promise.all(DEVICE_META.map(async (k) => [k, await meta.get(k)] as const));
   await Promise.all([
     tx.objectStore('customers').clear(),
     tx.objectStore('services').clear(),
@@ -134,7 +142,7 @@ export async function restoreAll(db: AppDb, data: BackupData): Promise<void> {
   for (const b of data.bills) await tx.objectStore('bills').put(b);
   await tx.objectStore('settings').put(data.settings, 'settings');
   for (const [k, v] of Object.entries(data.counters)) await meta.put(v, k);
-  if (keepLastBackup !== undefined) await meta.put(keepLastBackup, 'lastBackupAt');
+  for (const [k, v] of keep) if (v !== undefined) await meta.put(v, k);
   await tx.done;
 }
 

@@ -153,3 +153,13 @@ describe('connection remembered from uploads', () => {
     expect(await driveConnection(db)).toEqual({ email: null, at: '2026-09-26T07:00:00.000Z' });
   });
 });
+
+describe('expired access', () => {
+  it('says access expired (not "not connected") on a device that was connected', async () => {
+    const { deps } = setup();
+    const db = await dbWith(sampleBill({ status: 'sent' }));
+    await connectDrive(db, s);
+    deps.auth.getToken = async () => { throw new DriveError('auth', 'x'); };
+    expect((await saveBillToDrive(db, 'b1', s)).error).toBe('Google access expired');
+  });
+});

@@ -49,6 +49,17 @@ export interface SavedBankAccount extends BankAccount {
   id: string;
 }
 
+/** Business details printed on a bill, copied onto the bill when it is sent. */
+export interface BusinessSnapshot {
+  businessName: string;
+  taxId: string;
+  address: string;
+  phone: string;
+  email: string;
+  logoDataUrl: string | null;
+  preparedBy: string;
+}
+
 /** Result of the last Google Drive upload of a bill. */
 export interface DriveStatus {
   fileId: string | null;
@@ -74,6 +85,8 @@ export interface Bill {
   bankAccount?: BankAccount;
   /** Google Drive upload status; missing when never uploaded. */
   drive?: DriveStatus;
+  /** Business details as sent; missing on drafts and on bills sent before this was saved (use Settings). */
+  business?: BusinessSnapshot;
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }

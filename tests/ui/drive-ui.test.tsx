@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/preact';
 
 vi.mock('../../src/drive/service', () => ({
-  driveConfigured: (s: { googleClientId: string }) => s.googleClientId.trim() !== '',
+  driveConfigured: vi.fn((s: { googleClientId: string }) => s.googleClientId.trim() !== ''),
   prepareDrive: vi.fn(async () => {}),
   connectDrive: vi.fn(async () => ({ email: 'a@b.c' })),
   disconnectDrive: vi.fn(async () => {}),
@@ -143,5 +143,25 @@ describe('blocked pop-up on Connect', () => {
     await open('#/settings', CID);
     fireEvent.click(await screen.findByText('Connect Google Drive'));
     expect(await screen.findByText(/blocked Google's sign-in window/)).toBeTruthy();
+  });
+});
+
+describe('deferred fixes: Drive status line', () => {
+  it('shows an existing Drive link even when Drive is not configured', async () => {
+    vi.mocked(service.driveConfigured).mockReturnValue(false);
+    await open('#/bills/p', {}, [sampleBill({ id: 'p', status: 'sent', drive: saved })]);
+    expect(await screen.findByText('Open in Drive')).toBeTruthy();
+    vi.mocked(service.driveConfigured).mockImplementation((st) => st.googleClientId.trim() !== '');
+  });
+  it('has no stray separator when the saved file has no link', async () => {
+    await open('#/bills/p', CID, [sampleBill({ id: 'p', status: 'sent', drive: { ...saved, link: null } })]);
+    const line = await screen.findByText(/Saved to Drive/);
+    expect(line.textContent!.trim()).not.toMatch(/·$/);
+  });
+  it('offers Reconnect when Google access expired', async () => {
+    await open('#/bills/p', CID, [sampleBill({ id: 'p', status: 'sent', drive: { ...saved, error: 'Google access expired' } })]);
+    expect(await screen.findByText(/Not saved to Drive: Google access expired/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Reconnect'));
+    expect(service.saveBillToDrive).toHaveBeenCalled();
   });
 });

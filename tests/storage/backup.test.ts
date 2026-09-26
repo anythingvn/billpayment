@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { openAppDb, putCustomer, putBill, putSettings, listBills, listCustomers, getSettings } from '../../src/storage/db';
+import { openAppDb, putCustomer, putBill, putSettings, listBills, listCustomers, getSettings, getMeta, setMeta } from '../../src/storage/db';
 import { allocateBillNumber } from '../../src/storage/numbering';
 import {
   exportAll, parseBackup, restoreAll, needsBackupReminder, backupFileName, markBackedUp, lastBackupAt,
@@ -178,5 +178,29 @@ describe('backups with Google Drive fields', () => {
     expect(parseBackup(file(DEFAULT_SETTINGS, { ...sampleBill(), drive: { fileId: 5 } })).ok).toBe(false);
     expect(parseBackup(file({ ...DEFAULT_SETTINGS, driveAutoUpload: 'yes' })).ok).toBe(false);
     expect(parseBackup(file({ ...DEFAULT_SETTINGS, googleClientId: 7 })).ok).toBe(false);
+  });
+});
+
+describe('restore keeps this device\'s Drive connection', () => {
+  it('keeps driveConnected and driveFolders', async () => {
+    const db = await seeded();
+    await setMeta(db, 'driveConnected', { email: 'a@b.c', at: 'x' });
+    await setMeta(db, 'driveFolders', { 'Phiếu thanh toán': 'F1' });
+    const parsed = parseBackup(JSON.stringify(await exportAll(db, 'x')));
+    if (!parsed.ok) throw new Error(parsed.error);
+    await restoreAll(db, parsed.data);
+    expect(await getMeta(db, 'driveConnected')).toEqual({ email: 'a@b.c', at: 'x' });
+    expect(await getMeta(db, 'driveFolders')).toEqual({ 'Phiếu thanh toán': 'F1' });
+  });
+});
+
+describe('business details saved on bills', () => {
+  const file = (bill: unknown) => JSON.stringify({
+    app: 'payment-bills', schemaVersion: 1, exportedAt: 'x', customers: [], services: [], counters: {}, settings: DEFAULT_SETTINGS, bills: [bill],
+  });
+  const business = { businessName: 'Sao Mai', taxId: '', address: '', phone: '', email: '', logoDataUrl: null, preparedBy: '' };
+  it('accepts a business snapshot and rejects a damaged one', () => {
+    expect(parseBackup(file({ ...sampleBill({ status: 'sent' }), business })).ok).toBe(true);
+    expect(parseBackup(file({ ...sampleBill({ status: 'sent' }), business: { businessName: 1 } })).ok).toBe(false);
   });
 });

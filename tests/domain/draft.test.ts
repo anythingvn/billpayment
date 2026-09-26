@@ -28,7 +28,7 @@ describe('draft helpers', () => {
     expect(removeLine(d2, 0).lines).toHaveLength(1);
   });
   it('moves the due date with the bill date', () => {
-    expect(setBillDate(newDraft(DEFAULT_SETTINGS, '2026-09-25'), '2026-12-28', 10).dueDate).toBe('2027-01-07');
+    expect(setBillDate(newDraft(DEFAULT_SETTINGS, '2026-09-25'), '2026-12-28').dueDate).toBe('2027-01-07');
   });
   it('round-trips a stored bill and duplicates as a fresh draft', () => {
     const b = sampleBill({ status: 'sent' });
@@ -95,5 +95,17 @@ describe('bank account per bill', () => {
     const b = sampleBill({ bankAccount: { bankBin: '970436', accountNumber: '111', accountHolder: 'A' } });
     expect(draftFromBill(b).bankAccount).toEqual(b.bankAccount);
     expect(duplicateAsDraft(b, s, '2026-11-01').bankAccount).toEqual(b.bankAccount);
+  });
+});
+
+describe('deferred fixes: drafts', () => {
+  it('keeps a custom gap between bill date and due date when the bill date changes', () => {
+    const d = { ...newDraft(DEFAULT_SETTINGS, '2026-09-25'), dueDate: '2026-10-15' }; // 20 days
+    expect(setBillDate(d, '2026-10-01').dueDate).toBe('2026-10-21');
+  });
+  it("a duplicate uses the current business details, not the old bill's copy", () => {
+    const b = sampleBill({ status: 'sent', business: { businessName: 'Old name', taxId: '', address: '', phone: '', email: '', logoDataUrl: null, preparedBy: '' } });
+    expect(draftFromBill(b).business?.businessName).toBe('Old name');
+    expect(duplicateAsDraft(b, DEFAULT_SETTINGS, '2026-11-01').business).toBeUndefined();
   });
 });

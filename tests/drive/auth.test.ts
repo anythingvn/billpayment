@@ -110,3 +110,19 @@ describe('blocked sign-in window', () => {
     expect([e.kind, e.message]).toEqual(['auth', "Your browser blocked Google's sign-in window. Allow pop-ups for this site and try again."]);
   });
 });
+
+describe('Google script that loads broken', () => {
+  it('is retried on the next call instead of being remembered', async () => {
+    const { loadGis } = await import('../../src/drive/auth');
+    const first = loadGis();
+    const s1 = [...document.querySelectorAll('script[src*="gsi/client"]')].pop() as HTMLScriptElement;
+    s1.dispatchEvent(new Event('load'));
+    await expect(first).rejects.toBeTruthy();
+    const second = loadGis();
+    const scripts = document.querySelectorAll('script[src*="gsi/client"]');
+    expect(scripts.length).toBe(2);
+    (window as unknown as { google: unknown }).google = { accounts: { oauth2: { initTokenClient() {}, revoke() {} } } };
+    (scripts[1] as HTMLScriptElement).dispatchEvent(new Event('load'));
+    await expect(second).resolves.toBeTruthy();
+  });
+});

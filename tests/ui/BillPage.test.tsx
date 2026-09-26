@@ -136,3 +136,13 @@ describe('draft mark', () => {
     expect(container.querySelector('.bill-draft-mark')).toBeNull();
   });
 });
+
+describe('business details saved on the bill', () => {
+  it("prints the bill's own business details, not today's settings", () => {
+    const b = { ...bill, business: { businessName: 'TÊN CŨ', taxId: '999', address: 'Old street', phone: '', email: '', logoDataUrl: null, preparedBy: 'Người cũ' } };
+    render(<BillPage bill={b} settings={settings} qrDataUrl={null} />);
+    expect(screen.getByText('TÊN CŨ')).toBeTruthy();
+    expect(screen.getByText('Người cũ')).toBeTruthy();
+    expect(screen.queryByText('CÔNG TY TNHH THIẾT KẾ SAO MAI')).toBeNull();
+  });
+});

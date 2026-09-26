@@ -35,18 +35,20 @@ export function BillPage({ bill, settings: s, qrDataUrl, draftMark = false }: {
   const acc = billBankAccount(bill, s);
   const bank = acc && bankByBin(acc.bankBin);
   const c = bill.customer;
+  // Business details: the copy saved on a sent bill, or today's settings.
+  const biz = bill.business ?? s;
   const footer = (bill.footerNote ?? defaultFooterText(s)).trim();
   return (
     <div class={draftMark ? 'bill-sheet bill-sheet-draft' : 'bill-sheet'}>
       {draftMark && <div class="bill-draft-mark">BẢN NHÁP / DRAFT</div>}
       <header class="bill-head">
         <div class="bill-biz">
-          {s.logoDataUrl && <img class="bill-logo" src={s.logoDataUrl} alt="" />}
+          {biz.logoDataUrl && <img class="bill-logo" src={biz.logoDataUrl} alt="" />}
           <div>
-            <b>{s.businessName}</b>
-            {s.taxId && <div>MST / Tax ID: {s.taxId}</div>}
-            {s.address && <div>{s.address}</div>}
-            {(s.phone || s.email) && <div>{[s.phone, s.email].filter(Boolean).join(' · ')}</div>}
+            <b>{biz.businessName}</b>
+            {biz.taxId && <div>MST / Tax ID: {biz.taxId}</div>}
+            {biz.address && <div>{biz.address}</div>}
+            {(biz.phone || biz.email) && <div>{[biz.phone, biz.email].filter(Boolean).join(' · ')}</div>}
           </div>
         </div>
         <div class="bill-meta">
@@ -126,7 +128,7 @@ export function BillPage({ bill, settings: s, qrDataUrl, draftMark = false }: {
           </div>
         </div>
         <div class="bill-sign">
-          <div><b>Người lập phiếu</b><br /><En>Prepared by</En><div class="bill-sign-space" /><div>{s.preparedBy}</div></div>
+          <div><b>Người lập phiếu</b><br /><En>Prepared by</En><div class="bill-sign-space" /><div>{biz.preparedBy}</div></div>
           <div><b>Khách hàng</b><br /><En>Customer</En><div class="bill-sign-space" /></div>
         </div>
         {footer && <p class="bill-footer">{footer}</p>}

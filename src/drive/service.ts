@@ -70,9 +70,10 @@ export function onDriveChange(fn: (billId: string) => void): () => void {
   return () => listeners.delete(fn);
 }
 
-function errorText(e: unknown): string {
+/** `wasConnected`: this device connected before, so an auth failure means access expired. */
+function errorText(e: unknown, wasConnected = false): string {
   if (e instanceof DriveError) {
-    if (e.kind === 'auth') return 'Not connected to Google Drive';
+    if (e.kind === 'auth') return wasConnected ? 'Google access expired' : 'Not connected to Google Drive';
     if (e.kind === 'offline') return 'Offline';
     return e.message;
   }
@@ -113,7 +114,7 @@ export function saveBillToDrive(db: AppDb, billId: string, s: Settings): Promise
     try {
       await token;
     } catch (e) {
-      return recordError(db, billId, errorText(e));
+      return recordError(db, billId, errorText(e, (await driveConnection(db)) !== null));
     }
     // Uploading without pressing Connect still counts as connected, so Google won't ask for consent every session.
     if (!knownConnected || (await driveConnection(db)) === null) {

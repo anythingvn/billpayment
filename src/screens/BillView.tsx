@@ -86,22 +86,23 @@ function formatDateTime(iso: string): string {
 
 /** Google Drive status and save button for a sent or paid bill. */
 function DriveLine({ db, bill, settings }: { db: AppDb; bill: Bill; settings: Settings }) {
-  if (!driveConfigured(settings)) {
-    return <p class="muted no-print"><a href="#/settings">Connect Google Drive in Settings</a></p>;
-  }
   const d = bill.drive;
+  const configured = driveConfigured(settings);
   const save = () => { saveBillToDrive(db, bill.id, settings).catch(() => undefined); };
   const uploading = isUploading(bill.id);
+  const expired = d?.error === 'Google access expired';
   return (
     <div class="no-print" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
       {uploading && <span class="muted">Uploading to Google Drive…</span>}
-      {!uploading && d?.error && (
-        <span style="color:var(--danger)">Not saved to Drive: {d.error} · <button class="btn ghost" onClick={save}>Retry</button></span>
+      {!uploading && configured && d?.error && (
+        <span style="color:var(--danger)">Not saved to Drive: {d.error} · <button class="btn ghost" onClick={save}>{expired ? 'Reconnect' : 'Retry'}</button></span>
       )}
       {!uploading && !d?.error && d?.savedAt && (
-        <span class="muted">Saved to Drive {formatDateTime(d.savedAt)} · {d.link && <a href={d.link} target="_blank" rel="noopener">Open in Drive</a>}</span>
+        <span class="muted">Saved to Drive {formatDateTime(d.savedAt)}{d.link && <> · <a href={d.link} target="_blank" rel="noopener">Open in Drive</a></>}</span>
       )}
-      <button class="btn ghost" disabled={uploading} onClick={save}>{d?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
+      {configured
+        ? <button class="btn ghost" disabled={uploading} onClick={save}>{d?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
+        : <a href="#/settings" class="muted">Connect Google Drive in Settings</a>}
     </div>
   );
 }

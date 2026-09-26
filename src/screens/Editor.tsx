@@ -17,23 +17,33 @@ import { BillPage, billQrPayload } from '../ui/BillPage';
 import { qrToDataUrl, useQrDataUrl } from '../ui/useQrDataUrl';
 import { bankByBin } from '../domain/banks';
 import { driveConfigured, prepareDrive, saveBillToDrive } from '../drive/service';
-import type { BankAccount } from '../domain/types';
+import type { BankAccount, BusinessSnapshot } from '../domain/types';
 import { printBill } from '../ui/print';
 import { CustomerForm, emptyCustomer } from './Customers';
 
 export type EditorMode = { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'duplicate'; id: string };
 type Step = 1 | 2 | 3;
 
+function businessSnapshot(s: Settings): BusinessSnapshot {
+  const { businessName, taxId, address, phone, email, logoDataUrl, preparedBy } = s;
+  return { businessName, taxId, address, phone, email, logoDataUrl, preparedBy };
+}
+
 export async function saveDraftBill(db: AppDb, d: DraftBill, settings: Settings, status: BillStatus): Promise<Bill> {
   const invalid = draftSaveErrors(d);
   if (invalid.length) throw new Error(invalid.join('; '));
   const now = new Date().toISOString();
   const existing = d.id ? await getBill(db, d.id) : undefined;
+  // A draft moved to another year gets a number from that year (the old number is not reused).
+  const keepNumber = d.number && d.number.split('-').at(-2) === d.billDate.slice(0, 4);
+  const { business: _draftCopy, ...clean } = cleanDraft(d);
   const bill: Bill = {
-    ...cleanDraft(d),
+    ...clean,
     id: d.id ?? newId(),
-    number: d.number ?? (await allocateBillNumber(db, settings.numberPrefix, d.billDate)),
+    number: keepNumber ? d.number! : await allocateBillNumber(db, settings.numberPrefix, d.billDate),
     status,
+    // Sent bills keep the business details they were sent with.
+    ...(status === 'sent' && { business: businessSnapshot(settings) }),
     paidDate: null,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
@@ -130,7 +140,12 @@ export function Editor({ mode }: { mode: EditorMode }) {
     if (driveConfigured(settings) && settings.driveAutoUpload) saveBillToDrive(db, bill.id, settings).catch(() => undefined);
     // Build the QR now so the printed page never misses it, then let the preview re-render.
     const payload = billQrPayload(draftFromBill(bill), settings);
-    setExportQr(payload ? await qrToDataUrl(payload) : null);
+    try {
+      setExportQr(payload ? await qrToDataUrl(payload) : null);
+    } catch {
+      setError('The bill was saved as Sent, but the QR code could not be created. Open the bill and use Export PDF to try again.');
+      return;
+    }
     requestAnimationFrame(() => setTimeout(() => {
       printBill(pdfFileName(bill.number, bill.customer.name));
       navigate({ name: 'bill', id: bill.id });
@@ -159,7 +174,7 @@ export function Editor({ mode }: { mode: EditorMode }) {
           }}
         />
       )}
-      {step === 2 && <ServicesStep draft={draft} services={services} settings={settings} onChange={setDraft} />}
+      {step === 2 && <ServicesStep draft={draft} services={services} onChange={setDraft} />}
       {step === 3 && (
         <div>
           {blockers.length > 0 && (
@@ -226,8 +241,8 @@ function CustomerStep({ draft, customers, onPick, onCreate }: {
   );
 }
 
-function ServicesStep({ draft, services, settings, onChange }: {
-  draft: DraftBill; services: Service[]; settings: Settings; onChange(d: DraftBill): void;
+function ServicesStep({ draft, services, onChange }: {
+  draft: DraftBill; services: Service[]; onChange(d: DraftBill): void;
 }) {
   const t = computeTotals(draft.lines, draft.vatRate);
   const num = (v: string) => (v.trim() === '' ? NaN : Number(v));
@@ -274,7 +289,7 @@ function ServicesStep({ draft, services, settings, onChange }: {
       </p>
       <div class="grid2">
         <label class="field">Bill date
-          <input type="date" value={draft.billDate} onInput={(e) => e.currentTarget.value && onChange(setBillDate(draft, e.currentTarget.value, settings.defaultPaymentDays))} />
+          <input type="date" value={draft.billDate} onInput={(e) => e.currentTarget.value && onChange(setBillDate(draft, e.currentTarget.value))} />
         </label>
         <label class="field">Due date
           <input type="date" value={draft.dueDate} onInput={(e) => e.currentTarget.value && onChange({ ...draft, dueDate: e.currentTarget.value })} />
