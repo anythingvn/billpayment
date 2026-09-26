@@ -1,5 +1,5 @@
 import { ensureFolderPath } from '../../src/drive/folders';
-import { uploadBillPdf } from '../../src/drive/upload';
+import { uploadBillPdf, uploadFile } from '../../src/drive/upload';
 import { fakeDrive } from './fakeDrive';
 import { sampleBill } from '../fixtures';
 
@@ -75,5 +75,19 @@ describe('uploadBillPdf', () => {
     const b = await uploadBillPdf(api, sent({ drive: a.status }), pdf(), 'B', a.cache, 't2');
     expect(b.status.fileId).toBe(a.status.fileId);
     expect(api.files.get(b.status.fileId!)?.parents).toEqual([b.cache['B/2026/Công ty CP Hoa Sen Xanh']]);
+  });
+});
+
+describe('uploadFile (any file, any folder path)', () => {
+  it('creates in the path, then updates the same file', async () => {
+    const api = fakeDrive();
+    const folders = ['Phiếu thanh toán', 'Hợp đồng', '2026', 'Công ty CP Hoa Sen Xanh'];
+    const input = { folders, fileName: 'HĐ 12-2026-HĐDV-SM – Công ty CP Hoa Sen Xanh.docx', mimeType: 'application/x-test', blob: new Blob(['PK']), existingFileId: null };
+    const a = await uploadFile(api, input, {}, 't1');
+    expect(api.files.get(a.status.fileId!)?.parents).toEqual([a.cache[folders.join('/')]]);
+    expect(api.files.get(a.status.fileId!)?.mime).toBe('application/x-test');
+    const b = await uploadFile(api, { ...input, existingFileId: a.status.fileId }, a.cache, 't2');
+    expect(b.status.fileId).toBe(a.status.fileId);
+    expect(api.files.get(a.status.fileId!)?.versions).toBe(2);
   });
 });

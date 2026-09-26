@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
-import { openAppDb, putBill, getBill, getMeta } from '../../src/storage/db';
+import { openAppDb, putBill, getBill, getMeta, putContract, getContract } from '../../src/storage/db';
+import { sampleContract } from '../contractFixtures';
 import {
-  saveBillToDrive, setDriveDepsForTest, isUploading, onDriveChange, connectDrive, disconnectDrive, driveConnection, driveConfigured,
+  saveBillToDrive, saveDocxToDrive, setDriveDepsForTest, isUploading, onDriveChange, connectDrive, disconnectDrive, driveConnection, driveConfigured,
   type DriveDeps,
 } from '../../src/drive/service';
 import { DriveError } from '../../src/drive/api';
@@ -17,6 +18,10 @@ function setup(over: Partial<DriveDeps> = {}) {
     auth: { getToken: vi.fn(async () => 'ya29.fake'), revoke: vi.fn(async () => {}) },
     api,
     makePdf: vi.fn(async () => new Blob(['%PDF'])),
+    makeDocx: vi.fn(async (target: { type: string; id: string }) => ({
+      blob: new Blob(['PK']), fileName: `${target.id}.docx`,
+      folders: target.type === 'contract' ? ['Phiếu thanh toán', 'Hợp đồng', '2026', 'Công ty CP Hoa Sen Xanh'] : ['Phiếu thanh toán', '2026', 'Công ty CP Hoa Sen Xanh'],
+    })),
     now: () => '2026-09-26T07:00:00.000Z',
     online: () => true,
     ...over,
@@ -161,5 +166,47 @@ describe('expired access', () => {
     await connectDrive(db, s);
     deps.auth.getToken = async () => { throw new DriveError('auth', 'x'); };
     expect((await saveBillToDrive(db, 'b1', s)).error).toBe('Google access expired');
+  });
+});
+
+describe('Word documents to Drive', () => {
+  it('saves a contract document and records it on the contract', async () => {
+    setup();
+    const db = await dbWith();
+    await putContract(db, sampleContract());
+    const status = await saveDocxToDrive(db, { type: 'contract', id: 'k1' }, s);
+    expect(status.link).toContain('drive.google.com');
+    expect((await getContract(db, 'k1'))!.drive).toEqual(status);
+  });
+  it("saves a bill's Word document separately from its PDF", async () => {
+    setup();
+    const db = await dbWith(sampleBill({ status: 'sent' }));
+    const pdf = await saveBillToDrive(db, 'b1', s);
+    const docx = await saveDocxToDrive(db, { type: 'bill', id: 'b1' }, s);
+    const b = (await getBill(db, 'b1'))!;
+    expect(b.drive).toEqual(pdf);
+    expect(b.driveDocx).toEqual(docx);
+    expect(docx.fileId).not.toBe(pdf.fileId);
+  });
+  it('no template: no Drive calls', async () => {
+    const { api } = setup({ makeDocx: vi.fn(async () => null) });
+    const db = await dbWith(sampleBill({ status: 'sent' }));
+    expect((await saveDocxToDrive(db, { type: 'bill', id: 'b1' }, s)).error).toBe('No Word template');
+    expect(api.calls).toEqual([]);
+  });
+  it('draft contracts are not saved', async () => {
+    setup();
+    const db = await dbWith();
+    await putContract(db, sampleContract({ status: 'draft' }));
+    expect((await saveDocxToDrive(db, { type: 'contract', id: 'k1' }, s)).error).toBe('Only active contracts are saved to Drive');
+  });
+  it('PDF and Word of the same bill queued together land in the same folder, in order', async () => {
+    const { api } = setup();
+    const db = await dbWith(sampleBill({ status: 'sent' }));
+    await Promise.all([saveBillToDrive(db, 'b1', s), saveDocxToDrive(db, { type: 'bill', id: 'b1' }, s)]);
+    const created = api.calls.filter((c) => c.startsWith('createFile'));
+    expect(created).toEqual(['createFile TT-2026-0012.pdf', 'createFile b1.docx']);
+    const files = [...api.files.values()].filter((f) => f.mime !== 'application/vnd.google-apps.folder');
+    expect(new Set(files.map((f) => f.parents![0])).size).toBe(1);
   });
 });

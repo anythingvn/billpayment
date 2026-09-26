@@ -1,15 +1,22 @@
 import type { Bill, DriveStatus, Settings } from '../domain/types';
 import type { AppDb } from '../storage/db';
-import { getBill, getMeta, putBill, setMeta } from '../storage/db';
+import { getBill, getContract, getMeta, putBill, putContract, setMeta } from '../storage/db';
 import { createDriveApi, DriveError, type DriveApi } from './api';
 import { createDriveAuth, loadGis } from './auth';
-import { uploadBillPdf } from './upload';
+import { uploadFile } from './upload';
+import { billDrivePath } from './paths';
+import type { BuiltDoc, DocxTarget } from '../docs/documents';
+
+export type { DocxTarget } from '../docs/documents';
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 /** Everything the service talks to; replaced by fakes in tests. */
 export interface DriveDeps {
   auth: { getToken(o?: { refresh?: boolean }): Promise<string>; revoke(): Promise<void> };
   api: DriveApi;
   makePdf(bill: Bill, s: Settings): Promise<Blob>;
+  /** The Word document for a bill or contract; null when there is no template. */
+  makeDocx(target: DocxTarget, s: Settings, db: AppDb): Promise<BuiltDoc | null>;
   now(): string;
   online(): boolean;
 }
@@ -40,6 +47,7 @@ function depsFor(s: Settings): DriveDeps {
         auth,
         api: createDriveApi(auth.getToken),
         makePdf: async (bill, settings) => (await import('../ui/billPdf')).makeBillPdf(bill, settings),
+        makeDocx: async (target, settings, db) => (await import('../docs/documents')).buildDocx(db, target, settings),
         now: () => new Date().toISOString(),
         online: () => navigator.onLine,
       },
@@ -63,7 +71,9 @@ const uploading = new Set<string>();
 const listeners = new Set<(billId: string) => void>();
 const notify = (billId: string) => listeners.forEach((fn) => fn(billId));
 
-export const isUploading = (billId: string): boolean => uploading.has(billId);
+/** True while the PDF or the Word document of this bill/contract is uploading. */
+export const isUploading = (id: string): boolean => uploading.has(`pdf:${id}`) || uploading.has(`docx:${id}`);
+export const isUploadingFile = (id: string, file: 'pdf' | 'docx'): boolean => uploading.has(`${file}:${id}`);
 
 export function onDriveChange(fn: (billId: string) => void): () => void {
   listeners.add(fn);
@@ -80,77 +90,152 @@ function errorText(e: unknown, wasConnected = false): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-async function recordError(db: AppDb, billId: string, error: string): Promise<DriveStatus> {
-  const bill = await getBill(db, billId);
-  const status = { ...(bill?.drive ?? EMPTY), error };
-  if (bill) await putBill(db, { ...bill, drive: status });
-  return status;
+type StatusField = 'drive' | 'driveDocx';
+
+/** Keeps the previous fileId/link/savedAt and records the error on the bill or contract. */
+async function recordStatus(db: AppDb, target: DocxTarget, field: StatusField, status: DriveStatus | ((prev: DriveStatus) => DriveStatus)) {
+  const make = (prev: DriveStatus | undefined) => (typeof status === 'function' ? status(prev ?? EMPTY) : status);
+  if (target.type === 'bill') {
+    const bill = await getBill(db, target.id);
+    if (!bill) return make(undefined);
+    const next = make(bill[field]);
+    await putBill(db, { ...bill, [field]: next });
+    return next;
+  }
+  const c = await getContract(db, target.id);
+  if (!c) return make(undefined);
+  const next = make(c.drive);
+  await putContract(db, { ...c, drive: next });
+  return next;
 }
+
+const recordError = (db: AppDb, target: DocxTarget, field: StatusField, error: string) =>
+  recordStatus(db, target, field, (prev) => ({ ...prev, error }));
 
 // ---- saving ----
 const inFlight = new Map<string, Promise<DriveStatus>>();
 let queue: Promise<unknown> = Promise.resolve();
 
+interface Job {
+  /** Unique per record and file, e.g. "pdf:<bill id>" or "docx:<contract id>". */
+  key: string;
+  target: DocxTarget;
+  field: StatusField;
+  /** Checks the record may be uploaded; returns an error to report without touching Drive. */
+  refuse(): Promise<string | null>;
+  /** Builds the file; null = nothing to upload (reported as `missing`). */
+  build(deps: DriveDeps): Promise<{ doc: BuiltDoc; mimeType: string } | null>;
+  buildError: string;
+  missing: string;
+  existingFileId(): Promise<string | null>;
+}
+
 /**
- * Uploads a sent/paid bill's PDF to Drive and records the result on the bill.
- * Never throws; the returned status carries any error. The token is requested synchronously
- * (before any await) so Google's permission window may open from the triggering click.
+ * Runs one Drive upload with the shared rules: the token is requested synchronously (so Google's window may open
+ * from the click), offline fails fast, double clicks join, uploads run one at a time. Never throws.
  */
-export function saveBillToDrive(db: AppDb, billId: string, s: Settings): Promise<DriveStatus> {
-  const running = inFlight.get(billId);
+function runJob(db: AppDb, s: Settings, job: Job): Promise<DriveStatus> {
+  const running = inFlight.get(job.key);
   if (running) return running;
   const deps = depsFor(s);
   const online = deps.online();
   const token = online ? deps.auth.getToken() : null;
   token?.catch(() => undefined);
 
-  uploading.add(billId);
-  notify(billId);
+  uploading.add(job.key);
+  notify(job.target.id);
 
-  const job = (async (): Promise<DriveStatus> => {
-    const bill = await getBill(db, billId);
-    if (!bill || (bill.status !== 'sent' && bill.status !== 'paid')) return { ...EMPTY, error: NOT_FINAL };
-    if (!online || !token) return recordError(db, billId, 'Offline');
+  const p = (async (): Promise<DriveStatus> => {
+    const refused = await job.refuse();
+    if (refused) return { ...EMPTY, error: refused };
+    if (!online || !token) return recordError(db, job.target, job.field, 'Offline');
     try {
       await token;
     } catch (e) {
-      return recordError(db, billId, errorText(e, (await driveConnection(db)) !== null));
+      return recordError(db, job.target, job.field, errorText(e, (await driveConnection(db)) !== null));
     }
     // Uploading without pressing Connect still counts as connected, so Google won't ask for consent every session.
     if (!knownConnected || (await driveConnection(db)) === null) {
       await setMeta(db, 'driveConnected', { email: null, at: deps.now() });
       knownConnected = true;
     }
-    let pdf: Blob;
+    let built: { doc: BuiltDoc; mimeType: string } | null;
     try {
-      pdf = await deps.makePdf(bill, s);
-    } catch {
-      return recordError(db, billId, 'Could not create the PDF');
+      built = await job.build(deps);
+    } catch (e) {
+      return recordError(db, job.target, job.field, e instanceof Error && e.name === 'DocTemplateError' ? e.message : job.buildError);
     }
-    // One upload at a time, so two bills for a new customer don't create the same folder twice.
+    if (!built) return { ...EMPTY, error: job.missing };
+    const { doc, mimeType } = built;
+    // One upload at a time, so two files for a new customer don't create the same folder twice.
     const run = queue.then(async () => {
       const cache = (await getMeta<Record<string, string>>(db, 'driveFolders')) ?? {};
-      const result = await uploadBillPdf(deps.api, bill, pdf, s.driveFolderName, cache, deps.now());
+      const result = await uploadFile(deps.api, {
+        folders: doc.folders, fileName: doc.fileName, mimeType, blob: doc.blob, existingFileId: await job.existingFileId(),
+      }, cache, deps.now());
       await setMeta(db, 'driveFolders', result.cache);
       return result.status;
     });
     queue = run.catch(() => undefined);
     try {
-      const status = await run;
-      const fresh = await getBill(db, billId);
-      if (fresh) await putBill(db, { ...fresh, drive: status });
-      return status;
+      return await recordStatus(db, job.target, job.field, await run);
     } catch (e) {
-      return recordError(db, billId, errorText(e));
+      return recordError(db, job.target, job.field, errorText(e));
     }
   })().finally(() => {
-    inFlight.delete(billId);
-    uploading.delete(billId);
-    notify(billId);
+    inFlight.delete(job.key);
+    uploading.delete(job.key);
+    notify(job.target.id);
   });
 
-  inFlight.set(billId, job);
-  return job;
+  inFlight.set(job.key, p);
+  return p;
+}
+
+const finalBill = async (db: AppDb, id: string) => {
+  const bill = await getBill(db, id);
+  return bill && (bill.status === 'sent' || bill.status === 'paid') ? null : NOT_FINAL;
+};
+
+/** Uploads a sent/paid bill's PDF to Drive and records the result on the bill (bill.drive). */
+export function saveBillToDrive(db: AppDb, billId: string, s: Settings): Promise<DriveStatus> {
+  const target: DocxTarget = { type: 'bill', id: billId };
+  return runJob(db, s, {
+    key: `pdf:${billId}`, target, field: 'drive',
+    refuse: () => finalBill(db, billId),
+    build: async (deps) => {
+      const bill = (await getBill(db, billId))!;
+      const blob = await deps.makePdf(bill, s);
+      const { folders, fileName } = billDrivePath(bill, s.driveFolderName);
+      return { doc: { blob, fileName, folders }, mimeType: 'application/pdf' };
+    },
+    buildError: 'Could not create the PDF',
+    missing: 'Could not create the PDF',
+    existingFileId: async () => (await getBill(db, billId))?.drive?.fileId ?? null,
+  });
+}
+
+/**
+ * Uploads the Word document of a sent/paid bill (bill.driveDocx) or an active contract/addendum (contract.drive).
+ * With no template, resolves with error "No Word template" and leaves the record untouched.
+ */
+export function saveDocxToDrive(db: AppDb, target: DocxTarget, s: Settings): Promise<DriveStatus> {
+  const isBill = target.type === 'bill';
+  return runJob(db, s, {
+    key: `docx:${target.id}`, target, field: isBill ? 'driveDocx' : 'drive',
+    refuse: async () => {
+      if (isBill) return finalBill(db, target.id);
+      const c = await getContract(db, target.id);
+      return c && c.status === 'active' ? null : 'Only active contracts are saved to Drive';
+    },
+    build: async (deps) => {
+      const doc = await deps.makeDocx(target, s, db);
+      return doc ? { doc, mimeType: DOCX_MIME } : null;
+    },
+    buildError: 'Could not create the Word document',
+    missing: 'No Word template',
+    existingFileId: async () => (isBill ? (await getBill(db, target.id))?.driveDocx?.fileId : (await getContract(db, target.id))?.drive?.fileId) ?? null,
+  });
 }
 
 // ---- connection ----

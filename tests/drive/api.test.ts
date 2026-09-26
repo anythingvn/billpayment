@@ -64,7 +64,7 @@ describe('Drive REST client', () => {
   });
   it('createFile uploads multipart PDF into the parent', async () => {
     const f = fakeFetch([json({ id: 'P', name: 'a.pdf', parents: ['F'], webViewLink: 'https://drive.google.com/file/d/P/view' })]);
-    const file = await createDriveApi(tokens('t').getToken, f.fn).createFile('a.pdf', 'F', new Blob(['%PDF-1.4'], { type: 'application/pdf' }));
+    const file = await createDriveApi(tokens('t').getToken, f.fn).createFile('a.pdf', 'F', new Blob(['%PDF-1.4'], { type: 'application/pdf' }), 'application/pdf');
     expect(file.webViewLink).toContain('/P/');
     const u = new URL(f.reqs[0].url);
     expect(u.pathname).toBe('/upload/drive/v3/files');
@@ -77,7 +77,7 @@ describe('Drive REST client', () => {
   });
   it('updateFile adds move params', async () => {
     const f = fakeFetch([json({ id: 'P', name: 'a.pdf', parents: ['b'] })]);
-    await createDriveApi(tokens('t').getToken, f.fn).updateFile('P', 'a.pdf', new Blob(['x']), { from: 'a', to: 'b' });
+    await createDriveApi(tokens('t').getToken, f.fn).updateFile('P', 'a.pdf', new Blob(['x']), 'application/pdf', { from: 'a', to: 'b' });
     const u = new URL(f.reqs[0].url);
     expect(f.reqs[0].init.method).toBe('PATCH');
     expect([u.pathname, u.searchParams.get('addParents'), u.searchParams.get('removeParents')]).toEqual(['/upload/drive/v3/files/P', 'b', 'a']);
@@ -91,5 +91,16 @@ describe('stalled requests', () => {
     const e = await createDriveApi(async () => 't', fn).getFile('x').catch((x) => x);
     expect(seen[0]).toBeInstanceOf(AbortSignal);
     expect([e.kind, e.message]).toEqual(['other', 'Google Drive did not respond. Try again.']);
+  });
+});
+
+describe('any file type', () => {
+  it('createFile sends the given MIME type', async () => {
+    const f = fakeFetch([json({ id: 'W', name: 'a.docx', parents: ['F'] })]);
+    const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    await createDriveApi(tokens('t').getToken, f.fn).createFile('a.docx', 'F', new Blob(['PK']), DOCX);
+    const body = await (f.reqs[0].init.body as Blob).text();
+    expect(body).toContain(`"mimeType":"${DOCX}"`);
+    expect(body).toContain(`Content-Type: ${DOCX}`);
   });
 });

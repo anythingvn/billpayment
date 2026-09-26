@@ -21,8 +21,8 @@ export interface DriveApi {
   /** parentId may be 'root'. */
   findFolder(name: string, parentId: string): Promise<string | null>;
   createFolder(name: string, parentId: string): Promise<string>;
-  createFile(name: string, parentId: string, pdf: Blob): Promise<DriveFile>;
-  updateFile(id: string, name: string, pdf: Blob, move?: { from: string; to: string }): Promise<DriveFile>;
+  createFile(name: string, parentId: string, blob: Blob, mimeType: string): Promise<DriveFile>;
+  updateFile(id: string, name: string, blob: Blob, mimeType: string, move?: { from: string; to: string }): Promise<DriveFile>;
   aboutEmail(): Promise<string | null>;
 }
 
@@ -37,12 +37,12 @@ const REQUEST_TIMEOUT_MS = 90_000;
 
 const quote = (s: string) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
-function multipart(metadata: object, pdf: Blob): { body: Blob; contentType: string } {
+function multipart(metadata: { mimeType: string }, file: Blob): { body: Blob; contentType: string } {
   const boundary = `bill-${Math.random().toString(36).slice(2)}`;
   const body = new Blob([
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
-    `--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`,
-    pdf,
+    `--${boundary}\r\nContent-Type: ${metadata.mimeType}\r\n\r\n`,
+    file,
     `\r\n--${boundary}--`,
   ]);
   return { body, contentType: `multipart/related; boundary=${boundary}` };
@@ -98,15 +98,15 @@ export function createDriveApi(getToken: GetToken, fetchFn: typeof fetch = fetch
       });
       return required(r, 'Parent folder').id;
     },
-    async createFile(name, parentId, pdf) {
-      const { body, contentType } = multipart({ name, mimeType: 'application/pdf', parents: [parentId] }, pdf);
+    async createFile(name, parentId, blob, mimeType) {
+      const { body, contentType } = multipart({ name, mimeType, parents: [parentId] } as { mimeType: string }, blob);
       const r = await call<DriveFile>(`${UPLOAD}/files?uploadType=multipart&fields=${FILE_FIELDS}`, {
         method: 'POST', headers: { 'Content-Type': contentType }, body,
       });
       return required(r, 'Folder');
     },
-    async updateFile(id, name, pdf, move) {
-      const { body, contentType } = multipart({ name, mimeType: 'application/pdf' }, pdf);
+    async updateFile(id, name, blob, mimeType, move) {
+      const { body, contentType } = multipart({ name, mimeType } as { mimeType: string }, blob);
       const params = new URLSearchParams({ uploadType: 'multipart', fields: FILE_FIELDS });
       if (move) {
         params.set('addParents', move.to);

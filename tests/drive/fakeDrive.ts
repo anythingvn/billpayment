@@ -29,19 +29,19 @@ export function fakeDrive(): DriveApi & { files: Map<string, Stored>; calls: str
       files.set(id, { id, name, parents: [parentId], mime: FOLDER, versions: 1 });
       return id;
     },
-    async createFile(name, parentId, pdf) {
+    async createFile(name, parentId, blob, mimeType) {
       calls.push(`createFile ${name}`);
       const id = `id${++n}`;
-      const f: Stored = { id, name, parents: [parentId], mime: 'application/pdf', content: pdf, webViewLink: link(id), versions: 1 };
+      const f: Stored = { id, name, parents: [parentId], mime: mimeType, content: blob, webViewLink: link(id), versions: 1 };
       files.set(id, f);
       return pub(f);
     },
-    async updateFile(id, name, pdf, move) {
+    async updateFile(id, name, blob, _mimeType, move) {
       calls.push(`updateFile ${id}`);
       const f = files.get(id);
       if (!f) throw new Error('not found');
       f.name = name;
-      f.content = pdf;
+      f.content = blob;
       f.versions++;
       if (move) f.parents = [move.to];
       return pub(f);
