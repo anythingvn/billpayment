@@ -12,6 +12,7 @@ import { businessSnapshot } from '../domain/settings';
 import { formatVnd, todayIso } from '../domain/format';
 import { LinesEditor } from '../ui/LinesEditor';
 import { useWrite } from '../ui/useOnline';
+import { useCan } from '../ui/useCan';
 
 export type ContractEditorMode = { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'addendum'; parentId: string };
 
@@ -39,6 +40,7 @@ function defaultPlan(type: Plan['type'], c: Contract): Plan {
 export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
   const { db, settings } = useApp();
   const w = useWrite();
+  const can = useCan();
   const [c, setC] = useState<Contract | null>(null);
   const [saved, setSaved] = useState<Contract | null>(null);
   const [parent, setParent] = useState<Contract | null>(null);
@@ -303,7 +305,7 @@ export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
         <button class="btn ghost" onClick={() => navigate(c.parentId ? { name: 'contract', id: c.parentId } : saved ? { name: 'contract', id: c.id } : { name: 'contracts' })}>Cancel</button>
         <span>
           {c.status === 'draft'
-            ? <><button class="btn ghost" {...w()} onClick={() => save(false)}>Save draft</button>{' '}<button class="btn" {...w()} onClick={() => save(true)}>Save &amp; activate</button></>
+            ? <><button class="btn ghost" {...w()} onClick={() => save(false)}>Save draft</button>{can('contract.activate') && <>{' '}<button class="btn" {...w()} onClick={() => save(true)}>Save &amp; activate</button></>}</>
             : <button class="btn" {...w()} onClick={() => save(false)}>Save</button>}
         </span>
       </div>

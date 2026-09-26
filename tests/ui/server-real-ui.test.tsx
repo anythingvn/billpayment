@@ -3,10 +3,13 @@ import { App } from '../../src/app';
 import { realServerStore } from '../storage/realServer';
 import { DEFAULT_SETTINGS } from '../../src/domain/types';
 import { sampleBill } from '../fixtures';
+import { useServerDrive } from '../../src/drive/service';
 
 const s = { ...DEFAULT_SETTINGS, businessName: 'Sao Mai', driveAutoUpload: false,
   bankAccounts: [{ id: 'a1', bankBin: '970436', accountNumber: '0071000123456', accountHolder: '' }], defaultBankAccountId: 'a1' };
-afterEach(() => { cleanup(); location.hash = ''; });
+// Like main.tsx on a server: Drive goes through the server (not this browser's own Google sign-in).
+beforeEach(() => useServerDrive({ status: async () => ({ connected: false, email: null }), upload: async () => ({}) as never, disconnect: async () => {} }));
+afterEach(() => { cleanup(); location.hash = ''; return useServerDrive(null); });
 
 describe('I1: saving twice on one screen (real server)', () => {
   it('Mark as paid, then Undo paid', async () => {

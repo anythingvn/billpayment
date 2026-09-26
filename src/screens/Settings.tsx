@@ -8,6 +8,7 @@ import { connectDrive, disconnectDrive, disconnectServerDrive, driveConfigured, 
 import { VAT_RATES, type SavedBankAccount, type Settings, type VatRate } from '../domain/types';
 import { useWrite } from '../ui/useOnline';
 import { isHandled } from '../storage/errors';
+import { useCan } from '../ui/useCan';
 
 const MAX_LOGO_BYTES = 300 * 1024;
 
@@ -16,6 +17,8 @@ export function SettingsScreen() {
   const [server, setServer] = useState(serverDriveState());
   useEffect(() => onDriveChange(() => setServer(serverDriveState())), []);
   const w = useWrite();
+  const can = useCan();
+  const editable = can('settings.edit');
   const [s, setS] = useState<Settings>(settings);
   const [msg, setMsg] = useState('');
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => { setS({ ...s, [k]: v }); setMsg(''); };
@@ -36,7 +39,8 @@ export function SettingsScreen() {
   const [drive, setDrive] = useState<{ email: string | null } | null>(null);
   const [driveMsg, setDriveMsg] = useState('');
   useEffect(() => {
-    driveConnection(db).then(setDrive);
+    // On a server the company Drive is connected there; this device has no Google sign-in of its own.
+    if (!serverDriveState()) driveConnection(db).then(setDrive);
     prepareDrive(db, settings);
   }, [settings.googleClientId]);
   const connect = async () => {
@@ -78,7 +82,9 @@ export function SettingsScreen() {
 
   return (
     <div>
-      <div class="page-head"><h2>Settings</h2><button class="btn" {...w()} onClick={save}>Save</button></div>
+      <div class="page-head"><h2>Settings</h2>{editable && <button class="btn" {...w()} onClick={save}>Save</button>}</div>
+      {!editable && <p class="muted">Only an Admin can change settings</p>}
+      <fieldset disabled={!editable} style="border:0;padding:0;margin:0;min-width:0">
       {msg && <p class={msg === 'Saved.' ? 'muted' : 'errors'}>{msg}</p>}
       <div class="panel"><h3>Your business</h3>
         <div class="grid2">
@@ -210,6 +216,7 @@ export function SettingsScreen() {
         {server && driveMsg && <p class="errors">{driveMsg}</p>}
       </div>
       <SettingsDocuments />
+      </fieldset>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { displayStatus } from '../domain/status';
 import { computeTotals } from '../domain/money';
 import { formatDateVn, formatVnd, todayIso } from '../domain/format';
 import { useWrite } from '../ui/useOnline';
+import { useCan } from '../ui/useCan';
 
 const LABEL = { draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue', cancelled: 'Cancelled' } as const;
 type Filter = 'all' | keyof typeof LABEL;
@@ -24,6 +25,7 @@ export function StatusBadge({ bill, today }: { bill: Bill; today: string }) {
 export function Home() {
   const { db, auth } = useApp();
   const w = useWrite();
+  const can = useCan();
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [remind, setRemind] = useState(false);
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -65,7 +67,7 @@ export function Home() {
           <a class="btn" href="#to-bill" onClick={(e) => { e.preventDefault(); document.getElementById('to-bill')?.scrollIntoView(); }}>See list</a>
         </div>
       )}
-      <div class="page-head"><h2>Bills</h2><button class="btn" {...w()} onClick={() => navigate({ name: 'newBill' })}>+ New bill</button></div>
+      <div class="page-head"><h2>Bills</h2>{can('record.edit') && <button class="btn" {...w()} onClick={() => navigate({ name: 'newBill' })}>+ New bill</button>}</div>
       {toBill.length > 0 && (
         <div class="panel" id="to-bill">
           <h3 style="margin-top:0">To bill</h3>

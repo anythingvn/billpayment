@@ -18,6 +18,7 @@ import { StatusBadge } from './Home';
 import { Authorship } from '../ui/Authorship';
 import { useWrite } from '../ui/useOnline';
 import { isHandled } from '../storage/errors';
+import { useCan } from '../ui/useCan';
 
 const ACTIONS: { to: BillStatus; label: string; confirm?: string }[] = [
   { to: 'sent', label: 'Mark as sent' },
@@ -28,6 +29,7 @@ const ACTIONS: { to: BillStatus; label: string; confirm?: string }[] = [
 export function BillView({ id }: { id: string }) {
   const { db, settings } = useApp();
   const w = useWrite();
+  const can = useCan();
   const [bill, setBill] = useState<Bill | null | undefined>(undefined);
   const [error, setError] = useState('');
   const [hasTemplate, setHasTemplate] = useState(false);
@@ -77,7 +79,7 @@ export function BillView({ id }: { id: string }) {
   const actions = [
     ...ACTIONS.filter((a) => canTransition(bill.status, a.to) && !(bill.status === 'paid' && a.to === 'sent') && !(isDraft && a.to === 'sent')),
     ...(bill.status === 'paid' ? [{ to: 'sent' as BillStatus, label: 'Undo paid', confirm: 'Mark this bill as not paid?' }] : []),
-  ];
+  ].filter((a) => can(a.to === 'cancelled' ? 'bill.cancel' : a.to === 'sent' && isDraft ? 'bill.send' : 'bill.pay'));
 
   return (
     <div>
@@ -87,9 +89,9 @@ export function BillView({ id }: { id: string }) {
           {bill.number} <StatusBadge bill={bill} today={todayIso()} />
         </h2>
         <span style="display:flex;gap:6px;flex-wrap:wrap">
-          {isDraft && <button class="btn" {...w()} onClick={() => navigate({ name: 'editBill', id: bill.id })}>Continue in editor</button>}
+          {isDraft && can('record.edit') && <button class="btn" {...w()} onClick={() => navigate({ name: 'editBill', id: bill.id })}>Continue in editor</button>}
           {actions.map((a) => <button key={a.label} class={a.to === 'cancelled' ? 'btn danger' : 'btn ghost'} {...w()} onClick={() => change(a.to, a.confirm)}>{a.label}</button>)}
-          <button class="btn ghost" {...w()} onClick={() => navigate({ name: 'duplicateBill', id: bill.id })}>Duplicate</button>
+          {can('record.edit') && <button class="btn ghost" {...w()} onClick={() => navigate({ name: 'duplicateBill', id: bill.id })}>Duplicate</button>}
           {isDraft && <button class="btn ghost" onClick={() => printBill(pdfFileName(bill.number, bill.customer.name, true))}>Download draft PDF</button>}
           {bill.status !== 'cancelled' && (hasTemplate
             ? <button class="btn ghost" disabled={building} onClick={downloadWord}>Word (.docx)</button>
@@ -105,7 +107,7 @@ export function BillView({ id }: { id: string }) {
         </a></p>
       )}
       {bill.paidDate && <p class="muted no-print">Paid on {formatDateVn(bill.paidDate)}</p>}
-      {(bill.status === 'sent' || bill.status === 'paid') && <DriveLine db={db} bill={bill} settings={settings} withWord={hasTemplate} />}
+      {(bill.status === 'sent' || bill.status === 'paid') && can('drive.record') && <DriveLine db={db} bill={bill} settings={settings} withWord={hasTemplate} />}
       {bill.status !== 'draft' && <p class="muted no-print">This bill is locked. Duplicate it to make changes.</p>}
       <div class="preview-wrap"><BillPage bill={draft} settings={settings} qrDataUrl={qr} draftMark={isDraft} /></div>
     </div>

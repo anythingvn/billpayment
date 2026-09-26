@@ -5,6 +5,7 @@ import { deleteOrArchiveCustomer, listCustomers, newId, putCustomer } from '../s
 import { ignoreHandled } from '../storage/errors';
 import type { Customer } from '../domain/types';
 import { useWrite } from '../ui/useOnline';
+import { useCan } from '../ui/useCan';
 
 export const emptyCustomer = (): Customer => ({
   id: newId(), name: '', address: '', taxId: '', contactPerson: '', email: '', phone: '', archived: false,
@@ -36,6 +37,7 @@ export function CustomerForm({ value, onSave, onCancel }: { value: Customer; onS
 export function Customers() {
   const { db } = useApp();
   const w = useWrite();
+  const can = useCan();
   const [items, setItems] = useState<Customer[]>([]);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -55,7 +57,7 @@ export function Customers() {
   const shown = items.filter((c) => showArchived || !c.archived);
   return (
     <div>
-      <div class="page-head"><h2>Customers</h2><button class="btn" {...w()} onClick={() => setEditing(emptyCustomer())}>+ New customer</button></div>
+      <div class="page-head"><h2>Customers</h2>{can('record.edit') && <button class="btn" {...w()} onClick={() => setEditing(emptyCustomer())}>+ New customer</button>}</div>
       {editing && <CustomerForm key={editing.id} value={editing} onSave={save} onCancel={() => setEditing(null)} />}
       <label class="muted"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.currentTarget.checked)} /> Show archived</label>
       <table class="list">
@@ -67,9 +69,9 @@ export function Customers() {
               <td>{c.taxId}</td>
               <td>{[c.contactPerson, c.phone, c.email].filter(Boolean).join(' · ')}</td>
               <td class="r">
-                <button class="btn ghost" onClick={() => navigate({ name: 'customerStatement', id: c.id })}>Statement</button>{' '}
-                <button class="btn ghost" {...w()} onClick={() => setEditing(c)}>Edit</button>{' '}
-                {c.archived
+                {can('reports.use') && <><button class="btn ghost" onClick={() => navigate({ name: 'customerStatement', id: c.id })}>Statement</button>{' '}</>}
+                {can('record.edit') && <><button class="btn ghost" {...w()} onClick={() => setEditing(c)}>Edit</button>{' '}</>}
+                {!can('record.remove') ? null : c.archived
                   ? <button class="btn ghost" {...w()} onClick={() => save({ ...c, archived: false })}>Unarchive</button>
                   : <button class="btn ghost" {...w()} onClick={() => remove(c)}>Delete</button>}
               </td>

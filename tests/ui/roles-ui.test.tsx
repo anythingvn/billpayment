@@ -3,9 +3,11 @@ import { render, screen, cleanup, within } from '@testing-library/preact';
 import { App } from '../../src/app';
 import type { AuthApi, SessionUser } from '../../src/storage/authApi';
 import type { Role } from '../../src/storage/roles';
-import { openAppDb, putSettings, putCustomer, type AppDb } from '../../src/storage/db';
+import { openAppDb, putSettings, putCustomer, putBill, putContract, type AppDb } from '../../src/storage/db';
 import { ForbiddenError } from '../../src/storage/errors';
 import { DEFAULT_SETTINGS } from '../../src/domain/types';
+import { sampleBill } from '../fixtures';
+import { sampleContract, sampleAddendum } from '../contractFixtures';
 
 let n = 0;
 const userOf = (role: Role): SessionUser => ({ id: `u-${role}`, username: role, displayName: role, role, mustChangePassword: false });
@@ -94,3 +96,112 @@ describe('roles: navigation and pages', () => {
   });
 });
 
+
+const business = { businessName: 'Sao Mai', taxId: '', address: '', phone: '', email: '', logo: null } as never;
+const bill = (status: 'draft' | 'sent' | 'paid') => async (db: AppDb) => {
+  await putBill(db, sampleBill({ id: 'b1', status, ...(status !== 'draft' && { business }), ...(status === 'paid' && { paidDate: '2026-09-26' }) }));
+};
+const has = (label: string) => screen.queryByRole('button', { name: label }) !== null;
+
+describe('roles: buttons', () => {
+  it('creator on a sent bill', async () => {
+    await renderAs('creator', '#/bills/b1', bill('sent'));
+    expect(await screen.findByText('Duplicate')).toBeTruthy();
+    expect([has('Mark as paid'), has('Cancel bill')]).toEqual([false, false]);
+  });
+
+  it('creator on a draft bill', async () => {
+    await renderAs('creator', '#/bills/b1', bill('draft'));
+    expect(await screen.findByText('Continue in editor')).toBeTruthy();
+    expect(has('Cancel bill')).toBe(false);
+  });
+
+  it('accountant on a sent bill', async () => {
+    await renderAs('accountant', '#/bills/b1', bill('sent'));
+    expect(await screen.findByText('Mark as paid')).toBeTruthy();
+    expect([has('Duplicate'), has('Cancel bill'), has('Save to Google Drive')]).toEqual([false, false, false]);
+  });
+
+  it('accountant on a paid bill can undo', async () => {
+    await renderAs('accountant', '#/bills/b1', bill('paid'));
+    expect(await screen.findByText('Undo paid')).toBeTruthy();
+  });
+
+  it('manager on a sent bill sees Cancel and Drive', async () => {
+    await renderAs('manager', '#/bills/b1', bill('sent'));
+    expect(await screen.findByText('Cancel bill')).toBeTruthy();
+    expect(has('Mark as paid')).toBe(true);
+  });
+
+  it('accountant on Home and Contracts', async () => {
+    await renderAs('accountant', '#/');
+    expect(await screen.findByText('Bills')).toBeTruthy();
+    expect(screen.queryByText('+ New bill')).toBeNull();
+    cleanup();
+    await renderAs('accountant', '#/contracts');
+    expect(await screen.findByRole('heading', { name: 'Contracts' })).toBeTruthy();
+    expect(screen.queryByText('+ New contract')).toBeNull();
+  });
+
+  it('creator on a draft contract with a draft addendum', async () => {
+    await renderAs('creator', '#/contracts/k1', async (db) => {
+      await putContract(db, sampleContract({ status: 'draft' }));
+      await putContract(db, sampleAddendum({ status: 'draft' }));
+    });
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeTruthy();
+    expect([has('Terminate'), has('Delete'), has('Mark completed')]).toEqual([false, false, false]);
+    expect(screen.getByText('+ New addendum')).toBeTruthy();
+  });
+
+  it('manager on a draft contract can terminate and delete', async () => {
+    await renderAs('manager', '#/contracts/k1', async (db) => {
+      await putContract(db, sampleContract({ status: 'draft' }));
+    });
+    expect(await screen.findByRole('button', { name: 'Terminate' })).toBeTruthy();
+    expect(has('Delete')).toBe(true);
+  });
+
+  it('accountant on a contract: no Edit, no Create bill, no New addendum', async () => {
+    await renderAs('accountant', '#/contracts/k1', async (db) => { await putContract(db, sampleContract()); });
+    expect(await screen.findByText('Word (.docx)').catch(() => screen.findByText('Add a template in Settings → Documents'))).toBeTruthy();
+    expect([has('Edit'), has('+ New addendum'), screen.queryByText('Create bill') !== null, has('Mark ready')]).toEqual([false, false, false, false]);
+  });
+
+  it('creator in the contract editor keeps Save & activate', async () => {
+    await renderAs('creator', '#/contracts/k1/edit', async (db) => { await putContract(db, sampleContract({ status: 'draft' })); });
+    expect(await screen.findByText('Save & activate')).toBeTruthy();
+  });
+
+  it('accountant on Customers and Services', async () => {
+    await renderAs('accountant', '#/customers');
+    expect(await screen.findByText('Statement')).toBeTruthy();
+    expect([has('+ New customer'), has('Edit'), has('Delete')]).toEqual([false, false, false]);
+    cleanup();
+    await renderAs('accountant', '#/services', async (db) => {
+      const { putService } = await import('../../src/storage/db');
+      await putService(db, { id: 's1', nameVi: 'Thiết kế', nameEn: '', unitVi: '', unitEn: '', unitPrice: 1, details: [], archived: false } as never);
+    });
+    expect(await screen.findByText('Thiết kế')).toBeTruthy();
+    expect([has('+ New service'), has('Edit'), has('Archive')]).toEqual([false, false, false]);
+  });
+
+  it('creator on Customers', async () => {
+    await renderAs('creator', '#/customers');
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeTruthy();
+    expect([has('Delete'), has('Statement')]).toEqual([false, false]);
+  });
+
+  it('manager on Settings: read-only', async () => {
+    await renderAs('manager', '#/settings');
+    expect(await screen.findByText('Only an Admin can change settings')).toBeTruthy();
+    expect((screen.getByLabelText('Business name (as printed)') as HTMLInputElement).matches(':disabled')).toBe(true);
+    expect(has('Save')).toBe(false);
+  });
+
+  it('admin on Settings: editable', async () => {
+    await renderAs('admin', '#/settings');
+    const name = await screen.findByLabelText('Business name (as printed)') as HTMLInputElement;
+    expect(name.matches(':disabled')).toBe(false);
+    expect(screen.queryByText('Only an Admin can change settings')).toBeNull();
+  });
+});
