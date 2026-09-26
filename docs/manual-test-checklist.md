@@ -160,5 +160,7 @@ Guide: `docs/word-templates.md`. Items marked *(generated in browser)* were chec
 - [ ] **Save to Google Drive**: the file lands in `Phiếu thanh toán/Báo cáo/<year>/`; the screen shows "Saved to Drive …"
 - [ ] Save the same period again: **Update in Google Drive** replaces the same file (no second copy)
 - [ ] Offline: **Download Excel** still works; Save shows "Not saved: Offline · Retry"
+- [ ] Back up, restore, then **Update in Google Drive** for a saved period: still one file in Drive
+- [ ] With **This month**, the Owed sheet counts days overdue up to today, not to the end of the month
 - [ ] Give the file to your accountant: does it have what they need?
 
