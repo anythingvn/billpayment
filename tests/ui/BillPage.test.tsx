@@ -146,3 +146,15 @@ describe('business details saved on the bill', () => {
     expect(screen.queryByText('CÔNG TY TNHH THIẾT KẾ SAO MAI')).toBeNull();
   });
 });
+
+describe('contract reference line', () => {
+  it("reference line uses the bill's copies", () => {
+    const ref = { contractId: 'gone', itemKey: null, number: '5/2026/HĐDV', signedDate: '2026-01-05', parentNumber: null, parentSignedDate: null };
+    const { container } = render(<BillPage bill={{ ...bill, contractRef: ref }} settings={settings} qrDataUrl={null} />);
+    expect(container.querySelector('.bill-ref')?.textContent).toBe('Căn cứ Hợp đồng số 5/2026/HĐDV ký ngày 05/01/2026 / Under Contract No. 5/2026/HĐDV dated 05/01/2026');
+  });
+  it('no reference line without a contract', () => {
+    const { container } = render(<BillPage bill={bill} settings={settings} qrDataUrl={null} />);
+    expect(container.querySelector('.bill-ref')).toBeNull();
+  });
+});

@@ -59,13 +59,18 @@ export function draftFromBill(b: Bill): DraftBill {
     ...(b.footerNote !== undefined && { footerNote: b.footerNote }),
     ...(b.bankAccount && { bankAccount: { ...b.bankAccount } }),
     ...(b.business && { business: { ...b.business } }),
+    ...(b.contractRef && { contractRef: { ...b.contractRef } }),
   };
 }
 
 export function duplicateAsDraft(b: Bill, settings: Settings, today: string): DraftBill {
   // A new bill prints today's business details, so the old bill's copy is not carried over.
   const { business: _old, ...rest } = draftFromBill(b);
-  return { ...rest, id: null, number: null, billDate: today, dueDate: addDays(today, settings.defaultPaymentDays) };
+  return {
+    ...rest, id: null, number: null, billDate: today, dueDate: addDays(today, settings.defaultPaymentDays),
+    // Same contract, but not the same plan item (that one is already billed).
+    ...(rest.contractRef && { contractRef: { ...rest.contractRef, itemKey: null } }),
+  };
 }
 
 /** Raw lines from the editor's details box; blanks are kept so pressing Enter works while typing. */

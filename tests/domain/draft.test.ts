@@ -109,3 +109,12 @@ describe('deferred fixes: drafts', () => {
     expect(duplicateAsDraft(b, DEFAULT_SETTINGS, '2026-11-01').business).toBeUndefined();
   });
 });
+
+describe('contract link on drafts', () => {
+  it('duplicate keeps the contract but not the item', () => {
+    const contractRef = { contractId: 'k1', itemKey: 'i1', number: '12/2026/HĐDV-SM', signedDate: '2026-09-15', parentNumber: null, parentSignedDate: null };
+    const b = sampleBill({ status: 'sent', contractRef });
+    expect(draftFromBill(b).contractRef).toEqual(contractRef);
+    expect(duplicateAsDraft(b, DEFAULT_SETTINGS, '2026-11-01').contractRef).toEqual({ ...contractRef, itemKey: null });
+  });
+});

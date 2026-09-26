@@ -7,6 +7,7 @@ import { vndToWordsEn, vndToWordsVi } from '../domain/words';
 import { buildVietQrPayload, paymentReference } from '../domain/vietqr';
 import { bankByBin } from '../domain/banks';
 import { billBankAccount, defaultFooterText } from '../domain/settings';
+import { referenceLine } from '../domain/contractFill';
 
 export function billQrPayload(bill: DraftBill, s: Settings): string | null {
   const acc = billBankAccount(bill, s);
@@ -65,6 +66,7 @@ export function BillPage({ bill, settings: s, qrDataUrl, draftMark = false }: {
         {c.address && <div>Địa chỉ <En>/ Address:</En> {c.address}</div>}
         {c.taxId && <div>MST <En>/ Tax ID:</En> {c.taxId}</div>}
         {c.contactPerson && <div>Người liên hệ <En>/ Attn:</En> {c.contactPerson}</div>}
+        {bill.contractRef && <div class="bill-ref">{referenceLine(bill.contractRef).vi} <En>{`/ ${referenceLine(bill.contractRef).en}`}</En></div>}
       </section>
 
       <table class="bill-table">
