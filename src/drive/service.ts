@@ -4,6 +4,7 @@ import { getBill, getContract, getMeta, setMeta } from '../storage/db';
 import { createDriveApi, DriveError, type DriveApi } from './api';
 import { createDriveAuth, loadGis } from './auth';
 import { uploadFile } from './upload';
+import { bytesToBase64 } from '../storage/backup';
 import { billDrivePath, safeName } from './paths';
 import type { BuiltDoc, DocxTarget } from '../docs/documents';
 
@@ -49,7 +50,32 @@ export function setDriveDepsForTest(deps: DriveDeps | null): void {
   live = null;
 }
 
-export const driveConfigured = (s: Settings): boolean => s.googleClientId.trim() !== '';
+/** The company Drive on the server (server mode). The server holds the Google connection and does the uploads. */
+export interface ServerDriveClient {
+  status(): Promise<{ connected: boolean; email: string | null }>;
+  upload(body: { target: DriveTarget; field: 'drive' | 'driveDocx'; fileName: string; folders: string[]; mimeType: string; dataBase64: string }): Promise<DriveStatus>;
+  disconnect(): Promise<void>;
+}
+let server: ServerDriveClient | null = null;
+let serverState: { connected: boolean; email: string | null } = { connected: false, email: null };
+
+/** Switches Drive to the server (server mode), or back to this browser's own Google sign-in (null). */
+export async function useServerDrive(client: ServerDriveClient | null): Promise<void> {
+  server = client;
+  serverState = { connected: false, email: null };
+  if (client) await refreshServerDrive();
+}
+/** Re-reads whether the company Drive is connected (e.g. after the Admin connects it). */
+export async function refreshServerDrive(): Promise<{ connected: boolean; email: string | null }> {
+  if (server) serverState = (await server.status().catch(() => null)) ?? serverState;
+  listeners.forEach((fn) => fn('*'));
+  return serverState;
+}
+export const serverDriveState = (): { connected: boolean; email: string | null } | null => (server ? serverState : null);
+export const disconnectServerDrive = async () => { if (server) { await server.disconnect(); await refreshServerDrive(); } };
+
+/** Drive can be used: in server mode when the company Drive is connected; otherwise when a Client ID is set. */
+export const driveConfigured = (s: Settings): boolean => (server ? serverState.connected : s.googleClientId.trim() !== '');
 
 function depsFor(s: Settings): DriveDeps {
   if (testDeps) return testDeps;
@@ -79,6 +105,7 @@ function depsFor(s: Settings): DriveDeps {
  * so the permission window can open straight from a click.
  */
 export async function prepareDrive(db: AppDb, s: Settings): Promise<void> {
+  if (server) { await refreshServerDrive(); return; }
   if (!driveConfigured(s) || testDeps) return;
   knownConnected = (await driveConnection(db)) !== null;
   loadGis().catch(() => undefined);
@@ -150,6 +177,7 @@ interface Job {
 function runJob(db: AppDb, s: Settings, job: Job): Promise<DriveStatus> {
   const running = inFlight.get(job.key);
   if (running) return running;
+  if (server) return runOnServer(server, s, job);
   const deps = depsFor(s);
   const online = deps.online();
   const token = online ? deps.auth.getToken() : null;
@@ -201,6 +229,40 @@ function runJob(db: AppDb, s: Settings, job: Job): Promise<DriveStatus> {
     notify(job.target.id);
   });
 
+  inFlight.set(job.key, p);
+  return p;
+}
+
+/**
+ * Server mode: build the file here as usual, then hand it to the server, which uploads it to the company Drive and
+ * records the status on the record (so every user sees it). Never throws.
+ */
+function runOnServer(client: ServerDriveClient, s: Settings, job: Job): Promise<DriveStatus> {
+  uploading.add(job.key);
+  notify(job.target.id);
+  const p = (async (): Promise<DriveStatus> => {
+    const refused = await job.refuse();
+    if (refused) return { ...EMPTY, error: refused };
+    let built: { doc: BuiltDoc; mimeType: string } | null;
+    try {
+      built = await job.build(depsFor(s));
+    } catch (e) {
+      return { ...EMPTY, error: e instanceof Error && e.name === 'DocTemplateError' ? e.message : job.buildError };
+    }
+    if (!built) return { ...EMPTY, error: job.missing };
+    try {
+      return await client.upload({
+        target: job.target, field: job.field, fileName: built.doc.fileName, folders: built.doc.folders, mimeType: built.mimeType,
+        dataBase64: bytesToBase64(await built.doc.blob.arrayBuffer()),
+      });
+    } catch (e) {
+      return { ...EMPTY, error: e instanceof Error ? e.message : String(e) };
+    }
+  })().finally(() => {
+    inFlight.delete(job.key);
+    uploading.delete(job.key);
+    notify(job.target.id);
+  });
   inFlight.set(job.key, p);
   return p;
 }

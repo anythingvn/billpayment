@@ -18,6 +18,8 @@ vi.mock('../../src/drive/service', () => ({
   isUploading: vi.fn(() => false),
   isUploadingFile: vi.fn(() => false),
   onDriveChange: vi.fn(() => () => {}),
+  serverDriveState: vi.fn(() => null),
+  disconnectServerDrive: vi.fn(async () => {}),
 }));
 vi.mock('../../src/docs/download', () => ({ downloadBlob: vi.fn() }));
 vi.mock('../../src/ui/print', () => ({ printBill: vi.fn() }));

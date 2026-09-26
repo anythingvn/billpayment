@@ -4,14 +4,16 @@ import { SettingsDocuments } from './SettingsDocuments';
 import { newId, putSettings } from '../storage/db';
 import { BANKS } from '../domain/banks';
 import { isValidAccount } from '../domain/vietqr';
-import { connectDrive, disconnectDrive, driveConfigured, driveConnection, prepareDrive } from '../drive/service';
+import { connectDrive, disconnectDrive, disconnectServerDrive, driveConfigured, driveConnection, onDriveChange, prepareDrive, serverDriveState } from '../drive/service';
 import { VAT_RATES, type SavedBankAccount, type Settings, type VatRate } from '../domain/types';
 import { useWrite } from '../ui/useOnline';
 
 const MAX_LOGO_BYTES = 300 * 1024;
 
 export function SettingsScreen() {
-  const { db, settings, reloadSettings } = useApp();
+  const { db, settings, reloadSettings, user } = useApp();
+  const [server, setServer] = useState(serverDriveState());
+  useEffect(() => onDriveChange(() => setServer(serverDriveState())), []);
   const w = useWrite();
   const [s, setS] = useState<Settings>(settings);
   const [msg, setMsg] = useState('');
@@ -169,19 +171,38 @@ export function SettingsScreen() {
         <label style="display:block;margin:10px 0">
           <input type="checkbox" checked={s.driveAutoUpload} onChange={(e) => set('driveAutoUpload', e.currentTarget.checked)} /> Upload automatically on export
         </label>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          {drive
-            ? <><span>{drive.email ? `Connected as ${drive.email}` : 'Connected'}</span><button class="btn ghost" {...w()} onClick={disconnect}>Disconnect</button></>
-            : <><button class="btn" {...w(!driveConfigured(settings))} onClick={connect}>Connect Google Drive</button>
-              <span class="muted">Not connected on this device</span></>}
-        </div>
-        {driveMsg && <p class="errors">{driveMsg}</p>}
-        <details style="margin-top:12px">
-          <summary class="muted">Advanced</summary>
-          <label class="field" style="margin-top:8px">Google Client ID (only if you use your own Google Cloud project; leave empty for the built-in one)
-            <input value={s.googleClientId} placeholder="….apps.googleusercontent.com" onInput={(e) => set('googleClientId', e.currentTarget.value)} />
-          </label>
-        </details>
+        {server
+          ? (
+            // Server mode: one company Drive, connected on the server by the Admin.
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              {server.connected
+                ? <span>{server.email ? `Company Drive: ${server.email}` : 'Company Drive connected'}</span>
+                : <span class="muted">Not connected</span>}
+              {user?.role === 'admin'
+                ? (server.connected
+                  ? <button class="btn ghost" {...w()} onClick={() => disconnectServerDrive().catch((e) => setDriveMsg(String(e.message ?? e)))}>Disconnect</button>
+                  : <a class="btn" href="/api/drive/connect">Connect Google Drive</a>)
+                : <span class="muted">Google Drive is connected by the Admin.</span>}
+            </div>
+          )
+          : (
+            <>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                {drive
+                  ? <><span>{drive.email ? `Connected as ${drive.email}` : 'Connected'}</span><button class="btn ghost" {...w()} onClick={disconnect}>Disconnect</button></>
+                  : <><button class="btn" {...w(!driveConfigured(settings))} onClick={connect}>Connect Google Drive</button>
+                    <span class="muted">Not connected on this device</span></>}
+              </div>
+              {driveMsg && <p class="errors">{driveMsg}</p>}
+              <details style="margin-top:12px">
+                <summary class="muted">Advanced</summary>
+                <label class="field" style="margin-top:8px">Google Client ID (only if you use your own Google Cloud project; leave empty for the built-in one)
+                  <input value={s.googleClientId} placeholder="….apps.googleusercontent.com" onInput={(e) => set('googleClientId', e.currentTarget.value)} />
+                </label>
+              </details>
+            </>
+          )}
+        {server && driveMsg && <p class="errors">{driveMsg}</p>}
       </div>
       <SettingsDocuments />
     </div>

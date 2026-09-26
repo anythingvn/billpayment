@@ -10,6 +10,9 @@ import { authRoutes } from './routes/auth';
 import { userRoutes } from './routes/users';
 import { recordRoutes } from './routes/records';
 import { backupRoutes } from './routes/backup';
+import { driveRoutes } from './routes/drive';
+import { ServerDrive, googleOAuth, type GoogleOAuth } from './drive';
+import type { DriveApi } from '../../src/drive/api';
 import type { Ctx } from './context';
 
 export interface AppOptions {
@@ -20,6 +23,9 @@ export interface AppOptions {
   /** Clock, for tests. */
   now?: () => Date;
   logger?: boolean;
+  /** Google's OAuth endpoints and the Drive API (fakes in tests). */
+  googleOAuth?: GoogleOAuth;
+  driveApi?: (getToken: () => Promise<string>) => DriveApi;
 }
 
 /** The server: the built app at / and the JSON API under /api. */
@@ -33,6 +39,8 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   userRoutes(app, ctx);
   recordRoutes(app, ctx);
   backupRoutes(app, ctx);
+  const oauth = opts.googleOAuth ?? googleOAuth(opts.env);
+  driveRoutes(app, ctx, new ServerDrive(opts.store, opts.env, oauth, opts.driveApi, ctx.now), oauth);
 
   const dist = opts.distDir ?? 'dist';
   if (existsSync(dist)) await app.register(fastifyStatic, { root: dist.startsWith('/') ? dist : `${process.cwd()}/${dist}`, prefix: '/' });

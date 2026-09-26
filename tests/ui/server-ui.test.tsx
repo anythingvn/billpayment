@@ -6,6 +6,7 @@ import { openAppDb, putSettings, getSettings, putBill, putCustomer } from '../..
 import { setConnection } from '../../src/ui/useOnline';
 import { ConflictError, SignInError, InvalidError } from '../../src/storage/errors';
 import { DEFAULT_SETTINGS } from '../../src/domain/types';
+import { useServerDrive } from '../../src/drive/service';
 import { sampleBill } from '../fixtures';
 
 const admin: SessionUser = { id: 'u1', username: 'admin', displayName: 'Chủ Doanh Nghiệp', role: 'admin', mustChangePassword: false };
@@ -184,3 +185,35 @@ describe('authorship and prepared-by', () => {
     expect(await screen.findByText('Chị Lan')).toBeTruthy();
   });
 });
+
+describe('company Drive in Settings (server mode)', () => {
+  afterEach(() => useServerDrive(null));
+  const client = (connected: boolean) => ({
+    status: vi.fn(async () => ({ connected, email: connected ? 'owner@saomai.vn' : null })),
+    upload: vi.fn(), disconnect: vi.fn(async () => {}),
+  });
+  it('Admin: Connect link when not connected; the email and Disconnect when connected', async () => {
+    await useServerDrive(client(false));
+    await root(fakeAuth());
+    location.hash = '#/settings';
+    const connect = await screen.findByText('Connect Google Drive');
+    expect(connect.getAttribute('href')).toBe('/api/drive/connect');
+    cleanup();
+    const c = client(true);
+    await useServerDrive(c);
+    await root(fakeAuth());
+    location.hash = '#/settings';
+    expect(await screen.findByText('Company Drive: owner@saomai.vn')).toBeTruthy();
+    fireEvent.click(screen.getByText('Disconnect'));
+    await waitFor(() => expect(c.disconnect).toHaveBeenCalled());
+  });
+  it('other users only see who connects it', async () => {
+    await useServerDrive(client(true));
+    await root(fakeAuth({ me: vi.fn(async () => lan) }));
+    location.hash = '#/settings';
+    expect(await screen.findByText('Google Drive is connected by the Admin.')).toBeTruthy();
+    expect(screen.queryByText('Connect Google Drive')).toBeNull();
+    expect(screen.queryByText('Disconnect')).toBeNull();
+  });
+});
+

@@ -6,6 +6,8 @@ import { ServerRoot } from './serverRoot';
 import { serverAuth } from './storage/authApi';
 import { ApiStore } from './storage/apiStore';
 import { setConnection } from './ui/useOnline';
+import { useServerDrive } from './drive/service';
+import { serverDriveClient } from './drive/serverClient';
 
 const root = document.getElementById('app')!;
 const message = (title: string, body: string) => render(
@@ -29,6 +31,8 @@ async function detectServer(): Promise<boolean> {
 
 async function boot() {
   if (await detectServer()) {
+    // Drive runs on the server: the company account connected once by the Admin.
+    useServerDrive(serverDriveClient).catch(() => undefined);
     render(<ServerRoot auth={serverAuth} makeStore={async (u) => new ApiStore({ userId: u.id, onStatus: setConnection })} />, root);
     return;
   }

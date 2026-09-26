@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance, InjectOptions } from 'fastify';
-import { buildApp } from '../src/app';
+import { buildApp, type AppOptions } from '../src/app';
 import { SqliteStore } from '../src/sqliteStore';
 import { loadEnv } from '../src/env';
 
@@ -11,12 +11,12 @@ export const testEnv = (over: Record<string, string> = {}) =>
   loadEnv({ SESSION_SECRET: 'x'.repeat(32), TOKEN_KEY: Buffer.alloc(32, 7).toString('base64'), DATA_DIR: mkdtempSync(join(tmpdir(), 'bp-data-')), ...over });
 
 /** A fresh server on a temp SQLite file, with a movable clock. */
-export async function makeServer(over: Record<string, string> = {}) {
+export async function makeServer(over: Record<string, string> = {}, extra: Partial<AppOptions> = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'bp-srv-'));
   const store = new SqliteStore(join(dir, 'test.db'));
   const clock = { now: new Date('2026-09-26T08:00:00.000Z') };
   const env = testEnv(over);
-  const app = await buildApp({ store, env, now: () => clock.now, distDir: join(dir, 'no-dist') });
+  const app = await buildApp({ store, env, now: () => clock.now, distDir: join(dir, 'no-dist'), ...extra });
   return { app, store, clock, env };
 }
 
@@ -45,8 +45,8 @@ export function client(app: FastifyInstance) {
 }
 
 /** A server with the Admin set up and signed in. */
-export async function withAdmin(over: Record<string, string> = {}) {
-  const s = await makeServer(over);
+export async function withAdmin(over: Record<string, string> = {}, extra: Partial<AppOptions> = {}) {
+  const s = await makeServer(over, extra);
   const admin = client(s.app);
   const r = await admin.post('/api/setup', { username: 'admin', displayName: 'Chủ Doanh Nghiệp', password: PASSWORD });
   if (r.statusCode !== 200) throw new Error(`setup failed: ${r.statusCode} ${r.body}`);
