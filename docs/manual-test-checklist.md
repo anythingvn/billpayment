@@ -10,6 +10,7 @@ https://anythingvn.github.io/billpayment/ — the same checks apply to `http://l
 ## Last run
 | Date | Who | Result |
 |---|---|---|
+| 2026-09-26 | Claude (browser, test data, localhost:5199 dev + 5198 production build) | Accountant report: Last month figures match a hand calculation (bill issued in July and paid in August counted as paid, not billed; draft left out); Excel download has 4 sheets, exact dates, `#,##0` money, Vietnamese intact; works in the production build |
 | 2026-09-26 | Claude (browser, test data, localhost:5199) | Word review minors: bill and contract .docx line breaks are real Word breaks (library option), no leftover placeholders; Settings no longer scrolls sideways on a narrow screen |
 | 2026-09-26 | Claude (browser, test data, localhost:5199 dev + 5198 production build) | Word: 3 starters installed via Use starter; contract, addendum, sent bill (QR image) and draft bill (no QR, BẢN NHÁP) generated in the browser with no leftover placeholders; typo template → "Unknown placeholder: so_phieuu (did you mean so_phieu?)"; .txt refused; production build Word (.docx) download OK |
 | 2026-09-26 | Owner | Google Drive: Connect and first upload OK (Chrome, localhost:5173) |
@@ -147,3 +148,17 @@ Guide: `docs/word-templates.md`. Items marked *(generated in browser)* were chec
 - [ ] No template: Word buttons show "Add a template in Settings → Documents"; export still uploads the PDF
 - [ ] The same Word download on the **online app** and on a phone
 - [ ] Backup, then Restore: templates come back
+
+## 9. Accountant report
+- [x] Reports opens on **Last month**; the shortcuts fill From/To *(2026-09-26)*
+- [x] On-screen Received / Billed / Owed at end and the VAT table match a hand calculation (a bill paid in the period but issued earlier counts as paid, not billed; drafts and cancelled bills don't count) *(2026-09-26, test data)*
+- [x] **Download Excel** names the file `Báo cáo 2026-08.xlsx` (a month), `Báo cáo 2026-Q3.xlsx` (a quarter), `Báo cáo 2026.xlsx` (a year) *(month checked 2026-09-26; others by automatic tests)*
+- [ ] Open the file in **Excel** and in **Google Sheets**: four sheets (Tổng hợp, Đã thanh toán, Đã lập, Còn phải thu); Vietnamese text correct; column widths readable
+- [ ] Money columns add up with `=SUM(…)`; dates sort as dates and show as dd/mm/yyyy (not a day off)
+- [ ] VAT per rate matches the e-invoices you issued for the same period
+- [ ] Start date after end date: "The start date must be on or before the end date"; buttons disabled
+- [ ] **Save to Google Drive**: the file lands in `Phiếu thanh toán/Báo cáo/<year>/`; the screen shows "Saved to Drive …"
+- [ ] Save the same period again: **Update in Google Drive** replaces the same file (no second copy)
+- [ ] Offline: **Download Excel** still works; Save shows "Not saved: Offline · Retry"
+- [ ] Give the file to your accountant: does it have what they need?
+

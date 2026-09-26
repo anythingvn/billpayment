@@ -24,6 +24,9 @@ fill your own **Word templates** (company letterhead), and optionally save every
   - Several contract templates (one default, chosen per contract), one addendum and one bill template; three starters to begin from.
   - **Check a template** ticks known placeholders and flags typos (*"did you mean so_hop_dong?"*) and ones the document type doesn't fill; only plain placeholders are accepted, so a template can't run code.
   - Bills get the VietQR code; drafts are named `…_DRAFT.docx` and have no QR. See [docs/word-templates.md](docs/word-templates.md).
+- **Accountant report:** Reports → pick a period (This/Last month, This/Last quarter, This year, or any dates) → an Excel file with
+  a VAT summary per rate (bills **paid** in the period, since the e-invoice is issued after payment), the bills paid, the bills issued
+  and what's still owed at the end of the period. Download it or save it to Drive (`Phiếu thanh toán/Báo cáo/<year>/`).
 - **Google Drive (optional)**, automatically or with a button:
   - bills: `My Drive / Phiếu thanh toán / <year> / <customer> / <bill number>.pdf` on export, with the Word file next to it when you have a bill template;
   - contracts and addenda: `Phiếu thanh toán / Hợp đồng / <year> / <customer> / HĐ … .docx` on **Save & activate**.
@@ -34,6 +37,7 @@ fill your own **Word templates** (company letterhead), and optionally save every
 2. **Settings:** business details, one or more **bank accounts** (pick the default), footer notes, bill defaults.
 3. Add **Customers** and **Services**, then **Bills → + New bill** (or **Contracts → + New contract** and bill from its plan).
 4. **Save & export PDF** marks the bill Sent and opens the save dialog. Send the PDF by email or Zalo.
+   When the customer pays, **Mark as paid** (the report counts VAT by payment date).
 5. **Back up weekly** (Backup / Restore). Your data lives only in the browser you use — nothing is sent to a server.
    To move to another device or browser, back up there and restore here.
 
@@ -53,10 +57,11 @@ npm run dev      # http://localhost:5173
 npm test         # unit tests (Vitest)
 npm run build    # type-check + production build into dist/
 ```
-- **Stack:** Vite, Preact, TypeScript, IndexedDB (`idb`), `qrcode`, `vite-plugin-pwa`. Drive PDFs use `html2canvas` + `jspdf`, loaded only when uploading. Word files use `docx-templates`, loaded only when generating.
+- **Stack:** Vite, Preact, TypeScript, IndexedDB (`idb`), `qrcode`, `vite-plugin-pwa`. Drive PDFs use `html2canvas` + `jspdf`, loaded only when uploading. Word files use `docx-templates`, loaded only when generating; Excel reports use `exceljs`, loaded only on export.
 - **Code map:**
   - `src/domain/` — money, words, VietQR, banks, status and validation rules, contract plans/terms/auto-fill
   - `src/storage/` — IndexedDB, numbering, backup
+  - `src/report/` — accountant report Excel file (ExcelJS, loaded only on export); figures in `src/domain/report.ts`
   - `src/docs/` — Word templates: placeholders, checker, render, starters (`npm run make-starters`)
   - `src/drive/` — Google sign-in, Drive API, folders, upload
   - `src/ui/` — bill page, PDF, lines editor, Drive status line
@@ -67,7 +72,7 @@ npm run build    # type-check + production build into dist/
 - **Secrets:** only the public Google Client ID is in the code. Never commit `client_secret*.json` files (they're git-ignored).
 
 ## Docs
-- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [contracts](docs/superpowers/specs/2026-09-26-contracts-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md), [Word documents](docs/superpowers/specs/2026-09-26-word-documents-design.md)
+- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [contracts](docs/superpowers/specs/2026-09-26-contracts-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md), [Word documents](docs/superpowers/specs/2026-09-26-word-documents-design.md), [accountant report](docs/superpowers/specs/2026-09-26-accountant-report-design.md)
 - Build plans: [docs/superpowers/plans/](docs/superpowers/plans/)
 - Word templates: [docs/word-templates.md](docs/word-templates.md)
 - Google Drive setup: [docs/google-drive-setup.md](docs/google-drive-setup.md)
