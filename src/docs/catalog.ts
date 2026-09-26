@@ -99,7 +99,7 @@ export const PLACEHOLDERS: PlaceholderInfo[] = [
     ['dot_thanh_toan.ty_le', 'Tỷ lệ', 'Share', '50%'], ['dot_thanh_toan.so_tien', 'Số tiền (trước thuế)', 'Amount before VAT', '10.000.000'],
     ['dot_thanh_toan.thoi_han', 'Thời hạn', 'When', 'Khi ký hợp đồng'],
     ['ky_thanh_toan', 'Bảng kỳ thanh toán', 'Periods table', 'Row above: {FOR k IN ky_thanh_toan} · row: {$k.ky} … · row below: {END-FOR k}'],
-    ['ky_thanh_toan.stt', 'STT', 'No.', '1'], ['ky_thanh_toan.ky', 'Kỳ', 'Period', 'Tháng 10/2026'],
+    ['ky_thanh_toan.stt', 'STT', 'No.', '1'], ['ky_thanh_toan.ky', 'Kỳ', 'Period', 'Kỳ tháng 10/2026'],
     ['ky_thanh_toan.so_tien', 'Số tiền (trước thuế)', 'Amount before VAT', '800.000'],
   ]),
   ...p('flags', ALL, [

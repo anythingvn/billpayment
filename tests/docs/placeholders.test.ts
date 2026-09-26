@@ -28,7 +28,7 @@ describe('contract data', () => {
     const d = contractDocData(sampleContract({ plan: { type: 'periodic', every: 'month', amount: 800000, first: '2026-10', last: '2027-09' } }), settings);
     expect([d.gia_tri_truoc_thue, d.hinh_thuc_thanh_toan, d.theo_ky]).toEqual(['9.600.000', 'Theo tháng', true]);
     expect((d.ky_thanh_toan as unknown[]).length).toBe(12);
-    expect((d.ky_thanh_toan as Record<string, string>[])[0]).toEqual({ stt: '1', ky: 'Tháng 10/2026', so_tien: '800.000' });
+    expect((d.ky_thanh_toan as Record<string, string>[])[0]).toEqual({ stt: '1', ky: 'Kỳ tháng 10/2026', so_tien: '800.000' });
   });
   it('Bên A uses the saved copy when present', () => {
     const saved = { businessName: 'OLD', taxId: '', address: '', phone: '', email: '', logoDataUrl: null, preparedBy: '' };

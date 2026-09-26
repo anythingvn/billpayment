@@ -1,4 +1,4 @@
-import { renderDocx, DocTemplateError } from '../../src/docs/render';
+import { renderDocx, DocTemplateError, imageSize } from '../../src/docs/render';
 import { inspectTemplate } from '../../src/docs/inspect';
 import { contractDocxName, billDocxName, contractDrivePath } from '../../src/docs/fileNames';
 import { billDocData, contractDocData } from '../../src/docs/placeholders';
@@ -110,9 +110,26 @@ describe('file names and Drive paths', () => {
     expect(billDocxName(sampleBill({ status: 'draft' }))).toBe('TT-2026-0012_Công ty CP Hoa Sen Xanh_DRAFT.docx');
     expect(billDocxName(sampleBill({ status: 'sent' }))).toBe('TT-2026-0012_Công ty CP Hoa Sen Xanh.docx');
   });
+  it('long customer names are shortened like Drive folders', () => {
+    const long = 'Công ty Cổ phần ' + 'Rất Dài '.repeat(30);
+    const name = contractDocxName(sampleContract({ customer: { ...sampleContract().customer, name: long } }));
+    expect(name.length).toBeLessThanOrEqual(105);
+    expect(name.endsWith('.docx')).toBe(true);
+  });
   it('drive paths', () => {
     expect(contractDrivePath(sampleAddendum({ signedDate: '2027-01-05' }), sampleContract(), 'Phiếu thanh toán')).toEqual({
       folders: ['Phiếu thanh toán', 'Hợp đồng', '2026', 'Công ty CP Hoa Sen Xanh'], fileName: 'PL01 – HĐ 12-2026-HĐDV-SM.docx',
     });
   });
 });
+
+describe('imageSize', () => {
+  const jpeg = (sof: number) => new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xff, sof, 0, 11, 8, 0, 50, 0, 200, 3, 0, 0, 0, 0]);
+  it('reads progressive, lossless and arithmetic JPEG headers, skipping fill bytes', () => {
+    for (const sof of [0xc0, 0xc2, 0xc5, 0xc9, 0xcf]) expect(imageSize(jpeg(sof))).toEqual({ w: 200, h: 50 });
+  });
+  it('ignores DHT/DAC markers that share the range', () => {
+    expect(imageSize(new Uint8Array([0xff, 0xd8, 0xff, 0xc4, 0, 4, 0, 0, ...jpeg(0xc0).slice(8)]))).toEqual({ w: 200, h: 50 });
+  });
+});
+

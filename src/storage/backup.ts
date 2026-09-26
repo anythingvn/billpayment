@@ -169,6 +169,13 @@ function validSettings(s: Record<string, unknown>): boolean {
   );
 }
 
+/** Exactly one default contract template: the flagged one (the oldest if several), else the oldest. */
+function oneDefault(templates: BackupTemplate[]): BackupTemplate[] {
+  const byAge = templates.filter((t) => t.kind === 'contract').sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
+  const chosen = (byAge.find((t) => t.isDefault) ?? byAge[0])?.id;
+  return templates.map((t) => (t.kind === 'contract' ? { ...t, isDefault: t.id === chosen } : t));
+}
+
 export function parseBackup(
   text: string,
 ): { ok: true; data: BackupData; summary: string } | { ok: false; error: string } {
@@ -202,7 +209,7 @@ export function parseBackup(
   }
 
   const bills = (raw.bills as Bill[]).map((b) => ({ ...b, lines: b.lines.map((l) => ({ ...l, details: l.details ?? [] })) }));
-  const data = { ...raw, bills, contracts, templates, settings: normalizeSettings(raw.settings) } as unknown as BackupData;
+  const data = { ...raw, bills, contracts, templates: oneDefault(templates as BackupTemplate[]), settings: normalizeSettings(raw.settings) } as unknown as BackupData;
   return {
     ok: true,
     data,

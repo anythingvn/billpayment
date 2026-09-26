@@ -27,35 +27,15 @@ export function imageSize(bytes: Uint8Array): { w: number; h: number } | null {
   if (bytes[0] === 0xff && bytes[1] === 0xd8) {
     let i = 2;
     while (i + 9 < bytes.length) {
-      if (bytes[i] !== 0xff) { i++; continue; }
+      if (bytes[i] !== 0xff || bytes[i + 1] === 0xff) { i++; continue; } // not a marker yet, or a fill byte
       const marker = bytes[i + 1];
       const len = (bytes[i + 2] << 8) | bytes[i + 3];
-      if (marker >= 0xc0 && marker <= 0xc3) return { h: (bytes[i + 5] << 8) | bytes[i + 6], w: (bytes[i + 7] << 8) | bytes[i + 8] };
+      // Start-of-frame markers are C0–CF except C4 (DHT), C8 (JPG) and CC (DAC).
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return { h: (bytes[i + 5] << 8) | bytes[i + 6], w: (bytes[i + 7] << 8) | bytes[i + 8] };
       i += 2 + len;
     }
   }
   return null;
-}
-
-/**
- * docx-templates writes multi-line values as <w:t>a<w:br/>b</w:t>, which is not valid Word markup.
- * Rewrite them as <w:t>a</w:t><w:br/><w:t>b</w:t> in the document, headers and footers.
- */
-async function moveBreaksOutOfText(docx: Uint8Array): Promise<Uint8Array> {
-  const { default: JSZip } = await import('jszip');
-  const zip = await JSZip.loadAsync(docx);
-  const parts = Object.keys(zip.files).filter((f) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(f));
-  let changed = false;
-  for (const part of parts) {
-    const xml = await zip.file(part)!.async('string');
-    const fixed = xml.replace(/(<w:t(?:\s[^>]*)?>)([^<]*(?:<w:br\/>[^<]*)+)<\/w:t>/g, (_m, _open: string, inner: string) =>
-      inner.split('<w:br/>').map((t) => `<w:t xml:space="preserve">${t}</w:t>`).join('<w:br/>'));
-    if (fixed !== xml) {
-      zip.file(part, fixed);
-      changed = true;
-    }
-  }
-  return changed ? zip.generateAsync({ type: 'uint8array' }) : docx;
 }
 
 /** Every placeholder, empty: one that this kind of document doesn't fill prints empty instead of failing. */
@@ -89,10 +69,12 @@ export async function renderDocx(template: ArrayBuffer, data: DocData, images: D
       additionalJsContext: { qr, logo },
       rejectNullish: false,
       failFast: true,
+      // Multi-line values (chi_tiet) become real Word line breaks: <w:t>a</w:t><w:br/><w:t>b</w:t>.
+      processLineBreaksAsNewText: true,
       // Browsers have no Node `vm`. Safe because inspectTemplate only lets through plain placeholders (no code).
       noSandbox: true,
     });
-    return new Blob([await moveBreaksOutOfText(out) as BlobPart], { type: DOCX_MIME });
+    return new Blob([out as BlobPart], { type: DOCX_MIME });
   } catch (e) {
     const errs = Array.isArray(e) ? e : [e];
     const first = errs[0] as Error;

@@ -131,6 +131,8 @@ export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
       customer: customer && (activate || c.status === 'draft')
         ? { name: customer.name, address: customer.address, taxId: customer.taxId, contactPerson: customer.contactPerson, email: customer.email, phone: customer.phone }
         : c.customer,
+      // A Drive upload may have finished while the editor was open: keep its status (file id), not the copy loaded here.
+      drive: (await getContract(db, c.id))?.drive ?? c.drive,
       createdAt: c.createdAt || now,
       updatedAt: now,
     };

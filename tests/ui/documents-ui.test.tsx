@@ -95,6 +95,18 @@ describe('Settings → Documents', () => {
     fireEvent.click(within(await panel()).getByLabelText('Use starter bill template'));
     await waitFor(async () => expect((await listTemplates(db)).map((t) => [t.kind, t.name])).toEqual([['bill', 'Bill']]));
   });
+  it('Use starter twice keeps one contract starter', async () => {
+    const db = await openApp('#/settings');
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fireEvent.click(within(await panel()).getByLabelText('Use starter contract template'));
+    await waitFor(async () => expect(await listTemplates(db)).toHaveLength(1));
+    const [first] = await listTemplates(db);
+    await new Promise((r) => setTimeout(r, 5)); // so the replacement gets a later upload time
+    fireEvent.click(within(await panel()).getByLabelText('Use starter contract template'));
+    await waitFor(() => expect(confirm).toHaveBeenCalledWith('Replace the current contract template “Hợp đồng mẫu” with the starter?'));
+    await waitFor(async () => expect((await listTemplates(db))[0].uploadedAt).not.toBe(first.uploadedAt));
+    expect((await listTemplates(db)).map((t) => [t.id, t.name, t.isDefault])).toEqual([[first.id, 'Hợp đồng mẫu', true]]);
+  });
   it('placeholder list with copy', async () => {
     await openApp('#/settings');
     const writeText = vi.fn(async () => {});
@@ -108,7 +120,8 @@ describe('Settings → Documents', () => {
     const db = await openApp('#/settings');
     const p = await panel();
     fireEvent.change(within(p).getByLabelText('Check a template'), { target: { files: [await docxFile(['{so_phieu} {tong_congg}'])] } });
-    expect(await within(p).findByText(/Uses: .*so_phieu/)).toBeTruthy();
+    expect(await within(p).findByText('✓ so_phieu')).toBeTruthy();
+    expect(within(p).getByText('✗ tong_congg').classList.contains('unknown')).toBe(true);
     expect(within(p).getByText('Unknown placeholder: tong_congg (did you mean tong_cong?)')).toBeTruthy();
     expect(await listTemplates(db)).toEqual([]);
   });
@@ -199,5 +212,18 @@ describe('bills — Word', () => {
     await openApp('#/bills/b1', { bills: [sampleBill({ status: 'sent' })] });
     expect((await screen.findByText('Add a template in Settings → Documents')).getAttribute('href')).toBe('#/settings');
     expect(screen.queryByText('Word (.docx)')).toBeNull();
+  });
+});
+
+describe('contract editor keeps the Drive status', () => {
+  it('a Drive upload finishing while the editor is open is not overwritten', async () => {
+    const db = await openApp('#/contracts/k1/edit', { contracts: [sampleContract()] });
+    await screen.findByText('Save');
+    const drive = { fileId: 'f1', link: 'l', savedAt: '2026-09-26T07:05:00.000Z', error: null };
+    await putContract(db, { ...(await getContract(db, 'k1'))!, drive });
+    fireEvent.input(screen.getByLabelText(/^Title/), { target: { value: 'Tên mới' } });
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(async () => expect((await getContract(db, 'k1'))!.title).toBe('Tên mới'));
+    expect((await getContract(db, 'k1'))!.drive).toEqual(drive);
   });
 });

@@ -285,4 +285,13 @@ describe('backups with Word templates', () => {
     expect(parseBackup(file({ bills: [{ ...sampleBill(), driveDocx: { fileId: 5 } }] })).ok).toBe(false);
     expect(parseBackup(file({ contracts: [{ ...sampleContract(), drive: { fileId: 5 } }] })).ok).toBe(false);
   });
+  it('restore leaves exactly one default contract template', () => {
+    const c = (id: string, uploadedAt: string, isDefault: boolean) => ({ ...good, id, kind: 'contract', uploadedAt, isDefault });
+    const none = parseBackup(file({ templates: [c('b', '2026-02-01T00:00:00.000Z', false), c('a', '2026-01-01T00:00:00.000Z', false)] }));
+    const two = parseBackup(file({ templates: [c('b', '2026-02-01T00:00:00.000Z', true), c('a', '2026-01-01T00:00:00.000Z', true)] }));
+    for (const r of [none, two]) {
+      if (!r.ok) throw new Error(r.error);
+      expect(r.data.templates.filter((t) => t.isDefault).map((t) => t.id)).toEqual(['a']);
+    }
+  });
 });

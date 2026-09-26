@@ -147,7 +147,7 @@ export async function removeTemplate(db: AppDb, id: string): Promise<{ contracts
 
 /** The template to use: for contracts the chosen one (if it still exists) else the default; else the one of that kind. */
 export async function templateFor(db: AppDb, kind: DocKind, templateId?: string | null): Promise<DocTemplate | null> {
-  const all = (await db.getAll('templates')).filter((t) => t.kind === kind);
+  const all = (await db.getAll('templates')).filter((t) => t.kind === kind).sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
   if (kind !== 'contract') return all[0] ?? null;
   return all.find((t) => t.id === templateId) ?? all.find((t) => t.isDefault) ?? all[0] ?? null;
 }

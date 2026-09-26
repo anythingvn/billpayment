@@ -3,7 +3,7 @@ import { useApp } from '../app';
 import { listContracts, listTemplates, newId, putTemplate, removeTemplate } from '../storage/db';
 import { MAX_TEMPLATE_BYTES } from '../storage/backup';
 import { inspectTemplate, type TemplateReport } from '../docs/inspect';
-import { PLACEHOLDERS, type PlaceholderInfo } from '../docs/catalog';
+import { PLACEHOLDERS, isKnownPlaceholder, type PlaceholderInfo } from '../docs/catalog';
 import { loadStarter } from '../docs/starters';
 import { downloadBlob } from '../docs/download';
 import { formatDateVn } from '../domain/format';
@@ -92,7 +92,8 @@ export function SettingsDocuments() {
   }
 
   async function useStarter(kind: DocKind) {
-    const current = kind === 'contract' ? null : slot(kind);
+    // The contract starter replaces an earlier copy of itself instead of piling up "Hợp đồng mẫu" templates.
+    const current = kind === 'contract' ? contracts.find((t) => t.fileName === 'starter-contract.docx') ?? null : slot(kind);
     if (current && !confirm(`Replace the current ${KIND_LABEL[kind]} template “${current.name}” with the starter?`)) return;
     try {
       await save(kind, await loadStarter(kind), `starter-${kind}.docx`, STARTER_NAME[kind], current);
@@ -221,7 +222,13 @@ export function SettingsDocuments() {
       {fileButton('Check a template', 'Choose a .docx to check…', checkFile)}
       {check && (
         <div style="margin-top:8px">
-          {check.report.used.length > 0 && <p>Uses: {check.report.used.join(', ')}</p>}
+          {check.report.used.length > 0 && (
+            <ul class="checked-names">
+              {check.report.used.map((n) => (isKnownPlaceholder(n)
+                ? <li key={n} class="known">✓ {n}</li>
+                : <li key={n} class="unknown">✗ {n}</li>))}
+            </ul>
+          )}
           {check.lines.map((l) => <p key={l} class="errors" style="margin:4px 0">{l}</p>)}
           {check.lines.length === 0 && <p>✓ No problems found.</p>}
         </div>

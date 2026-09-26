@@ -63,4 +63,10 @@ describe('templates store (DB v3)', () => {
     expect((await templateFor(db, 'addendum'))?.id).toBe('P');
     expect(await templateFor(db, 'bill')).toBeNull();
   });
+  it('without a flagged default, the oldest contract template is used', async () => {
+    const db = await openAppDb(name());
+    await putTemplate(db, tpl({ id: 'zzz', uploadedAt: '2026-01-01T00:00:00.000Z' }));
+    await putTemplate(db, tpl({ id: 'aaa', uploadedAt: '2026-02-01T00:00:00.000Z' }));
+    expect((await templateFor(db, 'contract', null))?.id).toBe('zzz');
+  });
 });

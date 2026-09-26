@@ -9,7 +9,8 @@ const numberPart = (n: string) => n.replace(/\//g, '-');
 export function contractDocxName(c: Contract, parent?: Contract | null): string {
   if (c.kind === 'addendum' && parent) return `${clean(c.number)} – HĐ ${clean(numberPart(parent.number))}.docx`;
   const customer = clean(c.customer.name);
-  return `HĐ ${clean(numberPart(c.number))}${customer ? ` – ${customer}` : ''}.docx`;
+  // Capped like Drive folder names (safeName), keeping the extension.
+  return `${`HĐ ${clean(numberPart(c.number))}${customer ? ` – ${customer}` : ''}`.slice(0, 100).trim()}.docx`;
 }
 
 export const billDocxName = (b: Bill): string => `${pdfFileName(b.number, b.customer.name, b.status === 'draft')}.docx`;

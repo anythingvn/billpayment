@@ -17,7 +17,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 label.field { display: block; font-size: 12px; color: var(--muted); }
-label.field input, label.field select, label.field textarea { display: block; width: 100%; margin-top: 4px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font: inherit; color: var(--text); background: #fff; }
+label.field input, label.field select, label.field textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font: inherit; color: var(--text); background: #fff; }
 table.list { width: 100%; border-collapse: collapse; background: #fff; }
 table.list th { text-align: left; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); padding: 8px; }
 table.list td { border-bottom: 1px solid #eef0f3; padding: 9px 8px; }
@@ -37,3 +37,6 @@ table.list tr.click:hover { background: #f8fafc; }
 @media (max-width: 720px) { .layout { flex-direction: column; } .nav { width: auto; display: flex; flex-wrap: wrap; } .nav h1 { width: 100%; } .nav button { width: auto; } }
 @media print { body { background: #fff; } .nav, .no-print { display: none !important; } .main { padding: 0; } }
 .table-scroll { overflow-x: auto; max-width: 100%; }
+.checked-names { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.checked-names .known { color: #166534; }
+.checked-names .unknown { color: #991b1b; font-weight: 600; background: #fef2f2; padding: 0 4px; border-radius: 4px; }

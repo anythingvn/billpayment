@@ -2,7 +2,7 @@ import type { Bill, BillLine, BusinessSnapshot, Contract, CustomerSnapshot, Sett
 import { computeTotals } from '../domain/money';
 import { formatDateVn, formatVnd } from '../domain/format';
 import { vndToWordsEn, vndToWordsVi } from '../domain/words';
-import { contractValue, instalmentAmounts, periodKeys, planValueBeforeVat, valueBeforeVat } from '../domain/contractPlan';
+import { contractValue, instalmentAmounts, periodKeys, periodLabel, planValueBeforeVat, valueBeforeVat } from '../domain/contractPlan';
 import { referenceLine } from '../domain/contractFill';
 import { billBankAccount, businessSnapshot, defaultFooterText } from '../domain/settings';
 import { bankByBin } from '../domain/banks';
@@ -59,9 +59,7 @@ function recordValues(c: Contract) {
     : [];
   const ky = plan.type === 'periodic'
     ? periodKeys(plan).map((key, n) => {
-      const [y, m] = key.split('-');
-      const label = plan.every === 'quarter' ? `Quý ${Math.floor((Number(m) - 1) / 3) + 1}/${y}` : `Tháng ${m}/${y}`;
-      return { stt: String(n + 1), ky: label, so_tien: formatVnd(plan.amount) };
+      return { stt: String(n + 1), ky: periodLabel(key, plan.every).vi, so_tien: formatVnd(plan.amount) };
     })
     : [];
   return {
