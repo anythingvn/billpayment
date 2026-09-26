@@ -1,4 +1,4 @@
-import { BUILT_IN_GOOGLE_CLIENT_ID, DEFAULT_SETTINGS, type BankAccount, type Settings } from './types';
+import { BUILT_IN_GOOGLE_CLIENT_ID, DEFAULT_SETTINGS, type BankAccount, type BusinessSnapshot, type Settings } from './types';
 
 /** Fills in defaults and converts settings saved by older versions (a single `footerNote`) to the footer note list. */
 export function normalizeSettings(stored: Record<string, unknown> | undefined): Settings {
@@ -34,4 +34,10 @@ export function defaultBankAccount(s: Settings): BankAccount | undefined {
 /** The account a bill is paid into: its own copy, or the default for bills made before per-bill accounts. */
 export function billBankAccount(bill: { bankAccount?: BankAccount }, s: Settings): BankAccount | undefined {
   return bill.bankAccount ?? defaultBankAccount(s);
+}
+
+/** Business details as they are now, to copy onto a sent bill or an activated contract. */
+export function businessSnapshot(s: Settings): BusinessSnapshot {
+  const { businessName, taxId, address, phone, email, logoDataUrl, preparedBy } = s;
+  return { businessName, taxId, address, phone, email, logoDataUrl, preparedBy };
 }

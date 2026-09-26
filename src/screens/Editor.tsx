@@ -6,28 +6,22 @@ import { getBill, listCustomers, listServices, newId, putBill, putCustomer } fro
 import { allocateBillNumber } from '../storage/numbering';
 import type { Bill, BillStatus, Customer, Service, Settings, VatRate } from '../domain/types';
 import { VAT_RATES } from '../domain/types';
-import {
-  addCustomLine, addServiceLine, cleanDraft, draftFromBill, splitDetails, duplicateAsDraft, newDraft, removeLine, setBillDate, setCustomer, updateLine,
-  type DraftBill,
-} from '../domain/draft';
-import { dateErrors, draftSaveErrors, exportBlockers, lineErrors, type Blocker } from '../domain/validate';
-import { computeTotals } from '../domain/money';
-import { formatVnd, pdfFileName, todayIso } from '../domain/format';
+import { cleanDraft, draftFromBill, duplicateAsDraft, newDraft, setBillDate, setCustomer, type DraftBill } from '../domain/draft';
+import { dateErrors, draftSaveErrors, exportBlockers, type Blocker } from '../domain/validate';
+import { pdfFileName, todayIso } from '../domain/format';
 import { BillPage, billQrPayload } from '../ui/BillPage';
 import { qrToDataUrl, useQrDataUrl } from '../ui/useQrDataUrl';
 import { bankByBin } from '../domain/banks';
 import { driveConfigured, prepareDrive, saveBillToDrive } from '../drive/service';
-import type { BankAccount, BusinessSnapshot } from '../domain/types';
+import type { BankAccount } from '../domain/types';
 import { printBill } from '../ui/print';
 import { CustomerForm, emptyCustomer } from './Customers';
+import { LinesEditor } from '../ui/LinesEditor';
+import { businessSnapshot } from '../domain/settings';
 
 export type EditorMode = { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'duplicate'; id: string };
 type Step = 1 | 2 | 3;
 
-function businessSnapshot(s: Settings): BusinessSnapshot {
-  const { businessName, taxId, address, phone, email, logoDataUrl, preparedBy } = s;
-  return { businessName, taxId, address, phone, email, logoDataUrl, preparedBy };
-}
 
 export async function saveDraftBill(db: AppDb, d: DraftBill, settings: Settings, status: BillStatus): Promise<Bill> {
   const invalid = draftSaveErrors(d);
@@ -244,49 +238,10 @@ function CustomerStep({ draft, customers, onPick, onCreate }: {
 function ServicesStep({ draft, services, onChange }: {
   draft: DraftBill; services: Service[]; onChange(d: DraftBill): void;
 }) {
-  const t = computeTotals(draft.lines, draft.vatRate);
-  const num = (v: string) => (v.trim() === '' ? NaN : Number(v));
   return (
     <div class="panel">
       <p class="muted">Customer: <b>{draft.customer.name || '— not chosen —'}</b></p>
-      <table class="list">
-        <thead><tr><th>Service (VI / EN)</th><th>Unit (VI / EN)</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Amount</th><th /></tr></thead>
-        <tbody>
-          {draft.lines.map((l, i) => {
-            const errs = lineErrors(l);
-            return (
-              <tr key={i}>
-                <td>
-                  <input value={l.nameVi} placeholder="Tên dịch vụ" onInput={(e) => onChange(updateLine(draft, i, { nameVi: e.currentTarget.value }))} />
-                  <input value={l.nameEn} placeholder="Service name" onInput={(e) => onChange(updateLine(draft, i, { nameEn: e.currentTarget.value }))} />
-                  <textarea rows={2} class="details-box" value={(l.details ?? []).join('\n')} placeholder="Details, one per line (optional) / Chi tiết, mỗi dòng một ý"
-                    onInput={(e) => onChange(updateLine(draft, i, { details: splitDetails(e.currentTarget.value) }))} />
-                  {errs.map((er) => <div key={er} style="color:var(--danger);font-size:12px">{er}</div>)}
-                </td>
-                <td>
-                  <input size={8} value={l.unitVi} placeholder="tháng" onInput={(e) => onChange(updateLine(draft, i, { unitVi: e.currentTarget.value }))} />
-                  <input size={8} value={l.unitEn} placeholder="month" onInput={(e) => onChange(updateLine(draft, i, { unitEn: e.currentTarget.value }))} />
-                </td>
-                <td class="r"><input type="number" min={1} step={1} style="width:70px" value={l.qty} onInput={(e) => onChange(updateLine(draft, i, { qty: num(e.currentTarget.value) }))} /></td>
-                <td class="r"><input type="number" min={0} step={1000} style="width:130px" value={l.unitPrice} onInput={(e) => onChange(updateLine(draft, i, { unitPrice: num(e.currentTarget.value) }))} /></td>
-                <td class="r">{errs.length ? '—' : formatVnd(t.lineAmounts[i])}</td>
-                <td><button class="btn ghost" title="Remove line" onClick={() => onChange(removeLine(draft, i))}>✕</button></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <p style="display:flex;gap:8px;flex-wrap:wrap">
-        <select value="" onChange={(e) => {
-          const s = services.find((x) => x.id === e.currentTarget.value);
-          if (s) onChange(addServiceLine(draft, s));
-          e.currentTarget.value = '';
-        }}>
-          <option value="">+ From saved services…</option>
-          {services.map((s) => <option key={s.id} value={s.id}>{s.nameVi} — {formatVnd(s.unitPrice)}</option>)}
-        </select>
-        <button class="btn ghost" onClick={() => onChange(addCustomLine(draft))}>+ Custom line</button>
-      </p>
+      <LinesEditor lines={draft.lines} vatRate={draft.vatRate} services={services} onChange={(lines) => onChange({ ...draft, lines })} />
       <div class="grid2">
         <label class="field">Bill date
           <input type="date" value={draft.billDate} onInput={(e) => e.currentTarget.value && onChange(setBillDate(draft, e.currentTarget.value))} />
@@ -296,11 +251,6 @@ function ServicesStep({ draft, services, onChange }: {
           {dateErrors(draft.billDate, draft.dueDate).map((er) => <span key={er} style="color:var(--danger)">{er}</span>)}
         </label>
       </div>
-      <p class="r">
-        Subtotal <b>{formatVnd(t.subtotal)}</b>
-        {t.vatApplies && <> · VAT {draft.vatRate}% <b>{formatVnd(t.vat)}</b></>}
-        {' '}· Total <b style="font-size:18px">{formatVnd(t.total)} ₫</b>
-      </p>
     </div>
   );
 }

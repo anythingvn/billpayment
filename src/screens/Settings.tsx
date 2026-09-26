@@ -126,6 +126,12 @@ export function SettingsScreen() {
               {VAT_RATES.map((r) => <option key={String(r)} value={String(r)}>{r === 'none' ? 'Not applicable' : `${r}%`}</option>)}
             </select>
           </label>
+          <label class="field">Contract number type (e.g. HĐDV)
+            <input value={s.contractType} onInput={(e) => set('contractType', e.currentTarget.value)} />
+          </label>
+          <label class="field">Contract number suffix (optional, e.g. SM)
+            <input value={s.contractSuffix} onInput={(e) => set('contractSuffix', e.currentTarget.value)} />
+          </label>
           <label class="field">Default payment days
             <input type="number" min={0} value={s.defaultPaymentDays} onInput={(e) => set('defaultPaymentDays', Number(e.currentTarget.value))} />
           </label>

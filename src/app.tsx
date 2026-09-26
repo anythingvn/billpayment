@@ -11,6 +11,9 @@ import { Customers } from './screens/Customers';
 import { Services } from './screens/Services';
 import { SettingsScreen } from './screens/Settings';
 import { BackupScreen } from './screens/Backup';
+import { Contracts } from './screens/Contracts';
+import { ContractEditor } from './screens/ContractEditor';
+import { ContractView } from './screens/ContractView';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 
 interface AppCtx {
@@ -22,7 +25,8 @@ const Ctx = createContext<AppCtx | null>(null);
 export const useApp = (): AppCtx => useContext(Ctx)!;
 
 const NAV: { label: string; route: Route; match: Route['name'][] }[] = [
-  { label: 'Bills', route: { name: 'home' }, match: ['home', 'bill', 'newBill', 'editBill', 'duplicateBill'] },
+  { label: 'Bills', route: { name: 'home' }, match: ['home', 'bill', 'newBill', 'editBill', 'duplicateBill', 'newBillFromContract'] },
+  { label: 'Contracts', route: { name: 'contracts' }, match: ['contracts', 'newContract', 'contract', 'editContract', 'newAddendum'] },
   { label: 'Customers', route: { name: 'customers' }, match: ['customers'] },
   { label: 'Services', route: { name: 'services' }, match: ['services'] },
   { label: 'Settings', route: { name: 'settings' }, match: ['settings'] },
@@ -40,6 +44,12 @@ function Screen({ route }: { route: Route }) {
     case 'services': return <Services />;
     case 'settings': return <SettingsScreen />;
     case 'backup': return <BackupScreen />;
+    case 'contracts': return <Contracts />;
+    case 'newContract': return <ContractEditor key="new-contract" mode={{ kind: 'new' }} />;
+    case 'editContract': return <ContractEditor key={`ec-${route.id}`} mode={{ kind: 'edit', id: route.id }} />;
+    case 'newAddendum': return <ContractEditor key={`na-${route.parentId}`} mode={{ kind: 'addendum', parentId: route.parentId }} />;
+    case 'contract': return <ContractView key={route.id} id={route.id} />;
+    case 'newBillFromContract': return <Editor key={`fc-${route.contractId}-${route.itemKey}`} mode={{ kind: 'new' }} />;
   }
 }
 
