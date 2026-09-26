@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
+import { navigate } from '../router';
 import { deleteOrArchiveCustomer, listCustomers, newId, putCustomer } from '../storage/db';
 import type { Customer } from '../domain/types';
 
@@ -60,6 +61,7 @@ export function Customers() {
               <td>{c.taxId}</td>
               <td>{[c.contactPerson, c.phone, c.email].filter(Boolean).join(' · ')}</td>
               <td class="r">
+                <button class="btn ghost" onClick={() => navigate({ name: 'customerStatement', id: c.id })}>Statement</button>{' '}
                 <button class="btn ghost" onClick={() => setEditing(c)}>Edit</button>{' '}
                 {c.archived
                   ? <button class="btn ghost" onClick={() => save({ ...c, archived: false })}>Unarchive</button>

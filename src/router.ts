@@ -7,6 +7,7 @@ export type Route =
   | { name: 'editBill'; id: string }
   | { name: 'duplicateBill'; id: string }
   | { name: 'customers' }
+  | { name: 'customerStatement'; id: string }
   | { name: 'services' }
   | { name: 'settings' }
   | { name: 'backup' }
@@ -38,6 +39,9 @@ export function parseRoute(hash: string): Route {
     if (parts[2] === 'edit') return { name: 'editContract', id };
     if (parts[2] === 'addendum') return { name: 'newAddendum', parentId: id };
   }
+  if (parts[0] === 'customers' && parts[1] && parts[2] === 'statement' && parts.length === 3) {
+    return { name: 'customerStatement', id: decodeURIComponent(parts[1]) };
+  }
   if (parts.length === 1 && ['customers', 'services', 'settings', 'backup', 'reports'].includes(parts[0])) {
     return { name: parts[0] } as Route;
   }
@@ -55,6 +59,7 @@ export function routeToHash(r: Route): string {
     case 'contract': return `#/contracts/${encodeURIComponent(r.id)}`;
     case 'editContract': return `#/contracts/${encodeURIComponent(r.id)}/edit`;
     case 'newAddendum': return `#/contracts/${encodeURIComponent(r.parentId)}/addendum`;
+    case 'customerStatement': return `#/customers/${encodeURIComponent(r.id)}/statement`;
     case 'newBillFromContract':
       return `#/bills/new/contract/${encodeURIComponent(r.contractId)}${r.itemKey ? `/${encodeURIComponent(r.itemKey)}` : ''}`;
     default: return `#/${r.name}`;
