@@ -6,11 +6,13 @@ import { BANKS } from '../domain/banks';
 import { isValidAccount } from '../domain/vietqr';
 import { connectDrive, disconnectDrive, driveConfigured, driveConnection, prepareDrive } from '../drive/service';
 import { VAT_RATES, type SavedBankAccount, type Settings, type VatRate } from '../domain/types';
+import { useWrite } from '../ui/useOnline';
 
 const MAX_LOGO_BYTES = 300 * 1024;
 
 export function SettingsScreen() {
   const { db, settings, reloadSettings } = useApp();
+  const w = useWrite();
   const [s, setS] = useState<Settings>(settings);
   const [msg, setMsg] = useState('');
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => { setS({ ...s, [k]: v }); setMsg(''); };
@@ -69,7 +71,7 @@ export function SettingsScreen() {
 
   return (
     <div>
-      <div class="page-head"><h2>Settings</h2><button class="btn" onClick={save}>Save</button></div>
+      <div class="page-head"><h2>Settings</h2><button class="btn" {...w()} onClick={save}>Save</button></div>
       {msg && <p class={msg === 'Saved.' ? 'muted' : 'errors'}>{msg}</p>}
       <div class="panel"><h3>Your business</h3>
         <div class="grid2">
@@ -169,8 +171,8 @@ export function SettingsScreen() {
         </label>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           {drive
-            ? <><span>{drive.email ? `Connected as ${drive.email}` : 'Connected'}</span><button class="btn ghost" onClick={disconnect}>Disconnect</button></>
-            : <><button class="btn" disabled={!driveConfigured(settings)} onClick={connect}>Connect Google Drive</button>
+            ? <><span>{drive.email ? `Connected as ${drive.email}` : 'Connected'}</span><button class="btn ghost" {...w()} onClick={disconnect}>Disconnect</button></>
+            : <><button class="btn" {...w(!driveConfigured(settings))} onClick={connect}>Connect Google Drive</button>
               <span class="muted">Not connected on this device</span></>}
         </div>
         {driveMsg && <p class="errors">{driveMsg}</p>}

@@ -3,6 +3,7 @@ import { useApp } from '../app';
 import { navigate } from '../router';
 import { deleteOrArchiveCustomer, listCustomers, newId, putCustomer } from '../storage/db';
 import type { Customer } from '../domain/types';
+import { useWrite } from '../ui/useOnline';
 
 export const emptyCustomer = (): Customer => ({
   id: newId(), name: '', address: '', taxId: '', contactPerson: '', email: '', phone: '', archived: false,
@@ -10,6 +11,7 @@ export const emptyCustomer = (): Customer => ({
 
 /** Shared by this screen and the editor's "add customer inline". */
 export function CustomerForm({ value, onSave, onCancel }: { value: Customer; onSave(c: Customer): void; onCancel(): void }) {
+  const w = useWrite();
   const [c, setC] = useState(value);
   const [err, setErr] = useState('');
   const f = (k: keyof Customer, label: string) => (
@@ -23,7 +25,7 @@ export function CustomerForm({ value, onSave, onCancel }: { value: Customer; onS
         {f('contactPerson', 'Contact person')}{f('email', 'Email')}{f('phone', 'Phone')}
       </div>
       <p>
-        <button class="btn" onClick={() => (c.name.trim() ? onSave({ ...c, name: c.name.trim() }) : setErr('Name is required.'))}>Save customer</button>{' '}
+        <button class="btn" {...w()} onClick={() => (c.name.trim() ? onSave({ ...c, name: c.name.trim() }) : setErr('Name is required.'))}>Save customer</button>{' '}
         <button class="btn ghost" onClick={onCancel}>Cancel</button>
       </p>
     </div>
@@ -32,6 +34,7 @@ export function CustomerForm({ value, onSave, onCancel }: { value: Customer; onS
 
 export function Customers() {
   const { db } = useApp();
+  const w = useWrite();
   const [items, setItems] = useState<Customer[]>([]);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -49,7 +52,7 @@ export function Customers() {
   const shown = items.filter((c) => showArchived || !c.archived);
   return (
     <div>
-      <div class="page-head"><h2>Customers</h2><button class="btn" onClick={() => setEditing(emptyCustomer())}>+ New customer</button></div>
+      <div class="page-head"><h2>Customers</h2><button class="btn" {...w()} onClick={() => setEditing(emptyCustomer())}>+ New customer</button></div>
       {editing && <CustomerForm key={editing.id} value={editing} onSave={save} onCancel={() => setEditing(null)} />}
       <label class="muted"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.currentTarget.checked)} /> Show archived</label>
       <table class="list">
@@ -62,10 +65,10 @@ export function Customers() {
               <td>{[c.contactPerson, c.phone, c.email].filter(Boolean).join(' · ')}</td>
               <td class="r">
                 <button class="btn ghost" onClick={() => navigate({ name: 'customerStatement', id: c.id })}>Statement</button>{' '}
-                <button class="btn ghost" onClick={() => setEditing(c)}>Edit</button>{' '}
+                <button class="btn ghost" {...w()} onClick={() => setEditing(c)}>Edit</button>{' '}
                 {c.archived
-                  ? <button class="btn ghost" onClick={() => save({ ...c, archived: false })}>Unarchive</button>
-                  : <button class="btn ghost" onClick={() => remove(c)}>Delete</button>}
+                  ? <button class="btn ghost" {...w()} onClick={() => save({ ...c, archived: false })}>Unarchive</button>
+                  : <button class="btn ghost" {...w()} onClick={() => remove(c)}>Delete</button>}
               </td>
             </tr>
           ))}

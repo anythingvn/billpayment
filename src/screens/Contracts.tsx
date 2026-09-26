@@ -5,6 +5,7 @@ import { listBills, listContracts } from '../storage/db';
 import type { Bill, Contract, ContractStatus } from '../domain/types';
 import { contractSummary } from '../domain/contractTerms';
 import { formatDateVn, formatVnd } from '../domain/format';
+import { useWrite } from '../ui/useOnline';
 
 export const CONTRACT_STATUS_LABEL: Record<ContractStatus, string> = {
   draft: 'Draft', active: 'Active', completed: 'Completed', terminated: 'Terminated',
@@ -17,6 +18,7 @@ export function ContractStatusBadge({ status }: { status: ContractStatus }) {
 
 export function Contracts() {
   const { db } = useApp();
+  const w = useWrite();
   const [all, setAll] = useState<Contract[] | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [status, setStatus] = useState<'all' | ContractStatus>('all');
@@ -39,7 +41,7 @@ export function Contracts() {
 
   return (
     <div>
-      <div class="page-head"><h2>Contracts</h2><button class="btn" onClick={() => navigate({ name: 'newContract' })}>+ New contract</button></div>
+      <div class="page-head"><h2>Contracts</h2><button class="btn" {...w()} onClick={() => navigate({ name: 'newContract' })}>+ New contract</button></div>
       <div class="page-head">
         <input placeholder="Search number, customer or title…" value={q} onInput={(e) => setQ(e.currentTarget.value)}
           style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px" />

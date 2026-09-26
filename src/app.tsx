@@ -17,11 +17,20 @@ import { ContractView } from './screens/ContractView';
 import { Reports } from './screens/Reports';
 import { StatementScreen } from './screens/Statement';
 import { ErrorBoundary } from './ui/ErrorBoundary';
+import { OfflineBanner } from './ui/OfflineBanner';
+import { Users } from './screens/Users';
+import { Activity } from './screens/Activity';
+import type { AuthApi, SessionUser } from './storage/authApi';
+import { ROLE_LABEL } from './storage/roles';
 
 interface AppCtx {
   db: AppDb;
   settings: Settings;
   reloadSettings(): Promise<void>;
+  /** The signed-in user on a server; null in the single-user browser app. */
+  user: SessionUser | null;
+  /** Sign-in / users API on a server; null in the single-user browser app. */
+  auth: AuthApi | null;
 }
 const Ctx = createContext<AppCtx | null>(null);
 export const useApp = (): AppCtx => useContext(Ctx)!;
@@ -34,6 +43,10 @@ const NAV: { label: string; route: Route; match: Route['name'][] }[] = [
   { label: 'Services', route: { name: 'services' }, match: ['services'] },
   { label: 'Settings', route: { name: 'settings' }, match: ['settings'] },
   { label: 'Backup / Restore', route: { name: 'backup' }, match: ['backup'] },
+];
+const ADMIN_NAV: typeof NAV = [
+  { label: 'Users', route: { name: 'users' }, match: ['users'] },
+  { label: 'Activity', route: { name: 'activity' }, match: ['activity'] },
 ];
 
 function Screen({ route }: { route: Route }) {
@@ -49,6 +62,8 @@ function Screen({ route }: { route: Route }) {
     case 'settings': return <SettingsScreen />;
     case 'backup': return <BackupScreen />;
     case 'reports': return <Reports />;
+    case 'users': return <Users />;
+    case 'activity': return <Activity />;
     case 'contracts': return <Contracts />;
     case 'newContract': return <ContractEditor key="new-contract" mode={{ kind: 'new' }} />;
     case 'editContract': return <ContractEditor key={`ec-${route.id}`} mode={{ kind: 'edit', id: route.id }} />;
@@ -58,22 +73,34 @@ function Screen({ route }: { route: Route }) {
   }
 }
 
-export function App({ db, initialSettings }: { db: AppDb; initialSettings: Settings }) {
+export function App({ db, initialSettings, user = null, auth = null, onSignOut }: {
+  db: AppDb; initialSettings: Settings; user?: SessionUser | null; auth?: AuthApi | null; onSignOut?: () => void;
+}) {
   const [settings, setSettings] = useState(initialSettings);
   const route = useRoute();
   const reloadSettings = async () => setSettings(await getSettings(db));
+  const isAdmin = !!auth && user?.role === 'admin';
+  const nav = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
   return (
-    <Ctx.Provider value={{ db, settings, reloadSettings }}>
+    <Ctx.Provider value={{ db, settings, reloadSettings, user, auth }}>
       <div class="layout">
         <nav class="nav">
           <h1>Phiếu thanh toán</h1>
-          {NAV.map((n) => (
+          {nav.map((n) => (
             <button key={n.label} class={n.match.includes(route.name) ? 'on' : ''} onClick={() => navigate(n.route)}>
               {n.label}
             </button>
           ))}
+          {user && onSignOut && (
+            <div class="user-menu">
+              <div><b>{user.displayName}</b></div>
+              <div class="muted">{ROLE_LABEL[user.role]}</div>
+              <button onClick={onSignOut}>Sign out</button>
+            </div>
+          )}
         </nav>
         <main class="main">
+          <OfflineBanner />
           <ErrorBoundary key={location.hash}>
             <Screen route={route} />
           </ErrorBoundary>

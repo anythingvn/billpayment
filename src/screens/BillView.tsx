@@ -15,6 +15,8 @@ import { BillPage, billQrPayload } from '../ui/BillPage';
 import { useQrDataUrl } from '../ui/useQrDataUrl';
 import { printBill } from '../ui/print';
 import { StatusBadge } from './Home';
+import { Authorship } from '../ui/Authorship';
+import { useWrite } from '../ui/useOnline';
 
 const ACTIONS: { to: BillStatus; label: string; confirm?: string }[] = [
   { to: 'sent', label: 'Mark as sent' },
@@ -24,6 +26,7 @@ const ACTIONS: { to: BillStatus; label: string; confirm?: string }[] = [
 
 export function BillView({ id }: { id: string }) {
   const { db, settings } = useApp();
+  const w = useWrite();
   const [bill, setBill] = useState<Bill | null | undefined>(undefined);
   const [error, setError] = useState('');
   const [hasTemplate, setHasTemplate] = useState(false);
@@ -82,9 +85,9 @@ export function BillView({ id }: { id: string }) {
           {bill.number} <StatusBadge bill={bill} today={todayIso()} />
         </h2>
         <span style="display:flex;gap:6px;flex-wrap:wrap">
-          {isDraft && <button class="btn" onClick={() => navigate({ name: 'editBill', id: bill.id })}>Continue in editor</button>}
-          {actions.map((a) => <button key={a.label} class={a.to === 'cancelled' ? 'btn danger' : 'btn ghost'} onClick={() => change(a.to, a.confirm)}>{a.label}</button>)}
-          <button class="btn ghost" onClick={() => navigate({ name: 'duplicateBill', id: bill.id })}>Duplicate</button>
+          {isDraft && <button class="btn" {...w()} onClick={() => navigate({ name: 'editBill', id: bill.id })}>Continue in editor</button>}
+          {actions.map((a) => <button key={a.label} class={a.to === 'cancelled' ? 'btn danger' : 'btn ghost'} {...w()} onClick={() => change(a.to, a.confirm)}>{a.label}</button>)}
+          <button class="btn ghost" {...w()} onClick={() => navigate({ name: 'duplicateBill', id: bill.id })}>Duplicate</button>
           {isDraft && <button class="btn ghost" onClick={() => printBill(pdfFileName(bill.number, bill.customer.name, true))}>Download draft PDF</button>}
           {bill.status !== 'cancelled' && (hasTemplate
             ? <button class="btn ghost" disabled={building} onClick={downloadWord}>Word (.docx)</button>
@@ -93,6 +96,7 @@ export function BillView({ id }: { id: string }) {
         </span>
       </div>
       {error && <p class="errors no-print">{error}</p>}
+      <Authorship record={bill} />
       {bill.contractRef && (
         <p class="no-print"><a href={`#/contracts/${encodeURIComponent(bill.contractRef.contractId)}`}>
           Contract {bill.contractRef.parentNumber ?? bill.contractRef.number}{bill.contractRef.parentNumber ? ` · ${bill.contractRef.number}` : ''}
@@ -108,6 +112,7 @@ export function BillView({ id }: { id: string }) {
 
 /** Google Drive status and save button for a sent or paid bill; with a bill template, PDF and Word are shown separately. */
 function DriveLine({ db, bill, settings, withWord }: { db: AppDb; bill: Bill; settings: Settings; withWord: boolean }) {
+  const w = useWrite();
   const configured = driveConfigured(settings);
   const savePdf = () => { saveBillToDrive(db, bill.id, settings).catch(() => undefined); };
   const saveWord = () => { saveDocxToDrive(db, { type: 'bill', id: bill.id }, settings).catch(() => undefined); };
@@ -126,7 +131,7 @@ function DriveLine({ db, bill, settings, withWord }: { db: AppDb; bill: Bill; se
         : <DriveStatusText status={bill.drive} uploading={pdfUploading} configured={configured} onSave={savePdf}
           saved={(when) => `Saved to Drive ${when}`} notSaved={(e) => `Not saved to Drive: ${e}`} />}
       {configured
-        ? <button class="btn ghost" disabled={pdfUploading || wordUploading} onClick={saveBoth}>{bill.drive?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
+        ? <button class="btn ghost" {...w(pdfUploading || wordUploading)} onClick={saveBoth}>{bill.drive?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
         : <a href="#/settings" class="muted">Connect Google Drive in Settings</a>}
     </div>
   );

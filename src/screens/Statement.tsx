@@ -13,12 +13,14 @@ import { DriveStatusText } from '../ui/DriveStatusLine';
 import { downloadBlob } from '../docs/download';
 import { buildStatementDocx } from '../docs/documents';
 import { driveConfigured, isUploadingFile, onDriveChange, prepareDrive, saveStatementToDrive, statementDriveKey, statementDriveStatus } from '../drive/service';
+import { useWrite } from '../ui/useOnline';
 
 const DATE_ERROR = 'The start date must be on or before the end date';
 
 /** A customer's statement of account: period, preview, PDF, Word and Google Drive. */
 export function StatementScreen({ id }: { id: string }) {
   const { db, settings } = useApp();
+  const w = useWrite();
   const today = todayIso();
   const [customer, setCustomer] = useState<Customer | null | undefined>(undefined);
   const [bills, setBills] = useState<Bill[]>([]);
@@ -119,7 +121,7 @@ export function StatementScreen({ id }: { id: string }) {
             ? <button class="btn ghost" disabled={!valid || busy} onClick={word}>Word (.docx)</button>
             : <a href="#/settings">Add a template in Settings → Documents</a>}
           {configured
-            ? <button class="btn ghost" disabled={!valid || uploading} onClick={save}>{status?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
+            ? <button class="btn ghost" {...w(!valid || uploading)} onClick={save}>{status?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
             : <a href="#/settings" class="muted">Connect Google Drive in Settings</a>}
           {/* With a Statement template, PDF and Word are shown separately so a failed Word upload is visible. */}
           {valid && (hasTemplate

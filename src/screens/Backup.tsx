@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
+import { useWrite } from '../ui/useOnline';
 import { backupFileName, exportAll, lastBackupAt, markBackedUp, parseBackup, restoreAll, type BackupData } from '../storage/backup';
 
 function download(data: BackupData, name: string) {
@@ -12,7 +13,9 @@ function download(data: BackupData, name: string) {
 }
 
 export function BackupScreen() {
-  const { db, reloadSettings } = useApp();
+  const { db, reloadSettings, user, auth } = useApp();
+  const w = useWrite();
+  const onServer = !!auth;
   const [last, setLast] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
@@ -31,7 +34,10 @@ export function BackupScreen() {
     if (!file) return;
     const parsed = parseBackup(await file.text());
     if (!parsed.ok) { setErr(parsed.error); return; }
-    if (!confirm(`Replace ALL current data with this backup (${parsed.summary})?\n\nA backup of your current data will be downloaded first.`)) return;
+    if (onServer) {
+      // On the server a restore replaces everyone's data: it must be typed out.
+      if (prompt(`Replace ALL data on the server with this backup (${parsed.summary})?\nUsers and the Google Drive connection are kept.\nA backup of the current data is downloaded first.\n\nType RESTORE to confirm.`) !== 'RESTORE') return;
+    } else if (!confirm(`Replace ALL current data with this backup (${parsed.summary})?\n\nA backup of your current data will be downloaded first.`)) return;
     try {
       const now = new Date().toISOString();
       download(await exportAll(db, now), backupFileName(now).replace('.json', '-before-restore.json'));
@@ -43,20 +49,30 @@ export function BackupScreen() {
     }
   };
 
+  if (onServer && user?.role !== 'admin') {
+    return (
+      <div>
+        <div class="page-head"><h2>Backup / Restore</h2></div>
+        <p class="panel">The server backs up all data every night. Backup files and restores are handled by the Admin.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div class="page-head"><h2>Backup / Restore</h2></div>
+      {onServer && <p class="muted">The server also keeps a copy every night (the last 14 days).</p>}
       {msg && <p class="panel">{msg}</p>}
       {err && <p class="errors">{err}</p>}
       <div class="panel">
         <h3>Back up</h3>
         <p class="muted">Last backup: {last ? new Date(last).toLocaleString('vi-VN') : 'never'}</p>
-        <button class="btn" onClick={backup}>Download backup file</button>
+        <button class="btn" {...w()} onClick={backup}>Download backup file</button>
       </div>
       <div class="panel">
         <h3>Restore</h3>
         <p class="muted">Replaces everything in this app with the contents of a backup file.</p>
-        <input type="file" accept="application/json,.json" onChange={(e) => { restore(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
+        <input type="file" accept="application/json,.json" {...w()} onChange={(e) => { restore(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       </div>
     </div>
   );

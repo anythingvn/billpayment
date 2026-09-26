@@ -13,11 +13,14 @@ import { computeTotals } from '../domain/money';
 import { formatDateVn, formatVnd, todayIso } from '../domain/format';
 import { ContractStatusBadge } from './Contracts';
 import { StatusBadge } from './Home';
+import { Authorship } from '../ui/Authorship';
+import { useWrite } from '../ui/useOnline';
 
 const EFFECT_LABEL = { addsWork: 'Adds work', changesTerms: 'Changes terms' } as const;
 
 export function ContractView({ id }: { id: string }) {
   const { db, settings } = useApp();
+  const w = useWrite();
   const [contract, setContract] = useState<Contract | null | undefined>(undefined);
   const [hasTemplate, setHasTemplate] = useState({ contract: false, addendum: false });
   const [busy, setBusy] = useState('');
@@ -104,7 +107,7 @@ export function ContractView({ id }: { id: string }) {
       case 'due':
         return <a class="btn" href={routeToHash({ name: 'newBillFromContract', contractId: row.sourceId, itemKey: row.key })}>Create bill</a>;
       case 'waiting':
-        return <button class="btn ghost" onClick={() => markReady(row)}>Mark ready</button>;
+        return <button class="btn ghost" {...w()} onClick={() => markReady(row)}>Mark ready</button>;
       case 'billed':
       case 'paid':
         return <span>{row.state === 'paid' ? 'Paid' : 'Billed'} · <a href={routeToHash({ name: 'bill', id: row.billId! })}>{row.billNumber}</a></span>;
@@ -126,19 +129,20 @@ export function ContractView({ id }: { id: string }) {
           {hasTemplate.contract
             ? <button class="btn ghost" disabled={busy === contract.id} onClick={() => downloadWord(contract)}>Word (.docx)</button>
             : addTemplateLink}
-          <button class="btn ghost" onClick={() => navigate({ name: 'editContract', id: contract.id })}>Edit</button>
-          {contract.status === 'active' && <button class="btn ghost" onClick={() => setStatus('completed')}>Mark completed</button>}
-          {contract.status !== 'terminated' && <button class="btn ghost" onClick={() => setStatus('terminated')}>Terminate</button>}
-          <button class="btn danger" onClick={remove}>Delete</button>
+          <button class="btn ghost" {...w()} onClick={() => navigate({ name: 'editContract', id: contract.id })}>Edit</button>
+          {contract.status === 'active' && <button class="btn ghost" {...w()} onClick={() => setStatus('completed')}>Mark completed</button>}
+          {contract.status !== 'terminated' && <button class="btn ghost" {...w()} onClick={() => setStatus('terminated')}>Terminate</button>}
+          <button class="btn danger" {...w()} onClick={remove}>Delete</button>
         </span>
       </div>
       {msg && <p class="errors">{msg}</p>}
+      <Authorship record={contract} />
       {contract.status === 'active' && hasTemplate.contract && (
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
           <DriveStatusText status={contract.drive} uploading={isUploading(contract.id)} configured={configured} onSave={() => saveToDrive(contract)}
             saved={(when) => `Word saved to Drive ${when}`} notSaved={(e) => `Not saved: ${e}`} />
           {configured
-            ? <button class="btn ghost" disabled={isUploading(contract.id)} onClick={() => saveToDrive(contract)}>
+            ? <button class="btn ghost" {...w(isUploading(contract.id))} onClick={() => saveToDrive(contract)}>
               {contract.drive?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
             : <a href="#/settings" class="muted">Connect Google Drive in Settings</a>}
         </div>
@@ -193,7 +197,7 @@ export function ContractView({ id }: { id: string }) {
 
       <div class="panel">
         <div class="page-head" style="margin-bottom:8px"><h3 style="margin:0">Addenda</h3>
-          <button class="btn ghost" onClick={() => navigate({ name: 'newAddendum', parentId: contract.id })}>+ New addendum</button></div>
+          <button class="btn ghost" {...w()} onClick={() => navigate({ name: 'newAddendum', parentId: contract.id })}>+ New addendum</button></div>
         <table class="list">
           <thead><tr><th>No.</th><th>Effect</th><th>Signed</th><th>Effective</th><th class="r">Value</th><th>Status</th><th /></tr></thead>
           <tbody>
@@ -209,13 +213,13 @@ export function ContractView({ id }: { id: string }) {
                   {hasTemplate.addendum
                     ? <button class="btn ghost" disabled={busy === a.id} onClick={() => downloadWord(a)}>Word</button>
                     : addTemplateLink}
-                  {a.status === 'active' && hasTemplate.addendum && configured && <> · <button class="btn ghost" disabled={isUploading(a.id)}
+                  {a.status === 'active' && hasTemplate.addendum && configured && <> · <button class="btn ghost" {...w(isUploading(a.id))}
                     title={a.drive?.error ? `Not saved: ${a.drive.error}` : a.drive?.savedAt ? `Word saved to Drive ${formatDateTime(a.drive.savedAt)}` : undefined}
                     style={a.drive?.error ? 'color:var(--danger)' : ''}
                     onClick={() => saveToDrive(a)}>{isUploading(a.id) ? 'Uploading…' : a.drive?.error ? 'Retry Drive' : a.drive?.fileId ? 'Update in Drive' : 'Save to Drive'}</button></>}
                   {' · '}<a href={routeToHash({ name: 'editContract', id: a.id })}>Edit</a>
-                  {a.status !== 'terminated' && <> · <button class="btn ghost" onClick={() => setAddendumStatus(a, 'terminated')}>Terminate</button></>}
-                  {a.status === 'draft' && <> · <button class="btn ghost" onClick={() => removeAddendum(a)}>Delete</button></>}
+                  {a.status !== 'terminated' && <> · <button class="btn ghost" {...w()} onClick={() => setAddendumStatus(a, 'terminated')}>Terminate</button></>}
+                  {a.status === 'draft' && <> · <button class="btn ghost" {...w()} onClick={() => removeAddendum(a)}>Delete</button></>}
                 </td>
               </tr>
             ))}
