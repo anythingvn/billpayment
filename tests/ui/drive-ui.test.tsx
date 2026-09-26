@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { render, screen, fireEvent, cleanup } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/preact';
 
 vi.mock('../../src/drive/service', () => ({
   driveConfigured: (s: { googleClientId: string }) => s.googleClientId.trim() !== '',
@@ -58,5 +58,70 @@ describe('Settings → Google Drive', () => {
     fireEvent.click(screen.getByText('Save'));
     expect(await screen.findByText('Main folder name cannot contain /')).toBeTruthy();
     expect((await getSettings(db)).driveFolderName).toBe('Phiếu thanh toán');
+  });
+});
+
+const CID = { googleClientId: 'cid.apps.googleusercontent.com' };
+const saved = { fileId: 'f1', link: 'https://drive.google.com/file/d/f1/view', savedAt: '2026-09-26T07:05:00.000Z', error: null };
+
+describe('bill view → Google Drive', () => {
+  it('button only on sent and paid bills', async () => {
+    await open('#/bills/s', CID, [sampleBill({ id: 's', status: 'sent' })]);
+    expect(await screen.findByText('Save to Google Drive')).toBeTruthy();
+    cleanup();
+    await open('#/bills/p', CID, [sampleBill({ id: 'p', status: 'paid', paidDate: '2026-09-26', drive: saved })]);
+    expect(await screen.findByText('Update in Google Drive')).toBeTruthy();
+    for (const status of ['draft', 'cancelled'] as const) {
+      cleanup();
+      await open(`#/bills/${status}`, CID, [sampleBill({ id: status, status })]);
+      await screen.findByText('← Back to bills');
+      expect(screen.queryByText(/in Google Drive|to Google Drive/)).toBeNull();
+    }
+  });
+  it('no Client ID shows the settings hint', async () => {
+    await open('#/bills/s', {}, [sampleBill({ id: 's', status: 'sent' })]);
+    expect(await screen.findByText('Connect Google Drive in Settings')).toBeTruthy();
+    expect(screen.queryByText('Save to Google Drive')).toBeNull();
+  });
+  it('shows saved status with link', async () => {
+    await open('#/bills/p', CID, [sampleBill({ id: 'p', status: 'sent', drive: saved })]);
+    expect(await screen.findByText(/Saved to Drive \d\d\/\d\d\/\d{4} \d\d:\d\d/)).toBeTruthy();
+    const link = screen.getByText('Open in Drive') as HTMLAnchorElement;
+    expect([link.href, link.target]).toEqual([saved.link, '_blank']);
+  });
+  it('shows error with Retry', async () => {
+    await open('#/bills/p', CID, [sampleBill({ id: 'p', status: 'sent', drive: { ...saved, error: 'Offline' } })]);
+    expect(await screen.findByText(/Not saved to Drive: Offline/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Retry'));
+    expect(service.saveBillToDrive).toHaveBeenCalledWith(expect.anything(), 'p', expect.objectContaining(CID));
+  });
+});
+
+describe('Save & export → Google Drive', () => {
+  async function exportNewBill(settings: Partial<Settings>) {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    await open('#/bills/new', settings);
+    fireEvent.click(await screen.findByText('Hoa Sen Xanh'));
+    fireEvent.click(await screen.findByText('+ Custom line'));
+    fireEvent.input(screen.getByPlaceholderText('Tên dịch vụ'), { target: { value: 'Thiết kế' } });
+    fireEvent.input(document.querySelectorAll('input[type=number]')[1], { target: { value: '1000' } });
+    fireEvent.click(screen.getByText('3 · Review & export'));
+    fireEvent.click(await screen.findByText('Save & export PDF'));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    print.mockRestore();
+  }
+  it('export uploads when enabled and still prints if the upload fails', async () => {
+    vi.mocked(service.saveBillToDrive).mockRejectedValueOnce(new Error('boom'));
+    await exportNewBill(CID);
+    expect(service.saveBillToDrive).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(service.saveBillToDrive).mock.calls[0][1]).toMatch(/.+/);
+  });
+  it('export without Client ID never calls the upload', async () => {
+    await exportNewBill({});
+    expect(service.saveBillToDrive).not.toHaveBeenCalled();
+  });
+  it('export with auto-upload off never calls the upload', async () => {
+    await exportNewBill({ ...CID, driveAutoUpload: false });
+    expect(service.saveBillToDrive).not.toHaveBeenCalled();
   });
 });

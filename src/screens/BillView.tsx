@@ -2,7 +2,9 @@ import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { navigate } from '../router';
 import { getBill, putBill } from '../storage/db';
-import type { Bill, BillStatus } from '../domain/types';
+import type { Bill, BillStatus, Settings } from '../domain/types';
+import type { AppDb } from '../storage/db';
+import { driveConfigured, isUploading, onDriveChange, prepareDrive, saveBillToDrive } from '../drive/service';
 import { applyStatus, canTransition } from '../domain/status';
 import { draftFromBill } from '../domain/draft';
 import { formatDateVn, pdfFileName, todayIso } from '../domain/format';
@@ -22,6 +24,11 @@ export function BillView({ id }: { id: string }) {
   const [bill, setBill] = useState<Bill | null | undefined>(undefined);
   const [error, setError] = useState('');
   useEffect(() => { getBill(db, id).then((b) => setBill(b ?? null)); }, [id]);
+  // Reload when a Drive upload for this bill starts or finishes.
+  useEffect(() => onDriveChange((changed) => {
+    if (changed === id) getBill(db, id).then((b) => setBill(b ?? null));
+  }), [id]);
+  useEffect(() => { prepareDrive(db, settings); }, [settings.googleClientId]);
   const draft = bill ? draftFromBill(bill) : null;
   const qr = useQrDataUrl(draft ? billQrPayload(draft, settings) : null);
 
@@ -64,8 +71,37 @@ export function BillView({ id }: { id: string }) {
       </div>
       {error && <p class="errors no-print">{error}</p>}
       {bill.paidDate && <p class="muted no-print">Paid on {formatDateVn(bill.paidDate)}</p>}
+      {(bill.status === 'sent' || bill.status === 'paid') && <DriveLine db={db} bill={bill} settings={settings} />}
       {bill.status !== 'draft' && <p class="muted no-print">This bill is locked. Duplicate it to make changes.</p>}
       <div class="preview-wrap"><BillPage bill={draft} settings={settings} qrDataUrl={qr} draftMark={isDraft} /></div>
+    </div>
+  );
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${formatDateVn(todayIso(d))} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Google Drive status and save button for a sent or paid bill. */
+function DriveLine({ db, bill, settings }: { db: AppDb; bill: Bill; settings: Settings }) {
+  if (!driveConfigured(settings)) {
+    return <p class="muted no-print"><a href="#/settings">Connect Google Drive in Settings</a></p>;
+  }
+  const d = bill.drive;
+  const save = () => { saveBillToDrive(db, bill.id, settings).catch(() => undefined); };
+  const uploading = isUploading(bill.id);
+  return (
+    <div class="no-print" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      {uploading && <span class="muted">Uploading to Google Drive…</span>}
+      {!uploading && d?.error && (
+        <span style="color:var(--danger)">Not saved to Drive: {d.error} · <button class="btn ghost" onClick={save}>Retry</button></span>
+      )}
+      {!uploading && !d?.error && d?.savedAt && (
+        <span class="muted">Saved to Drive {formatDateTime(d.savedAt)} · {d.link && <a href={d.link} target="_blank" rel="noopener">Open in Drive</a>}</span>
+      )}
+      <button class="btn ghost" disabled={uploading} onClick={save}>{d?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
     </div>
   );
 }

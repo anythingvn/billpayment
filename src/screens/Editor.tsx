@@ -16,6 +16,7 @@ import { formatVnd, pdfFileName, todayIso } from '../domain/format';
 import { BillPage, billQrPayload } from '../ui/BillPage';
 import { qrToDataUrl, useQrDataUrl } from '../ui/useQrDataUrl';
 import { bankByBin } from '../domain/banks';
+import { driveConfigured, prepareDrive, saveBillToDrive } from '../drive/service';
 import type { BankAccount } from '../domain/types';
 import { printBill } from '../ui/print';
 import { CustomerForm, emptyCustomer } from './Customers';
@@ -51,6 +52,7 @@ export function Editor({ mode }: { mode: EditorMode }) {
   const [error, setError] = useState('');
   const [exportQr, setExportQr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  useEffect(() => { prepareDrive(db, settings); }, [settings.googleClientId]);
   const savingRef = useRef(false);
 
   useEffect(() => {
@@ -123,6 +125,9 @@ export function Editor({ mode }: { mode: EditorMode }) {
   const saveAndExport = async () => {
     const bill = await save('sent');
     if (!bill) return;
+    // Start the Drive upload right away (still inside the click, so Google's permission window may open);
+    // it runs in the background and never blocks or undoes the export.
+    if (driveConfigured(settings) && settings.driveAutoUpload) saveBillToDrive(db, bill.id, settings).catch(() => undefined);
     // Build the QR now so the printed page never misses it, then let the preview re-render.
     const payload = billQrPayload(draftFromBill(bill), settings);
     setExportQr(payload ? await qrToDataUrl(payload) : null);
