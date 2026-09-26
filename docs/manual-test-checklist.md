@@ -25,3 +25,14 @@ Also confirm your bank's BIN in src/domain/banks.ts against https://api.vietqr.i
 
 ## Offline
 - [ ] Installed app opens with Wi-Fi off and can create and export a bill
+
+## Google Drive
+Needs a Web Client ID set up per `docs/google-drive-setup.md`.
+- [ ] Settings → paste Client ID → Save → Connect: Google's window opens; afterwards "Connected as <email>"
+- [ ] Save & export a bill: the save dialog opens as usual, and Drive gets `Phiếu thanh toán/<year>/<customer>/<number>.pdf`
+- [ ] The Drive PDF opens and looks like the on-screen bill (accents, QR, totals)
+- [ ] Bill view shows "Saved to Drive <date time> · Open in Drive" and the link opens the file
+- [ ] Update in Google Drive: still one file; Drive's "Manage versions" shows a new version
+- [ ] Delete the file in Drive, then Update: a new file is created in the same folder
+- [ ] Offline (DevTools → Network → Offline), export: printing still works; bill shows "Not saved to Drive: Offline · Retry"; Retry online works
+- [ ] Phone (GitHub Pages address): connect and upload

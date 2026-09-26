@@ -11,6 +11,7 @@ This is **not** an official VAT e-invoice; issue those through a licensed e-invo
 - Open it in Chrome or Edge and use "Install app" to add it to your desktop.
 - Fill in **Settings** first (business, bank and account for VietQR).
 - Your data stays in this browser. Use **Backup / Restore** weekly and keep the file safe.
+- Optional: save final bills to Google Drive automatically — see [docs/google-drive-setup.md](docs/google-drive-setup.md).
 
 ## Develop
 - `npm run dev` for the dev server, `npm test` for the unit tests.
