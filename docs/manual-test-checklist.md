@@ -10,6 +10,7 @@ https://anythingvn.github.io/billpayment/ — the same checks apply to `http://l
 ## Last run
 | Date | Who | Result |
 |---|---|---|
+| 2026-09-26 | Claude (browser, test data, localhost:5199) | Word review minors: bill and contract .docx line breaks are real Word breaks (library option), no leftover placeholders; Settings no longer scrolls sideways on a narrow screen |
 | 2026-09-26 | Claude (browser, test data, localhost:5199 dev + 5198 production build) | Word: 3 starters installed via Use starter; contract, addendum, sent bill (QR image) and draft bill (no QR, BẢN NHÁP) generated in the browser with no leftover placeholders; typo template → "Unknown placeholder: so_phieuu (did you mean so_phieu?)"; .txt refused; production build Word (.docx) download OK |
 | 2026-09-26 | Owner | Google Drive: Connect and first upload OK (Chrome, localhost:5173) |
 | 2026-09-26 | Automated test | Bank list = all 65 banks of the official VietQR list, BINs match (`npm test`) |
@@ -86,12 +87,14 @@ Home, deletes and backup
 - [ ] Two bank accounts: add, pick the default, remove one; a number like `99x` is refused with a message
 - [ ] Footer notes: add, edit, pick default or "No footer by default"; blank notes disappear on Save
 - [ ] Settings survive a page reload
+- [x] On a phone-width screen Settings doesn't scroll sideways *(2026-09-26, browser pane)*
 
 ## 5. Backup
 - [ ] Back up → clear site data → restore → bills, customers, services, settings (bank accounts, footer notes) identical
 - [ ] New bill after restore continues numbering
 - [ ] Restoring a non-backup file shows an error and changes nothing
 - [ ] After a restore, Settings → Google Drive still shows "Connected as …" on this device
+- [ ] Back up with two contract templates, restore: templates are back and exactly one is Default (the one the contract editor names)
 
 ## 6. Online app and offline
 - [ ] The online address opens and can be installed (Install app / Add to Home screen)
@@ -120,18 +123,23 @@ Uses the built-in Client ID (see `docs/google-drive-setup.md`). The Google clien
 Guide: `docs/word-templates.md`. Items marked *(generated in browser)* were checked by unzipping the file, not by opening it in Word.
 - [ ] Settings → Documents → Download each starter; open it in **Word**: tables keep their column widths, marker rows `{FOR …}`/`{END-FOR …}` are visible
 - [x] **Use starter** for contract, addendum and bill; contract starter is the Default *(2026-09-26, localhost dev + production build)*
+- [ ] **Use starter** for contracts a second time: asks to replace "Hợp đồng mẫu"; still one starter template
 - [ ] Contract page → **Word (.docx)**: opens in Word and in **Google Docs**; number, customer, services table, totals, words, instalments are right; marker rows are gone *(generated in browser 2026-09-26: text right, no placeholders left)*
 - [ ] Addendum row → **Word**: parent contract number and the addendum's own values *(generated in browser 2026-09-26)*
 - [ ] Bill → **Word (.docx)**: QR 3 × 3 cm scans in a bank app; a draft is named `…_DRAFT.docx`, shows "BẢN NHÁP / DRAFT" and has no QR *(generated in browser 2026-09-26: QR image only in the sent bill; not yet scanned)*
-- [ ] Detail lines of a service appear on separate lines in Word
-- [ ] Your logo (PNG and JPEG) appears in the header at most 4 cm wide
+- [ ] Detail lines of a service appear on separate lines in Word and Google Docs *(generated in browser 2026-09-26: real Word line breaks)*
+- [ ] A monthly contract's period table reads "Kỳ tháng 10/2026", a quarterly one "Quý 4/2026"
+- [ ] Your logo (PNG and JPEG, including a progressive JPEG) appears in the header at most 4 cm wide, not stretched
 - [ ] Edit a starter (letterhead + one clause), upload it, generate: your changes are kept
 - [ ] Upload a template with a typo (`{so_hop_dongg}`): "Unknown placeholder: so_hop_dongg (did you mean so_hop_dong?)"; Word download shows the same message *(Check a template message seen 2026-09-26)*
+- [ ] **Check a template**: known placeholders show a green ✓, unknown ones a red ✗
 - [ ] Put a contract placeholder in the bill template (e.g. `{so_hop_dong}`): upload says "so_hop_dong isn't filled in bill documents (it prints empty)"; the bill's Word file generates with it empty
 - [ ] Put a formula in a template (e.g. `{ben_b_ten + "x"}`): Check and upload say "Only simple placeholders are allowed: …"; Word download refuses it
 - [x] A non-Word file (.txt) is refused: "This isn't a Word .docx file" *(2026-09-26)*
 - [ ] Two contract templates: pick the second in the contract editor → its Word file uses it; Remove it → the contract uses the Default
+- [ ] Customer with a very long name: the contract .docx name is shortened (Drive and download)
 - [ ] Save & activate a contract with Drive connected: `Phiếu thanh toán/Hợp đồng/<year>/<customer>/HĐ … – <customer>.docx`; the contract page shows "Word saved to Drive …"
+- [ ] Save & activate, open **Edit** right away, wait for the upload to finish, then Save; **Update in Google Drive** replaces the same file (no second file in Drive)
 - [ ] The same Save & activate as the **first** Drive action after opening the app (also in Safari): Google's window is not blocked
 - [ ] Addendum row → **Save to Drive**: the addendum's .docx lands in the same customer folder
 - [ ] Save & export a bill with a bill template: the .docx lands next to the PDF; the bill shows "PDF: saved …" and "Word: saved …"
