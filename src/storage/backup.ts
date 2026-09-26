@@ -16,6 +16,8 @@ export interface BackupData {
   templates: BackupTemplate[];
   /** Drive status of saved reports, by file name (meta `report-drive:<name>`), so a restore keeps updating the same files. */
   reportDrive: Record<string, DriveStatus>;
+  /** Drive status of saved customer statements, by file name (meta `statement-drive:<name>`). */
+  statementDrive: Record<string, DriveStatus>;
 }
 
 /** A Word template in a backup file (bytes as base64). */
@@ -40,15 +42,18 @@ export function base64ToBytes(b64: string): Uint8Array {
 }
 
 const REPORT_DRIVE = 'report-drive:';
+const STATEMENT_DRIVE = 'statement-drive:';
 
 export async function exportAll(db: AppDb, nowIso: string): Promise<BackupData> {
   const counters: Record<string, number> = {};
   const reportDrive: Record<string, DriveStatus> = {};
+  const statementDrive: Record<string, DriveStatus> = {};
   const tx = db.transaction('meta');
   for (const key of await tx.store.getAllKeys()) {
     const k = String(key);
     if (/^(contract-)?counter-/.test(k)) counters[k] = (await tx.store.get(key)) as number;
     if (k.startsWith(REPORT_DRIVE)) reportDrive[k.slice(REPORT_DRIVE.length)] = (await tx.store.get(key)) as DriveStatus;
+    if (k.startsWith(STATEMENT_DRIVE)) statementDrive[k.slice(STATEMENT_DRIVE.length)] = (await tx.store.get(key)) as DriveStatus;
   }
   await tx.done;
   return {
@@ -63,6 +68,7 @@ export async function exportAll(db: AppDb, nowIso: string): Promise<BackupData> 
     settings: await getSettings(db),
     counters,
     reportDrive,
+    statementDrive,
   };
 }
 
@@ -220,9 +226,13 @@ export function parseBackup(
   if (!isObj(reportDrive) || !Object.values(reportDrive).every(validDriveStatus)) {
     return { ok: false, error: 'The saved report Drive details in the backup are damaged.' };
   }
+  const statementDrive = raw.statementDrive === undefined ? {} : raw.statementDrive;
+  if (!isObj(statementDrive) || !Object.values(statementDrive).every(validDriveStatus)) {
+    return { ok: false, error: 'The saved statement Drive details in the backup are damaged.' };
+  }
 
   const bills = (raw.bills as Bill[]).map((b) => ({ ...b, lines: b.lines.map((l) => ({ ...l, details: l.details ?? [] })) }));
-  const data = { ...raw, bills, contracts, reportDrive, templates: oneDefault(templates as BackupTemplate[]), settings: normalizeSettings(raw.settings) } as unknown as BackupData;
+  const data = { ...raw, bills, contracts, reportDrive, statementDrive, templates: oneDefault(templates as BackupTemplate[]), settings: normalizeSettings(raw.settings) } as unknown as BackupData;
   return {
     ok: true,
     data,
@@ -257,6 +267,7 @@ export async function restoreAll(db: AppDb, data: BackupData): Promise<void> {
   await tx.objectStore('settings').put(data.settings, 'settings');
   for (const [k, v] of Object.entries(data.counters)) await meta.put(v, k);
   for (const [name, status] of Object.entries(data.reportDrive)) await meta.put(status, `${REPORT_DRIVE}${name}`);
+  for (const [name, status] of Object.entries(data.statementDrive)) await meta.put(status, `${STATEMENT_DRIVE}${name}`);
   for (const [k, v] of keep) if (v !== undefined) await meta.put(v, k);
   await tx.done;
 }

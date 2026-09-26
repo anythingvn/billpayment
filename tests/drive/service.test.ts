@@ -2,13 +2,14 @@ import 'fake-indexeddb/auto';
 import { openAppDb, putBill, getBill, getMeta, putContract, getContract } from '../../src/storage/db';
 import { sampleContract } from '../contractFixtures';
 import {
-  saveBillToDrive, saveDocxToDrive, saveReportToDrive, reportDriveStatus, setDriveDepsForTest, isUploading, onDriveChange, connectDrive, disconnectDrive, driveConnection, driveConfigured,
+  saveBillToDrive, saveDocxToDrive, saveReportToDrive, reportDriveStatus, saveStatementToDrive, statementDriveStatus, setDriveDepsForTest, isUploading, onDriveChange, connectDrive, disconnectDrive, driveConnection, driveConfigured,
   type DriveDeps,
 } from '../../src/drive/service';
 import { DriveError } from '../../src/drive/api';
 import { DEFAULT_SETTINGS } from '../../src/domain/types';
 import { sampleBill } from '../fixtures';
 import { buildReport } from '../../src/domain/report';
+import { buildStatement } from '../../src/domain/statement';
 import { fakeDrive } from './fakeDrive';
 
 const s = { ...DEFAULT_SETTINGS, googleClientId: 'cid.apps.googleusercontent.com' };
@@ -24,6 +25,11 @@ function setup(over: Partial<DriveDeps> = {}) {
       folders: target.type === 'contract' ? ['Phiếu thanh toán', 'Hợp đồng', '2026', 'Công ty CP Hoa Sen Xanh'] : ['Phiếu thanh toán', '2026', 'Công ty CP Hoa Sen Xanh'],
     })),
     makeXlsx: vi.fn(async () => new Blob(['PK'])),
+    makeStatementPdf: vi.fn(async () => new Blob(['%PDF'])),
+    makeStatementDocx: vi.fn(async (st: { customer: { name: string }; to: string }) => ({
+      blob: new Blob(['PK']), fileName: 'Đối chiếu Công ty CP Hoa Sen Xanh 2026.docx',
+      folders: ['Phiếu thanh toán', 'Đối chiếu', st.to.slice(0, 4), st.customer.name],
+    })),
     now: () => '2026-09-26T07:00:00.000Z',
     online: () => true,
     ...over,
@@ -248,6 +254,37 @@ describe('Word documents to Drive', () => {
     const db = await dbWith();
     expect((await saveReportToDrive(db, report(), s)).error).toBe('Offline');
     expect((await reportDriveStatus(db, 'Báo cáo 2026-09.xlsx'))?.error).toBe('Offline');
+  });
+
+  const statement = () => buildStatement([], { id: 'c1', name: 'Công ty CP Hoa Sen Xanh', address: '', taxId: '', contactPerson: '', email: '', phone: '', archived: false },
+    '2026-01-01', '2026-12-31', '2027-01-10');
+  it('saves a statement PDF and Word under Đối chiếu', async () => {
+    const { api } = setup();
+    const db = await dbWith();
+    const r = await saveStatementToDrive(db, statement(), s);
+    expect(api.calls.filter((c) => c.startsWith('create'))).toEqual([
+      'createFolder Phiếu thanh toán', 'createFolder Đối chiếu', 'createFolder 2026', 'createFolder Công ty CP Hoa Sen Xanh',
+      'createFile Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf', 'createFile Đối chiếu Công ty CP Hoa Sen Xanh 2026.docx',
+    ]);
+    expect([r.pdf.error, r.docx?.error]).toEqual([null, null]);
+    expect(await statementDriveStatus(db, 'Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf')).toEqual(r.pdf);
+    expect(await statementDriveStatus(db, 'Đối chiếu Công ty CP Hoa Sen Xanh 2026.docx')).toEqual(r.docx);
+  });
+  it('no statement template: PDF only', async () => {
+    const { api } = setup({ makeStatementDocx: vi.fn(async () => null) });
+    const db = await dbWith();
+    const r = await saveStatementToDrive(db, statement(), s);
+    expect(r.docx).toBeNull();
+    expect(api.calls.filter((c) => c.startsWith('createFile'))).toEqual(['createFile Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf']);
+  });
+  it('same statement updates the same files', async () => {
+    const { api } = setup();
+    const db = await dbWith();
+    await saveStatementToDrive(db, statement(), s);
+    await saveStatementToDrive(db, statement(), s);
+    expect(api.byName('Đối chiếu Công ty CP Hoa Sen Xanh 2026.pdf')).toHaveLength(1);
+    expect(api.byName('Đối chiếu Công ty CP Hoa Sen Xanh 2026.docx')).toHaveLength(1);
+    expect(api.calls.filter((c) => c.startsWith('updateFile'))).toHaveLength(2);
   });
 });
 

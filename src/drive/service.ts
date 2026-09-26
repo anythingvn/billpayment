@@ -10,10 +10,14 @@ import type { BuiltDoc, DocxTarget } from '../docs/documents';
 import type { Report } from '../domain/report';
 import { reportFileName } from '../domain/report';
 import { XLSX_MIME } from '../report/excel';
+import type { Statement } from '../domain/statement';
+import { statementFileBase } from '../domain/statement';
 
 export type { DocxTarget } from '../docs/documents';
 /** What a Drive job saves: a bill or contract record, or a report (id = its file name; status kept in meta). */
-export type DriveTarget = DocxTarget | { type: 'report'; id: string };
+export type DriveTarget = DocxTarget | { type: 'report'; id: string } | { type: 'statement'; id: string };
+/** Where a report's or statement's Drive status is kept (by file name). */
+const META_PREFIX = { report: 'report-drive:', statement: 'statement-drive:' } as const;
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 /** Everything the service talks to; replaced by fakes in tests. */
@@ -25,6 +29,9 @@ export interface DriveDeps {
   makeDocx(target: DocxTarget, s: Settings, db: AppDb): Promise<BuiltDoc | null>;
   /** The accountant report as an .xlsx file. */
   makeXlsx(report: Report): Promise<Blob>;
+  /** A customer statement as PDF, and as Word (null when there is no Statement template). */
+  makeStatementPdf(st: Statement, s: Settings): Promise<Blob>;
+  makeStatementDocx(st: Statement, s: Settings, db: AppDb): Promise<BuiltDoc | null>;
   now(): string;
   online(): boolean;
 }
@@ -57,6 +64,8 @@ function depsFor(s: Settings): DriveDeps {
         makePdf: async (bill, settings) => (await import('../ui/billPdf')).makeBillPdf(bill, settings),
         makeDocx: async (target, settings, db) => (await import('../docs/documents')).buildDocx(db, target, settings),
         makeXlsx: async (report) => (await import('../report/excel')).reportToXlsx(report),
+        makeStatementPdf: async (st, settings) => (await import('../ui/billPdf')).makeStatementPdf(st, settings),
+        makeStatementDocx: async (st, settings, db) => (await import('../docs/documents')).buildStatementDocx(db, st, settings),
         now: () => new Date().toISOString(),
         online: () => navigator.onLine,
       },
@@ -82,7 +91,7 @@ const notify = (billId: string) => listeners.forEach((fn) => fn(billId));
 
 /** True while the PDF or the Word document of this bill/contract is uploading. */
 export const isUploading = (id: string): boolean => uploading.has(`pdf:${id}`) || uploading.has(`docx:${id}`);
-export const isUploadingFile = (id: string, file: 'pdf' | 'docx' | 'report'): boolean => uploading.has(`${file}:${id}`);
+export const isUploadingFile = (id: string, file: 'pdf' | 'docx' | 'report' | 'statement'): boolean => uploading.has(`${file}:${id}`);
 
 export function onDriveChange(fn: (billId: string) => void): () => void {
   listeners.add(fn);
@@ -104,9 +113,10 @@ type StatusField = 'drive' | 'driveDocx';
 /** Keeps the previous fileId/link/savedAt and records the error on the bill or contract. */
 async function recordStatus(db: AppDb, target: DriveTarget, field: StatusField, status: DriveStatus | ((prev: DriveStatus) => DriveStatus)) {
   const make = (prev: DriveStatus | undefined) => (typeof status === 'function' ? status(prev ?? EMPTY) : status);
-  if (target.type === 'report') {
-    const next = make(await reportDriveStatus(db, target.id));
-    await setMeta(db, `report-drive:${target.id}`, next);
+  if (target.type === 'report' || target.type === 'statement') {
+    const key = `${META_PREFIX[target.type]}${target.id}`;
+    const next = make(await getMeta<DriveStatus>(db, key));
+    await setMeta(db, key, next);
     return next;
   }
   // Read and write in one transaction: the PDF and Word jobs of one bill update the same record.
@@ -296,4 +306,32 @@ export function saveReportToDrive(db: AppDb, report: Report, s: Settings): Promi
     missing: 'Could not create the Excel file',
     existingFileId: async () => (await reportDriveStatus(db, fileName))?.fileId ?? null,
   });
+}
+
+/** Drive status of a saved statement file (.pdf or .docx), by file name. */
+export const statementDriveStatus = (db: AppDb, fileName: string) => getMeta<DriveStatus>(db, `${META_PREFIX.statement}${fileName}`);
+
+const NO_STATEMENT_TEMPLATE = 'No Word template';
+
+/**
+ * Saves a statement to Phiếu thanh toán / Đối chiếu / <year of To> / <customer>: the PDF, then the Word file when a
+ * Statement template exists (docx null otherwise). The same file names update the same Drive files.
+ */
+export async function saveStatementToDrive(db: AppDb, st: Statement, s: Settings): Promise<{ pdf: DriveStatus; docx: DriveStatus | null }> {
+  const base = statementFileBase(st.customer.name, st.from, st.to);
+  const folders = [safeName(s.driveFolderName), 'Đối chiếu', st.to.slice(0, 4), safeName(st.customer.name)];
+  const job = (fileName: string, build: (deps: DriveDeps) => Promise<{ doc: BuiltDoc; mimeType: string } | null>, buildError: string) => runJob(db, s, {
+    key: `statement:${fileName}`, target: { type: 'statement', id: fileName }, field: 'drive',
+    refuse: async () => null, build, buildError, missing: NO_STATEMENT_TEMPLATE,
+    existingFileId: async () => (await statementDriveStatus(db, fileName))?.fileId ?? null,
+  });
+  // Both are queued now (from the click); the queue uploads them one after the other.
+  const pdf = job(`${base}.pdf`, async (deps) => ({ doc: { blob: await deps.makeStatementPdf(st, s), fileName: `${base}.pdf`, folders }, mimeType: 'application/pdf' }),
+    'Could not create the PDF');
+  const docx = job(`${base}.docx`, async (deps) => {
+    const doc = await deps.makeStatementDocx(st, s, db);
+    return doc ? { doc, mimeType: DOCX_MIME } : null;
+  }, 'Could not create the Word document');
+  const [p, d] = await Promise.all([pdf, docx]);
+  return { pdf: p, docx: d.error === NO_STATEMENT_TEMPLATE && !d.fileId ? null : d };
 }
