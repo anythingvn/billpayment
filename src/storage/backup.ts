@@ -1,7 +1,7 @@
 import type { AppDb } from './db';
 import { getMeta, getSettings, setMeta } from './db';
 import { normalizeSettings } from '../domain/settings';
-import { VAT_RATES, type Bill, type Customer, type Service, type Settings } from '../domain/types';
+import { VAT_RATES, type Bill, type Contract, type Customer, type Service, type Settings } from '../domain/types';
 
 export interface BackupData {
   app: 'payment-bills';
@@ -12,13 +12,14 @@ export interface BackupData {
   bills: Bill[];
   settings: Settings;
   counters: Record<string, number>;
+  contracts: Contract[];
 }
 
 export async function exportAll(db: AppDb, nowIso: string): Promise<BackupData> {
   const counters: Record<string, number> = {};
   const tx = db.transaction('meta');
   for (const key of await tx.store.getAllKeys()) {
-    if (String(key).startsWith('counter-')) counters[String(key)] = (await tx.store.get(key)) as number;
+    if (/^(contract-)?counter-/.test(String(key))) counters[String(key)] = (await tx.store.get(key)) as number;
   }
   await tx.done;
   return {
@@ -28,6 +29,7 @@ export async function exportAll(db: AppDb, nowIso: string): Promise<BackupData> 
     customers: await db.getAll('customers'),
     services: await db.getAll('services'),
     bills: await db.getAll('bills'),
+    contracts: await db.getAll('contracts'),
     settings: await getSettings(db),
     counters,
   };
@@ -51,10 +53,51 @@ function validBill(b: unknown): boolean {
     (b.bankAccount === undefined || validAccount(b.bankAccount)) &&
     (b.drive === undefined || validDriveStatus(b.drive)) &&
     (b.business === undefined || validBusiness(b.business)) &&
-    isObj(b.customer) && SNAPSHOT_FIELDS.every((f) => isStr((b.customer as Record<string, unknown>)[f])) &&
-    Array.isArray(b.lines) &&
-    b.lines.every((l) => isObj(l) && LINE_TEXT_FIELDS.every((f) => isStr(l[f])) && isWhole(l.qty, 1) && isWhole(l.unitPrice, 0) &&
-      (l.details === undefined || (Array.isArray(l.details) && l.details.every(isStr))))
+    (b.contractRef === undefined || validContractRef(b.contractRef)) &&
+    validSnapshot(b.customer) && validLines(b.lines)
+  );
+}
+
+const validSnapshot = (c: unknown): boolean => isObj(c) && SNAPSHOT_FIELDS.every((f) => isStr(c[f]));
+
+const validLines = (lines: unknown): boolean => Array.isArray(lines) &&
+  lines.every((l) => isObj(l) && LINE_TEXT_FIELDS.every((f) => isStr(l[f])) && isWhole(l.qty, 1) && isWhole(l.unitPrice, 0) &&
+    (l.details === undefined || (Array.isArray(l.details) && l.details.every(isStr))));
+
+function validContractRef(r: unknown): boolean {
+  return isObj(r) && isStr(r.contractId) && strOrNull(r.itemKey) && isStr(r.number) && isDate(r.signedDate) &&
+    strOrNull(r.parentNumber) && (r.parentSignedDate === null || isDate(r.parentSignedDate));
+}
+
+const CONTRACT_STATUSES = ['draft', 'active', 'completed', 'terminated'];
+
+function validInstalment(i: unknown): boolean {
+  if (!isObj(i) || !isStr(i.id) || !isStr(i.name) || typeof i.ready !== 'boolean' || !(i.readyOn === null || isDate(i.readyOn))) return false;
+  const share = i.share, due = i.due;
+  const okShare = isObj(share) && (typeof share.percent === 'number' || isWhole(share.amount, 0));
+  const okDue = isObj(due) && (due.on === 'signing' || due.on === 'acceptance' || (due.on === 'date' && isDate(due.date)));
+  return okShare && okDue;
+}
+
+function validPlan(p: unknown): boolean {
+  if (!isObj(p)) return false;
+  if (p.type === 'perUse') return true;
+  if (p.type === 'instalments') return Array.isArray(p.items) && p.items.every(validInstalment);
+  const month = (v: unknown) => isStr(v) && /^\d{4}-\d{2}$/.test(v);
+  return p.type === 'periodic' && (p.every === 'month' || p.every === 'quarter') && isWhole(p.amount, 0) && month(p.first) && month(p.last);
+}
+
+function validContract(c: unknown): boolean {
+  if (!isObj(c)) return false;
+  const addendum = c.kind === 'addendum';
+  return (
+    isStr(c.id) && (c.kind === 'contract' || addendum) &&
+    (addendum ? isStr(c.parentId) && (c.effect === 'addsWork' || c.effect === 'changesTerms') : c.parentId === null) &&
+    (c.effectiveDate === null || isDate(c.effectiveDate)) &&
+    isStr(c.number) && isStr(c.title) && CONTRACT_STATUSES.includes(c.status as string) &&
+    isDate(c.signedDate) && isDate(c.startDate) && (c.endDate === null || isDate(c.endDate)) &&
+    isStr(c.customerId) && validSnapshot(c.customer) && (c.business === null || validBusiness(c.business)) &&
+    validLines(c.lines) && isVat(c.vatRate) && validPlan(c.plan) && isStr(c.paymentTerms) && isWhole(c.paymentDays, 0)
   );
 }
 
@@ -108,25 +151,29 @@ export function parseBackup(
   if (!raw.services.every((s) => isObj(s) && isStr(s.id) && isStr(s.nameVi))) return { ok: false, error: 'A service in the backup is damaged.' };
   const badBill = raw.bills.findIndex((b) => !validBill(b));
   if (badBill >= 0) return { ok: false, error: `Bill ${badBill + 1} in the backup is damaged.` };
+  const contracts = raw.contracts === undefined ? [] : raw.contracts;
+  if (!Array.isArray(contracts)) return { ok: false, error: 'The backup file is incomplete.' };
+  const badContract = contracts.findIndex((c) => !validContract(c));
+  if (badContract >= 0) return { ok: false, error: `Contract ${badContract + 1} in the backup is damaged.` };
   if (!validSettings(raw.settings)) return { ok: false, error: 'The settings in the backup are damaged.' };
   const counters = raw.counters;
-  if (!Object.entries(counters).every(([k, v]) => /^counter-\d{4}$/.test(k) && isWhole(v, 0))) {
+  if (!Object.entries(counters).every(([k, v]) => /^(contract-)?counter-\d{4}$/.test(k) && isWhole(v, 0))) {
     return { ok: false, error: 'The bill number counters in the backup are damaged.' };
   }
 
   const bills = (raw.bills as Bill[]).map((b) => ({ ...b, lines: b.lines.map((l) => ({ ...l, details: l.details ?? [] })) }));
-  const data = { ...raw, bills, settings: normalizeSettings(raw.settings) } as unknown as BackupData;
+  const data = { ...raw, bills, contracts, settings: normalizeSettings(raw.settings) } as unknown as BackupData;
   return {
     ok: true,
     data,
-    summary: `${data.bills.length} bills, ${data.customers.length} customers, ${data.services.length} services`,
+    summary: `${data.bills.length} bills, ${data.customers.length} customers, ${data.services.length} services, ${data.contracts.length} contracts`,
   };
 }
 
 const DEVICE_META = ['lastBackupAt', 'driveConnected', 'driveFolders'];
 
 export async function restoreAll(db: AppDb, data: BackupData): Promise<void> {
-  const tx = db.transaction(['customers', 'services', 'bills', 'settings', 'meta'], 'readwrite');
+  const tx = db.transaction(['customers', 'services', 'bills', 'settings', 'meta', 'contracts'], 'readwrite');
   const meta = tx.objectStore('meta');
   // Device-only facts survive a restore: last backup time and this device's Google Drive connection/folders.
   const keep = await Promise.all(DEVICE_META.map(async (k) => [k, await meta.get(k)] as const));
@@ -134,12 +181,14 @@ export async function restoreAll(db: AppDb, data: BackupData): Promise<void> {
     tx.objectStore('customers').clear(),
     tx.objectStore('services').clear(),
     tx.objectStore('bills').clear(),
+    tx.objectStore('contracts').clear(),
     tx.objectStore('settings').clear(),
     meta.clear(),
   ]);
   for (const c of data.customers) await tx.objectStore('customers').put(c);
   for (const s of data.services) await tx.objectStore('services').put(s);
   for (const b of data.bills) await tx.objectStore('bills').put(b);
+  for (const c of data.contracts) await tx.objectStore('contracts').put(c);
   await tx.objectStore('settings').put(data.settings, 'settings');
   for (const [k, v] of Object.entries(data.counters)) await meta.put(v, k);
   for (const [k, v] of keep) if (v !== undefined) await meta.put(v, k);

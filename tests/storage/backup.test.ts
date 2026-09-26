@@ -1,5 +1,7 @@
 import 'fake-indexeddb/auto';
-import { openAppDb, putCustomer, putBill, putSettings, listBills, listCustomers, getSettings, getMeta, setMeta } from '../../src/storage/db';
+import { openAppDb, putCustomer, putBill, putSettings, listBills, listCustomers, getSettings, getMeta, setMeta, putContract, listContracts } from '../../src/storage/db';
+import { allocateContractNumber } from '../../src/storage/contractNumbering';
+import { sampleContract, sampleAddendum } from '../contractFixtures';
 import { allocateBillNumber } from '../../src/storage/numbering';
 import {
   exportAll, parseBackup, restoreAll, needsBackupReminder, backupFileName, markBackedUp, lastBackupAt,
@@ -26,7 +28,7 @@ describe('backup round trip', () => {
     const text = JSON.stringify(await exportAll(src, '2026-09-25T10:00:00.000Z'));
     const parsed = parseBackup(text);
     if (!parsed.ok) throw new Error(parsed.error);
-    expect(parsed.summary).toBe('1 bills, 1 customers, 0 services');
+    expect(parsed.summary).toBe('1 bills, 1 customers, 0 services, 0 contracts');
 
     const dst = await freshDb();
     await restoreAll(dst, parsed.data);
@@ -202,5 +204,50 @@ describe('business details saved on bills', () => {
   it('accepts a business snapshot and rejects a damaged one', () => {
     expect(parseBackup(file({ ...sampleBill({ status: 'sent' }), business })).ok).toBe(true);
     expect(parseBackup(file({ ...sampleBill({ status: 'sent' }), business: { businessName: 1 } })).ok).toBe(false);
+  });
+});
+
+describe('backups with contracts', () => {
+  const file = (over: Record<string, unknown>) => JSON.stringify({
+    app: 'payment-bills', schemaVersion: 1, exportedAt: 'x', customers: [], services: [], counters: {}, settings: DEFAULT_SETTINGS, bills: [], ...over,
+  });
+  it('round trip with contracts and contract counters', async () => {
+    const src = await seeded();
+    await putContract(src, sampleContract());
+    await putContract(src, sampleAddendum());
+    await allocateContractNumber(src, DEFAULT_SETTINGS, '2026-09-15');
+    const parsed = parseBackup(JSON.stringify(await exportAll(src, 'x')));
+    if (!parsed.ok) throw new Error(parsed.error);
+    expect(parsed.summary).toBe('1 bills, 1 customers, 0 services, 2 contracts');
+    const dst = await freshDb();
+    await restoreAll(dst, parsed.data);
+    expect((await listContracts(dst)).map((c) => c.id).sort()).toEqual(['a1', 'k1']);
+    expect(await allocateContractNumber(dst, DEFAULT_SETTINGS, '2026-10-01')).toBe('2/2026/HĐDV');
+  });
+  it('old backup without contracts restores', async () => {
+    const r = parseBackup(file({}));
+    expect(r.ok && r.data.contracts).toEqual([]);
+    expect(r.ok && r.summary).toBe('0 bills, 0 customers, 0 services, 0 contracts');
+  });
+  it('rejects damaged contracts', () => {
+    const k = sampleContract();
+    const bad: Record<string, unknown>[] = [
+      { ...k, status: 'weird' },
+      { ...k, plan: undefined },
+      { ...k, plan: { type: 'weird' } },
+      { ...k, plan: { type: 'instalments', items: [{ name: 'x', share: { percent: 100 }, due: { on: 'signing' }, ready: false, readyOn: null }] } },
+      { ...k, plan: { type: 'instalments', items: [{ id: 'i', name: 'x', share: { percent: 100 }, due: { on: 'signing' }, ready: false, readyOn: 5 }] } },
+      { ...k, lines: [{ ...k.lines[0], qty: 0 }] },
+      { ...sampleAddendum(), parentId: null },
+    ];
+    for (const c of bad) expect(parseBackup(file({ contracts: [c] })).ok).toBe(false);
+    expect(parseBackup(file({ contracts: [k, sampleAddendum()] })).ok).toBe(true);
+  });
+  it('rejects a damaged contractRef on a bill', () => {
+    expect(parseBackup(file({ bills: [{ ...sampleBill(), contractRef: { contractId: 5 } }] })).ok).toBe(false);
+  });
+  it('counter keys', () => {
+    expect(parseBackup(file({ counters: { 'counter-2026': 3, 'contract-counter-2026': 2 } })).ok).toBe(true);
+    expect(parseBackup(file({ counters: { 'contract-counter-abc': 2 } })).ok).toBe(false);
   });
 });
