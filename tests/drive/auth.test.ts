@@ -99,3 +99,14 @@ describe('stuck Google window', () => {
     await expect(first).rejects.toMatchObject({ kind: 'auth' });
   });
 });
+
+describe('blocked sign-in window', () => {
+  it('says the browser blocked the pop-up', async () => {
+    const gis: Gis = {
+      initTokenClient: (cfg) => ({ requestAccessToken() { queueMicrotask(() => cfg.error_callback?.({ type: 'popup_failed_to_open' })); } }),
+      revoke: (_t, d) => d(),
+    };
+    const e = await createDriveAuth('cid', { gis: async () => gis, wasConnected: false }).getToken().catch((x) => x);
+    expect([e.kind, e.message]).toEqual(['auth', "Your browser blocked Google's sign-in window. Allow pop-ups for this site and try again."]);
+  });
+});

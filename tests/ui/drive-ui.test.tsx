@@ -134,3 +134,12 @@ describe('connect failure hint', () => {
     expect(await screen.findByText(new RegExp(`${location.origin.replace(/[.:/]/g, '\\$&')}.*Authorized JavaScript origins`))).toBeTruthy();
   });
 });
+
+describe('blocked pop-up on Connect', () => {
+  it('shows the pop-up message', async () => {
+    vi.mocked(service.connectDrive).mockRejectedValueOnce(new Error("Your browser blocked Google's sign-in window. Allow pop-ups for this site and try again."));
+    await open('#/settings', CID);
+    fireEvent.click(await screen.findByText('Connect Google Drive'));
+    expect(await screen.findByText(/blocked Google's sign-in window/)).toBeTruthy();
+  });
+});

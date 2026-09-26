@@ -38,7 +38,7 @@ export function SettingsScreen() {
     try {
       setDrive(await connectDrive(db, settings));
     } catch (e) {
-      setDriveMsg(e instanceof Error && /origin/i.test(e.message) ? e.message
+      setDriveMsg(e instanceof Error && /origin|pop-ups/i.test(e.message) ? e.message
         : `Could not connect to Google Drive. If Google showed an error page, check that ${location.origin} is listed under Authorized JavaScript origins of your Client ID (see How to set up), then try again.`);
     }
   };

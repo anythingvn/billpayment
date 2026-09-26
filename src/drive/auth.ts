@@ -41,6 +41,9 @@ export function loadGis(): Promise<Gis> {
 }
 
 function toError(message: string): DriveError {
+  if (/popup_failed_to_open/.test(message)) {
+    return new DriveError('auth', "Your browser blocked Google's sign-in window. Allow pop-ups for this site and try again.");
+  }
   if (/origin/i.test(message)) {
     return new DriveError('origin', `Google refused this address. Add ${location.origin} to the Authorized JavaScript origins of your Google Client ID.`);
   }
