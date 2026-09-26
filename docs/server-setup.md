@@ -25,12 +25,19 @@ server on :8080).
 
 ```bash
 git clone https://github.com/anythingvn/billpayment.git && cd billpayment
-git checkout feat/shared-server        # until it is merged
-npm run make-env                        # or: cp .env.example .env and fill in
-# edit .env: PUBLIC_URL=https://bills.your-domain.vn  (and remove DATA_DIR — Docker uses /data)
+git checkout feat/role-permissions     # until it is merged (includes the shared server)
+npm run make-env                        # needs Node; without Node on the server, see "Making .env without Node" below
+# edit .env: PUBLIC_URL=https://bills.your-domain.vn  (DATA_DIR is ignored — Docker uses /data)
 mkdir -p data && sudo chown 1000:1000 data   # the container runs as user 1000 and must be able to write here
 docker compose up -d --build
 docker compose logs app                      # shows the one-time setup code
+```
+
+**Making `.env` without Node** (only Docker installed):
+
+```bash
+cp .env.example .env && chmod 600 .env
+sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$(openssl rand -base64 32)|; s|^TOKEN_KEY=.*|TOKEN_KEY=$(openssl rand -base64 32)|" .env
 ```
 
 Open your address → **Set up the server** asks for the **setup code** printed in that log (only shown while the
