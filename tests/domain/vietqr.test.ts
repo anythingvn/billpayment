@@ -69,3 +69,20 @@ describe('normalizeAccount', () => {
     expect(a).toBe(b);
   });
 });
+
+describe('bank list matches the official VietQR list', () => {
+  it('has every official bank, with the right BINs and no extras', async () => {
+    const official = (await import('../data/vietqr-banks.json')).default.banks as { bin: string; shortName: string }[];
+    expect(official).toHaveLength(65);
+    expect(new Set(BANKS.map((b) => b.bin))).toEqual(new Set(official.map((b) => b.bin)));
+    expect(BANKS).toHaveLength(65);
+  });
+  it('keeps the main Vietnamese banks at the top', () => {
+    expect(BANKS.slice(0, 6).map((b) => b.shortName)).toEqual(['Vietcombank', 'VietinBank', 'BIDV', 'Agribank', 'Techcombank', 'MB Bank']);
+  });
+  it('knows the newly added banks', () => {
+    expect(bankByBin('970429')?.shortName).toBe('SCB');
+    expect(bankByBin('546034')?.shortName).toBe('CAKE');
+    expect(bankByBin('970414')?.shortName).toBe('MBV');
+  });
+});
