@@ -1,5 +1,6 @@
 import type { DocData } from './placeholders';
-import { DELIMITERS, inspectTemplate } from './inspect';
+import { DELIMITERS, GRAMMAR_ERROR, inspectTemplate } from './inspect';
+import { PLACEHOLDERS } from './catalog';
 
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
@@ -57,6 +58,11 @@ async function moveBreaksOutOfText(docx: Uint8Array): Promise<Uint8Array> {
   return changed ? zip.generateAsync({ type: 'uint8array' }) : docx;
 }
 
+/** Every placeholder, empty: one that this kind of document doesn't fill prints empty instead of failing. */
+const EMPTY_DATA: DocData = Object.fromEntries(PLACEHOLDERS
+  .filter((p) => !p.key.includes('.') && p.group !== 'images')
+  .map((p) => [p.key, p.group === 'tables' ? [] : p.group === 'flags' ? false : '']));
+
 /** Fills a .docx template ({placeholders}) with the data; unknown placeholders and template errors throw DocTemplateError. */
 export async function renderDocx(template: ArrayBuffer, data: DocData, images: DocImages): Promise<Blob> {
   const report = await inspectTemplate(template);
@@ -64,6 +70,8 @@ export async function renderDocx(template: ArrayBuffer, data: DocData, images: D
   if (unknown) {
     throw new DocTemplateError('unknown', `Unknown placeholder: ${unknown.name}${unknown.suggestion ? ` (did you mean ${unknown.suggestion}?)` : ''}`, unknown.name);
   }
+  const refused = report.errors.find((e) => e.startsWith(GRAMMAR_ERROR));
+  if (refused) throw new DocTemplateError('syntax', refused);
   const lib = await import('docx-templates/lib/browser.js');
   const qr = () => (images.qr ? { width: 3, height: 3, data: images.qr, extension: '.png' } : null);
   const logo = () => {
@@ -76,12 +84,12 @@ export async function renderDocx(template: ArrayBuffer, data: DocData, images: D
   try {
     const out = await lib.createReport({
       template: new Uint8Array(template),
-      data,
+      data: { ...EMPTY_DATA, ...data },
       cmdDelimiter: DELIMITERS,
       additionalJsContext: { qr, logo },
       rejectNullish: false,
       failFast: true,
-      // Browsers have no Node `vm`; templates are trusted by the owner (see the warning in Settings → Documents).
+      // Browsers have no Node `vm`. Safe because inspectTemplate only lets through plain placeholders (no code).
       noSandbox: true,
     });
     return new Blob([await moveBreaksOutOfText(out) as BlobPart], { type: DOCX_MIME });

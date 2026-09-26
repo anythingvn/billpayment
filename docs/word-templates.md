@@ -25,6 +25,8 @@ Settings → Documents → **Placeholders** lists them all, with examples and a 
   *Unknown placeholder: so_hop_dongg (did you mean so_hop_dong?)*. Nothing is generated until it is fixed.
 - Type the placeholder in one go (or paste it). If Word splits it while you edit, the app still reads it.
 - Values with several lines (such as `chi_tiet`) keep their line breaks.
+- Only the plain forms on this page are accepted (`{name}`, `{$d.field}`, `FOR`/`END-FOR`, `IF`/`END-IF`, `IMAGE qr()`/`IMAGE logo()`); anything else, such as formulas, is refused.
+- A placeholder that belongs to another kind of document (e.g. `{so_hop_dong}` in the bill template) prints empty; the upload tells you so.
 - **Check a template** shows the placeholders a file uses and any problems, without saving it.
 
 ## Tables (one row per service, instalment or period)

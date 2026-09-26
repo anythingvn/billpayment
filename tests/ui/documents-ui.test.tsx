@@ -69,6 +69,13 @@ describe('Settings → Documents', () => {
     expect(await within(p).findByText('Unknown placeholder: so_hop_dongg (did you mean so_hop_dong?)')).toBeTruthy();
     await waitFor(async () => expect((await listTemplates(db)).map((t) => t.kind)).toEqual(['addendum']));
   });
+  it('warns about placeholders another kind of document fills', async () => {
+    const db = await openApp('#/settings');
+    const p = await panel();
+    fireEvent.change(within(p).getByLabelText('Upload bill template'), { target: { files: [await docxFile(['{so_phieu} {so_hop_dong}'])] } });
+    expect(await within(p).findByText("so_hop_dong isn't filled in bill documents (it prints empty)")).toBeTruthy();
+    await waitFor(async () => expect((await listTemplates(db)).map((t) => t.kind)).toEqual(['bill']));
+  });
   it('make default and remove in use', async () => {
     const db = await openApp('#/settings', {
       templates: [await tpl({ id: 'A', name: 'Mẫu A', isDefault: true, uploadedAt: '2026-01-01T00:00:00.000Z' }), await tpl({ id: 'B', name: 'Mẫu B', uploadedAt: '2026-02-01T00:00:00.000Z' })],

@@ -216,7 +216,7 @@ In addendum documents, `dich_vu`, `dot_thanh_toan` and `ky_thanh_toan` are the *
 | Drive upload of a .docx fails | Recorded in `drive`/`driveDocx` with Retry/Reconnect; the PDF status is independent |
 
 **Safety**
-- Templates run with `docx-templates`' default sandbox.
+- Templates may only use plain commands (`{name}`, `{$v.field}`, `{FOR v IN name}`, `{END-FOR v}`, `{IF [!]name}`, `{END-IF}`, `{IMAGE qr()}`, `{IMAGE logo()}`); anything else is refused before rendering, so no template code runs (`docx-templates` runs with `noSandbox`, as browsers have no Node `vm`).
 - `additionalJsContext` exposes only the data object and the two image functions.
 - Templates come only from owner uploads or the bundled starters.
 - The warning line in Settings.

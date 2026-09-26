@@ -67,6 +67,11 @@ describe('contracts — Drive', () => {
     fireEvent.click(within(row).getByText('Save to Drive'));
     expect(service.saveDocxToDrive).toHaveBeenCalledWith(expect.anything(), { type: 'contract', id: 'a1' }, expect.anything());
   });
+  it('the contract editor prepares Google sign-in when it opens', async () => {
+    await open('#/contracts/k1/edit', {}, [sampleContract({ status: 'draft' })], [await tpl()]);
+    await screen.findByText('Save & activate');
+    expect(service.prepareDrive).toHaveBeenCalled();
+  });
   it('Save & activate uploads when auto-upload is on and a template exists', async () => {
     await open('#/contracts/k1/edit', {}, [sampleContract({ status: 'draft' })], [await tpl()]);
     fireEvent.click(await screen.findByText('Save & activate'));

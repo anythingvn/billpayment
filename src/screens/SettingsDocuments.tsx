@@ -30,10 +30,11 @@ export function copyText(p: PlaceholderInfo): string {
 }
 
 /** Report lines for the placeholders a template uses, unknown ones and syntax errors. */
-function reportLines(r: TemplateReport): string[] {
+function reportLines(r: TemplateReport, kind?: DocKind): string[] {
   return [
     ...r.errors,
     ...r.unknown.map((u) => `Unknown placeholder: ${u.name}${u.suggestion ? ` (did you mean ${u.suggestion}?)` : ''}`),
+    ...(kind ? r.unavailable.map((n) => `${n} isn't filled in ${KIND_LABEL[kind]} documents (it prints empty)`) : []),
   ];
 }
 
@@ -64,7 +65,7 @@ export function SettingsDocuments() {
 
   /** Saves bytes as a template: replacing `existing`, or a new one (the first contract template becomes the default). */
   async function save(kind: DocKind, data: ArrayBuffer, fileName: string, name: string, existing: DocTemplate | null) {
-    const r = await inspectTemplate(data);
+    const r = await inspectTemplate(data, kind);
     if (unreadable(r)) return report(r.errors);
     const isFirstContract = kind === 'contract' && !templates.some((t) => t.kind === 'contract');
     await putTemplate(db, {
@@ -72,7 +73,7 @@ export function SettingsDocuments() {
       isDefault: existing?.isDefault ?? isFirstContract,
     });
     await reload();
-    report(reportLines(r), `Saved “${existing?.name ?? name}”.`);
+    report(reportLines(r, kind), `Saved “${existing?.name ?? name}”.`);
   }
 
   async function upload(kind: DocKind, e: Event, existing: DocTemplate | null) {
@@ -135,7 +136,7 @@ export function SettingsDocuments() {
       const r = await inspectTemplate(await readDocx(file));
       setCheck({ report: r, lines: reportLines(r) });
     } catch (err) {
-      setCheck({ report: { used: [], unknown: [], errors: [] }, lines: [err instanceof Error ? err.message : String(err)] });
+      setCheck({ report: { used: [], unknown: [], unavailable: [], errors: [] }, lines: [err instanceof Error ? err.message : String(err)] });
     }
   }
 

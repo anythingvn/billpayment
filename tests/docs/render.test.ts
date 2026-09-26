@@ -65,12 +65,37 @@ describe('renderDocx', () => {
   });
 });
 
+describe('renderDocx safety', () => {
+  it('a placeholder of another kind prints empty', async () => {
+    const blob = await renderDocx(await makeDocx(['HĐ {so_hop_dong}.']), billDocData(sampleBill({ status: 'sent' }), DEFAULT_SETTINGS), {});
+    expect(await docxText(blob)).toContain('HĐ .');
+  });
+  it('refuses code in a template and never runs it', async () => {
+    const t = await makeDocx(['{ben_b_ten + (globalThis.pwned = 1, "")}']);
+    await expect(renderDocx(t, billDocData(sampleBill(), DEFAULT_SETTINGS), {})).rejects.toBeInstanceOf(DocTemplateError);
+    expect((globalThis as { pwned?: number }).pwned).toBeUndefined();
+  });
+});
+
 describe('inspectTemplate', () => {
   it('lists used and unknown names', async () => {
     const r = await inspectTemplate(await makeDocx(['{so_phieu} {IMAGE qr()} {so_phieuu}'], rowTable));
     expect(r.used).toEqual(expect.arrayContaining(['so_phieu', 'dich_vu', 'qr']));
     expect(r.unknown).toEqual([{ name: 'so_phieuu', suggestion: 'so_phieu' }]);
     expect(r.errors).toEqual([]);
+  });
+  it('lists placeholders another kind of document fills', async () => {
+    const r = await inspectTemplate(await makeDocx(['{so_phieu} {so_hop_dong} {qr}']), 'bill');
+    expect([r.unknown, r.unavailable]).toEqual([[], ['so_hop_dong']]);
+    expect((await inspectTemplate(await makeDocx(['{so_phieu} {IMAGE qr()}']), 'contract')).unavailable).toEqual(['so_phieu', 'qr']);
+  });
+  it('accepts only simple commands', async () => {
+    const ok = await inspectTemplate(await makeDocx(['{so_phieu} {IMAGE logo()} {IF !co_vat}x{END-IF} {IF $d.ten}y{END-IF}']));
+    expect(ok.errors).toEqual([]);
+    for (const code of ['ben_b_ten + (globalThis.pwned = 1, "")', 'EXEC globalThis.pwned = 1', 'IMAGE fetch()', 'so_phieu.constructor']) {
+      const r = await inspectTemplate(await makeDocx([`{${code}}`]));
+      expect(r.errors[0]).toMatch(/^Only simple placeholders are allowed/);
+    }
   });
   it('reports an unterminated loop', async () => {
     const r = await inspectTemplate(await makeDocx(['{FOR d IN dich_vu}{$d.ten}']));

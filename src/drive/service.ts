@@ -1,6 +1,6 @@
 import type { Bill, DriveStatus, Settings } from '../domain/types';
 import type { AppDb } from '../storage/db';
-import { getBill, getContract, getMeta, putBill, putContract, setMeta } from '../storage/db';
+import { getBill, getContract, getMeta, setMeta } from '../storage/db';
 import { createDriveApi, DriveError, type DriveApi } from './api';
 import { createDriveAuth, loadGis } from './auth';
 import { uploadFile } from './upload';
@@ -95,17 +95,20 @@ type StatusField = 'drive' | 'driveDocx';
 /** Keeps the previous fileId/link/savedAt and records the error on the bill or contract. */
 async function recordStatus(db: AppDb, target: DocxTarget, field: StatusField, status: DriveStatus | ((prev: DriveStatus) => DriveStatus)) {
   const make = (prev: DriveStatus | undefined) => (typeof status === 'function' ? status(prev ?? EMPTY) : status);
+  // Read and write in one transaction: the PDF and Word jobs of one bill update the same record.
   if (target.type === 'bill') {
-    const bill = await getBill(db, target.id);
-    if (!bill) return make(undefined);
-    const next = make(bill[field]);
-    await putBill(db, { ...bill, [field]: next });
+    const tx = db.transaction('bills', 'readwrite');
+    const bill = await tx.store.get(target.id);
+    const next = make(bill?.[field]);
+    if (bill) await tx.store.put({ ...bill, [field]: next });
+    await tx.done;
     return next;
   }
-  const c = await getContract(db, target.id);
-  if (!c) return make(undefined);
-  const next = make(c.drive);
-  await putContract(db, { ...c, drive: next });
+  const tx = db.transaction('contracts', 'readwrite');
+  const c = await tx.store.get(target.id);
+  const next = make(c?.drive);
+  if (c) await tx.store.put({ ...c, drive: next });
+  await tx.done;
   return next;
 }
 

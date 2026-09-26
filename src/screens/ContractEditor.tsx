@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { navigate } from '../router';
-import { getContract, listContracts, listCustomers, listServices, listTemplates, newId, putContract, templateFor } from '../storage/db';
-import { driveConfigured, saveDocxToDrive } from '../drive/service';
+import { getContract, listContracts, listCustomers, listServices, listTemplates, newId, putContract } from '../storage/db';
+import { driveConfigured, prepareDrive, saveDocxToDrive } from '../drive/service';
 import { allocateContractNumber, peekContractNumber } from '../storage/contractNumbering';
 import type { Contract, Customer, DocTemplate, Instalment, Plan, Service, VatRate } from '../domain/types';
 import { VAT_RATES } from '../domain/types';
@@ -46,14 +46,19 @@ export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
   const [suggested, setSuggested] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
   const [templates, setTemplates] = useState<DocTemplate[]>([]);
+  const [hasAddendumTemplate, setHasAddendumTemplate] = useState(false);
 
+  // Load Google's sign-in script early so the upload after Save & activate can open its window from the click.
+  useEffect(() => { prepareDrive(db, settings); }, [settings.googleClientId]);
   useEffect(() => {
     (async () => {
       const contracts = await listContracts(db);
       setAll(contracts);
       setCustomers((await listCustomers(db)).filter((x) => !x.archived).sort((a, b) => a.name.localeCompare(b.name, 'vi')));
       setServices((await listServices(db)).filter((x) => !x.archived));
-      setTemplates((await listTemplates(db)).filter((t) => t.kind === 'contract').sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt)));
+      const docTemplates = await listTemplates(db);
+      setTemplates(docTemplates.filter((t) => t.kind === 'contract').sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt)));
+      setHasAddendumTemplate(docTemplates.some((t) => t.kind === 'addendum'));
       if (mode.kind === 'edit') {
         const existing = await getContract(db, mode.id);
         if (!existing) return navigate({ name: 'contracts' });
@@ -133,7 +138,7 @@ export function ContractEditor({ mode }: { mode: ContractEditorMode }) {
     setSaved(next);
     // Save & activate also saves the contract's or addendum's Word document to Drive (skipped silently without a template).
     if (activate && settings.driveAutoUpload && driveConfigured(settings)
-      && await templateFor(db, next.kind === 'addendum' ? 'addendum' : 'contract', next.templateId)) {
+      && (next.kind === 'addendum' ? hasAddendumTemplate : templates.length > 0)) {
       saveDocxToDrive(db, { type: 'contract', id: next.id }, settings).catch(() => undefined);
     }
     navigate({ name: 'contract', id: next.parentId ?? next.id });

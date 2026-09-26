@@ -209,4 +209,12 @@ describe('Word documents to Drive', () => {
     const files = [...api.files.values()].filter((f) => f.mime !== 'application/vnd.google-apps.folder');
     expect(new Set(files.map((f) => f.parents![0])).size).toBe(1);
   });
+
+  it('PDF and Word failing together both record their error', async () => {
+    setup({ online: () => false });
+    const db = await dbWith(sampleBill({ status: 'sent' }));
+    await Promise.all([saveBillToDrive(db, 'b1', s), saveDocxToDrive(db, { type: 'bill', id: 'b1' }, s)]);
+    const bill = (await getBill(db, 'b1'))!;
+    expect([bill.drive?.error, bill.driveDocx?.error]).toEqual(['Offline', 'Offline']);
+  });
 });
