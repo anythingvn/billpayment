@@ -4,10 +4,16 @@ import { getBill, getContract, getMeta, setMeta } from '../storage/db';
 import { createDriveApi, DriveError, type DriveApi } from './api';
 import { createDriveAuth, loadGis } from './auth';
 import { uploadFile } from './upload';
-import { billDrivePath } from './paths';
+import { billDrivePath, safeName } from './paths';
 import type { BuiltDoc, DocxTarget } from '../docs/documents';
 
+import type { Report } from '../domain/report';
+import { reportFileName } from '../domain/report';
+import { XLSX_MIME } from '../report/excel';
+
 export type { DocxTarget } from '../docs/documents';
+/** What a Drive job saves: a bill or contract record, or a report (id = its file name; status kept in meta). */
+export type DriveTarget = DocxTarget | { type: 'report'; id: string };
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 /** Everything the service talks to; replaced by fakes in tests. */
@@ -17,6 +23,8 @@ export interface DriveDeps {
   makePdf(bill: Bill, s: Settings): Promise<Blob>;
   /** The Word document for a bill or contract; null when there is no template. */
   makeDocx(target: DocxTarget, s: Settings, db: AppDb): Promise<BuiltDoc | null>;
+  /** The accountant report as an .xlsx file. */
+  makeXlsx(report: Report): Promise<Blob>;
   now(): string;
   online(): boolean;
 }
@@ -48,6 +56,7 @@ function depsFor(s: Settings): DriveDeps {
         api: createDriveApi(auth.getToken),
         makePdf: async (bill, settings) => (await import('../ui/billPdf')).makeBillPdf(bill, settings),
         makeDocx: async (target, settings, db) => (await import('../docs/documents')).buildDocx(db, target, settings),
+        makeXlsx: async (report) => (await import('../report/excel')).reportToXlsx(report),
         now: () => new Date().toISOString(),
         online: () => navigator.onLine,
       },
@@ -73,7 +82,7 @@ const notify = (billId: string) => listeners.forEach((fn) => fn(billId));
 
 /** True while the PDF or the Word document of this bill/contract is uploading. */
 export const isUploading = (id: string): boolean => uploading.has(`pdf:${id}`) || uploading.has(`docx:${id}`);
-export const isUploadingFile = (id: string, file: 'pdf' | 'docx'): boolean => uploading.has(`${file}:${id}`);
+export const isUploadingFile = (id: string, file: 'pdf' | 'docx' | 'report'): boolean => uploading.has(`${file}:${id}`);
 
 export function onDriveChange(fn: (billId: string) => void): () => void {
   listeners.add(fn);
@@ -93,8 +102,13 @@ function errorText(e: unknown, wasConnected = false): string {
 type StatusField = 'drive' | 'driveDocx';
 
 /** Keeps the previous fileId/link/savedAt and records the error on the bill or contract. */
-async function recordStatus(db: AppDb, target: DocxTarget, field: StatusField, status: DriveStatus | ((prev: DriveStatus) => DriveStatus)) {
+async function recordStatus(db: AppDb, target: DriveTarget, field: StatusField, status: DriveStatus | ((prev: DriveStatus) => DriveStatus)) {
   const make = (prev: DriveStatus | undefined) => (typeof status === 'function' ? status(prev ?? EMPTY) : status);
+  if (target.type === 'report') {
+    const next = make(await reportDriveStatus(db, target.id));
+    await setMeta(db, `report-drive:${target.id}`, next);
+    return next;
+  }
   // Read and write in one transaction: the PDF and Word jobs of one bill update the same record.
   if (target.type === 'bill') {
     const tx = db.transaction('bills', 'readwrite');
@@ -112,7 +126,7 @@ async function recordStatus(db: AppDb, target: DocxTarget, field: StatusField, s
   return next;
 }
 
-const recordError = (db: AppDb, target: DocxTarget, field: StatusField, error: string) =>
+const recordError = (db: AppDb, target: DriveTarget, field: StatusField, error: string) =>
   recordStatus(db, target, field, (prev) => ({ ...prev, error }));
 
 // ---- saving ----
@@ -122,7 +136,7 @@ let queue: Promise<unknown> = Promise.resolve();
 interface Job {
   /** Unique per record and file, e.g. "pdf:<bill id>" or "docx:<contract id>". */
   key: string;
-  target: DocxTarget;
+  target: DriveTarget;
   field: StatusField;
   /** Checks the record may be uploaded; returns an error to report without touching Drive. */
   refuse(): Promise<string | null>;
@@ -262,4 +276,24 @@ export async function disconnectDrive(db: AppDb, s: Settings): Promise<void> {
   await setMeta(db, 'driveConnected', null);
   knownConnected = false;
   live = null;
+}
+
+/** Drive status of a saved report, by file name. */
+export const reportDriveStatus = (db: AppDb, fileName: string) => getMeta<DriveStatus>(db, `report-drive:${fileName}`);
+
+/** Saves the report to Phiếu thanh toán / Báo cáo / <year of To>; the same file name updates the same Drive file. */
+export function saveReportToDrive(db: AppDb, report: Report, s: Settings): Promise<DriveStatus> {
+  const fileName = reportFileName(report.from, report.to);
+  const target: DriveTarget = { type: 'report', id: fileName };
+  return runJob(db, s, {
+    key: `report:${fileName}`, target, field: 'drive',
+    refuse: async () => null,
+    build: async (deps) => ({
+      doc: { blob: await deps.makeXlsx(report), fileName, folders: [safeName(s.driveFolderName), 'Báo cáo', report.to.slice(0, 4)] },
+      mimeType: XLSX_MIME,
+    }),
+    buildError: 'Could not create the Excel file',
+    missing: 'Could not create the Excel file',
+    existingFileId: async () => (await reportDriveStatus(db, fileName))?.fileId ?? null,
+  });
 }

@@ -2,12 +2,13 @@ import 'fake-indexeddb/auto';
 import { openAppDb, putBill, getBill, getMeta, putContract, getContract } from '../../src/storage/db';
 import { sampleContract } from '../contractFixtures';
 import {
-  saveBillToDrive, saveDocxToDrive, setDriveDepsForTest, isUploading, onDriveChange, connectDrive, disconnectDrive, driveConnection, driveConfigured,
+  saveBillToDrive, saveDocxToDrive, saveReportToDrive, reportDriveStatus, setDriveDepsForTest, isUploading, onDriveChange, connectDrive, disconnectDrive, driveConnection, driveConfigured,
   type DriveDeps,
 } from '../../src/drive/service';
 import { DriveError } from '../../src/drive/api';
 import { DEFAULT_SETTINGS } from '../../src/domain/types';
 import { sampleBill } from '../fixtures';
+import { buildReport } from '../../src/domain/report';
 import { fakeDrive } from './fakeDrive';
 
 const s = { ...DEFAULT_SETTINGS, googleClientId: 'cid.apps.googleusercontent.com' };
@@ -22,6 +23,7 @@ function setup(over: Partial<DriveDeps> = {}) {
       blob: new Blob(['PK']), fileName: `${target.id}.docx`,
       folders: target.type === 'contract' ? ['Phiếu thanh toán', 'Hợp đồng', '2026', 'Công ty CP Hoa Sen Xanh'] : ['Phiếu thanh toán', '2026', 'Công ty CP Hoa Sen Xanh'],
     })),
+    makeXlsx: vi.fn(async () => new Blob(['PK'])),
     now: () => '2026-09-26T07:00:00.000Z',
     online: () => true,
     ...over,
@@ -217,4 +219,35 @@ describe('Word documents to Drive', () => {
     const bill = (await getBill(db, 'b1'))!;
     expect([bill.drive?.error, bill.driveDocx?.error]).toEqual(['Offline', 'Offline']);
   });
+
+  const report = () => buildReport([], '2026-09-01', '2026-09-30', s, '2026-10-02');
+  it('saves a report under Báo cáo/<year>', async () => {
+    const { api } = setup();
+    const db = await dbWith();
+    const status = await saveReportToDrive(db, report(), s);
+    expect(api.calls.filter((c) => c.startsWith('create'))).toEqual([
+      'createFolder Phiếu thanh toán', 'createFolder Báo cáo', 'createFolder 2026', 'createFile Báo cáo 2026-09.xlsx',
+    ]);
+    expect(status.error).toBeNull();
+    expect(await reportDriveStatus(db, 'Báo cáo 2026-09.xlsx')).toEqual(status);
+    expect(status.fileId).toBeTruthy();
+  });
+  it('same file name updates one file', async () => {
+    const { api } = setup();
+    const db = await dbWith();
+    const first = await saveReportToDrive(db, report(), s);
+    const second = await saveReportToDrive(db, report(), s);
+    expect(api.byName('Báo cáo 2026-09.xlsx')).toHaveLength(1);
+    expect(api.calls.filter((c) => c.startsWith('createFile') || c.startsWith('updateFile'))).toEqual([
+      'createFile Báo cáo 2026-09.xlsx', `updateFile ${first.fileId}`,
+    ]);
+    expect(second.fileId).toBe(first.fileId);
+  });
+  it('offline records the report error in meta', async () => {
+    setup({ online: () => false });
+    const db = await dbWith();
+    expect((await saveReportToDrive(db, report(), s)).error).toBe('Offline');
+    expect((await reportDriveStatus(db, 'Báo cáo 2026-09.xlsx'))?.error).toBe('Offline');
+  });
 });
+
