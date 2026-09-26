@@ -32,7 +32,7 @@ export function Activity() {
             <tr key={i}>
               <td style="white-space:nowrap">{formatDateTime(a.at)}</td>
               <td>{a.user ?? '—'}</td>
-              <td>{LABEL[a.action] ?? a.action}</td>
+              <td>{a.action === 'forbidden' ? `Refused: ${String(a.detail.action)}` : LABEL[a.action] ?? a.action}</td>
               <td class="muted">{Object.entries(a.detail).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`).join(' · ')}</td>
             </tr>
           ))}

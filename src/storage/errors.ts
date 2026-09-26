@@ -16,7 +16,7 @@ export class InvalidError extends Error {
 }
 /** Not allowed (e.g. an Admin-only action). */
 export class ForbiddenError extends Error {
-  constructor() { super('You are not allowed to do this'); this.name = 'ForbiddenError'; }
+  constructor() { super("Your role doesn't allow this"); this.name = 'ForbiddenError'; }
 }
 /** A problem already shown app-wide (message or sign-in); screens should just stop, not show it again. */
 export class HandledError extends Error {

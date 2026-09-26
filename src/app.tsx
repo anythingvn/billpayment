@@ -22,6 +22,9 @@ import { Users } from './screens/Users';
 import { Activity } from './screens/Activity';
 import type { AuthApi, SessionUser } from './storage/authApi';
 import { ROLE_LABEL } from './storage/roles';
+import { can, type Action } from './domain/permissions';
+import { useCan } from './ui/useCan';
+import { NoAccess } from './ui/NoAccess';
 
 interface AppCtx {
   db: AppDb;
@@ -49,7 +52,21 @@ const ADMIN_NAV: typeof NAV = [
   { label: 'Activity', route: { name: 'activity' }, match: ['activity'] },
 ];
 
+/** The action a page needs (pages not listed are open to every role). */
+function pageNeeds(name: Route['name']): Action | undefined {
+  switch (name) {
+    case 'reports': case 'customerStatement': return 'reports.use';
+    case 'newBill': case 'editBill': case 'duplicateBill': case 'newBillFromContract':
+    case 'newContract': case 'editContract': case 'newAddendum': return 'record.edit';
+    case 'users': case 'activity': return 'admin';
+    default: return undefined;
+  }
+}
+
 function Screen({ route }: { route: Route }) {
+  const can = useCan();
+  const needs = pageNeeds(route.name);
+  if (needs && !can(needs)) return <NoAccess />;
   switch (route.name) {
     case 'home': return <Home />;
     case 'bill': return <BillView id={route.id} />;
@@ -79,8 +96,8 @@ export function App({ db, initialSettings, user = null, auth = null, onSignOut }
   const [settings, setSettings] = useState(initialSettings);
   const route = useRoute();
   const reloadSettings = async () => setSettings(await getSettings(db));
-  const isAdmin = !!auth && user?.role === 'admin';
-  const nav = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
+  const allowed = (a: Action) => !auth || !user || can(user.role, a);
+  const nav = [...NAV.filter((n) => n.route.name !== 'reports' || allowed('reports.use')), ...(auth && allowed('admin') ? ADMIN_NAV : [])];
   return (
     <Ctx.Provider value={{ db, settings, reloadSettings, user, auth }}>
       <div class="layout">
