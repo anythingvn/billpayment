@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, type BankAccount, type Settings } from './types';
+import { BUILT_IN_GOOGLE_CLIENT_ID, DEFAULT_SETTINGS, type BankAccount, type Settings } from './types';
 
 /** Fills in defaults and converts settings saved by older versions (a single `footerNote`) to the footer note list. */
 export function normalizeSettings(stored: Record<string, unknown> | undefined): Settings {
@@ -15,6 +15,7 @@ export function normalizeSettings(stored: Record<string, unknown> | undefined): 
     s.defaultBankAccountId = hasOld ? 'acc-1' : '';
   }
   if (!s.bankAccounts.some((a) => a.id === s.defaultBankAccountId)) s.defaultBankAccountId = s.bankAccounts[0]?.id ?? '';
+  if (typeof s.googleClientId !== 'string' || !s.googleClientId.trim()) s.googleClientId = BUILT_IN_GOOGLE_CLIENT_ID;
   if (!Number.isInteger(s.defaultFooterIndex) || s.defaultFooterIndex >= s.footerNotes.length) s.defaultFooterIndex = -1;
   return s;
 }

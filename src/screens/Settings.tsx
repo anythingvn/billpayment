@@ -49,7 +49,7 @@ export function SettingsScreen() {
 
   const save = async () => {
     if (s.driveFolderName.includes('/')) { setMsg('Main folder name cannot contain /'); return; }
-    if (s.googleClientId.trim() && !s.driveFolderName.trim()) { setMsg('Enter a main folder name for Google Drive'); return; }
+    if (!s.driveFolderName.trim()) { setMsg('Enter a main folder name for Google Drive'); return; }
     if (!/^[A-Za-z0-9]{1,6}$/.test(s.numberPrefix)) { setMsg('Bill number prefix must be 1–6 letters or digits.'); return; }
     const badAccount = s.bankAccounts.findIndex((a) => !a.bankBin || !isValidAccount(a.accountNumber));
     if (badAccount >= 0) { setMsg(`Bank account ${badAccount + 1}: choose a bank and enter an account number with digits only (spaces, dots and dashes are fine).`); return; }
@@ -153,9 +153,6 @@ export function SettingsScreen() {
         <p class="muted" style="margin-top:0">Save final bills as PDF to <b>My Drive / {s.driveFolderName || '…'} / year / customer</b>.{' '}
           <a href="https://github.com/anythingvn/billpayment/blob/main/docs/google-drive-setup.md" target="_blank" rel="noopener">How to set up</a></p>
         <div class="grid2">
-          <label class="field">Google Client ID
-            <input value={s.googleClientId} placeholder="….apps.googleusercontent.com" onInput={(e) => set('googleClientId', e.currentTarget.value)} />
-          </label>
           <label class="field">Main folder name
             <input value={s.driveFolderName} onInput={(e) => set('driveFolderName', e.currentTarget.value)} />
           </label>
@@ -167,9 +164,15 @@ export function SettingsScreen() {
           {drive
             ? <><span>{drive.email ? `Connected as ${drive.email}` : 'Connected'}</span><button class="btn ghost" onClick={disconnect}>Disconnect</button></>
             : <><button class="btn" disabled={!driveConfigured(settings)} onClick={connect}>Connect Google Drive</button>
-              <span class="muted">{driveConfigured(settings) ? 'Not connected on this device' : 'Save a Client ID first'}</span></>}
+              <span class="muted">Not connected on this device</span></>}
         </div>
         {driveMsg && <p class="errors">{driveMsg}</p>}
+        <details style="margin-top:12px">
+          <summary class="muted">Advanced</summary>
+          <label class="field" style="margin-top:8px">Google Client ID (only if you use your own Google Cloud project; leave empty for the built-in one)
+            <input value={s.googleClientId} placeholder="….apps.googleusercontent.com" onInput={(e) => set('googleClientId', e.currentTarget.value)} />
+          </label>
+        </details>
       </div>
     </div>
   );

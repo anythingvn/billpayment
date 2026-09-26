@@ -1,8 +1,19 @@
-# Google Drive setup (one time, about 10 minutes)
+# Google Drive setup
 
 The app saves final bills to **My Drive / <main folder> / <year> / <customer> / <bill number>.pdf**.
-For that it needs a free **Google OAuth Client ID** that you create with your own Google account.
-Nothing here needs a payment method.
+
+## Normal use: nothing to set up
+The app has its Google Client ID built in. Open **Settings → Google Drive → Connect Google Drive**,
+choose your Google account and allow access — once per device/browser. Then bills upload on export.
+
+Sign in from a normal browser (Chrome, Edge, Safari). Allow pop-ups for the app's address if the browser asks.
+
+The built-in client (Google Cloud project owned by the app's owner) must list these
+**Authorized JavaScript origins**: `https://anythingvn.github.io` and `http://localhost:5173`.
+
+## Only if you want your own Google Cloud project
+Follow the steps below, then paste your Client ID in **Settings → Google Drive → Advanced**.
+Leaving that field empty uses the built-in client again.
 
 ## 1. Project and API
 1. Open <https://console.cloud.google.com/> and create a project (for example **billpayment**), or pick an existing one.
@@ -24,7 +35,7 @@ Nothing here needs a payment method.
    (it ends in `.apps.googleusercontent.com`).
 
 ## 4. In the app
-**Settings → Google Drive:** paste the Client ID, check the main folder name, **Save**, then **Connect Google Drive**
+**Settings → Google Drive → Advanced:** paste the Client ID, **Save**, then **Connect Google Drive**
 and allow access in Google's window.
 
 ## Important

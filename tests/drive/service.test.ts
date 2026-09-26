@@ -33,7 +33,7 @@ afterEach(() => setDriveDepsForTest(null));
 
 describe('drive service', () => {
   it('is configured only with a Client ID', () => {
-    expect(driveConfigured(DEFAULT_SETTINGS)).toBe(false);
+    expect(driveConfigured({ ...DEFAULT_SETTINGS, googleClientId: '' })).toBe(false);
     expect(driveConfigured({ ...DEFAULT_SETTINGS, googleClientId: '  ' })).toBe(false);
     expect(driveConfigured(s)).toBe(true);
   });

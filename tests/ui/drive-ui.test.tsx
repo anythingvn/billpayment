@@ -15,7 +15,7 @@ vi.mock('../../src/drive/service', () => ({
 import * as service from '../../src/drive/service';
 import { App } from '../../src/app';
 import { openAppDb, putSettings, getSettings, putBill, putCustomer } from '../../src/storage/db';
-import { DEFAULT_SETTINGS, type Settings } from '../../src/domain/types';
+import { DEFAULT_SETTINGS, BUILT_IN_GOOGLE_CLIENT_ID, type Settings } from '../../src/domain/types';
 import { sampleBill } from '../fixtures';
 
 let n = 0;
@@ -38,13 +38,15 @@ describe('Settings → Google Drive', () => {
   it('shows the Drive panel fields', async () => {
     await open('#/settings');
     expect(await screen.findByText('Google Drive')).toBeTruthy();
-    expect((screen.getByLabelText(/Google Client ID/) as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText(/Main folder name/) as HTMLInputElement).value).toBe('Phiếu thanh toán');
     expect((screen.getByLabelText(/Upload automatically on export/) as HTMLInputElement).checked).toBe(true);
   });
-  it('Connect is disabled until a Client ID is saved', async () => {
+  it('Connect works without entering a Client ID; the ID sits under Advanced', async () => {
     await open('#/settings');
-    expect((await screen.findByText('Connect Google Drive') as HTMLButtonElement).disabled).toBe(true);
+    expect((await screen.findByText('Connect Google Drive') as HTMLButtonElement).disabled).toBe(false);
+    const advanced = screen.getByText('Advanced').closest('details')!;
+    expect(advanced.open).toBe(false);
+    expect((screen.getByLabelText(/Google Client ID/) as HTMLInputElement).value).toBe(BUILT_IN_GOOGLE_CLIENT_ID);
   });
   it('Connect calls connectDrive and shows the email', async () => {
     await open('#/settings', { googleClientId: 'cid.apps.googleusercontent.com' });
@@ -78,10 +80,10 @@ describe('bill view → Google Drive', () => {
       expect(screen.queryByText(/in Google Drive|to Google Drive/)).toBeNull();
     }
   });
-  it('no Client ID shows the settings hint', async () => {
+  it('can save to Drive without entering a Client ID', async () => {
     await open('#/bills/s', {}, [sampleBill({ id: 's', status: 'sent' })]);
-    expect(await screen.findByText('Connect Google Drive in Settings')).toBeTruthy();
-    expect(screen.queryByText('Save to Google Drive')).toBeNull();
+    expect(await screen.findByText('Save to Google Drive')).toBeTruthy();
+    expect(screen.queryByText('Connect Google Drive in Settings')).toBeNull();
   });
   it('shows saved status with link', async () => {
     await open('#/bills/p', CID, [sampleBill({ id: 'p', status: 'sent', drive: saved })]);
@@ -116,9 +118,9 @@ describe('Save & export → Google Drive', () => {
     expect(service.saveBillToDrive).toHaveBeenCalledTimes(1);
     expect(vi.mocked(service.saveBillToDrive).mock.calls[0][1]).toMatch(/.+/);
   });
-  it('export without Client ID never calls the upload', async () => {
+  it('export uploads with the built-in Client ID when none was entered', async () => {
     await exportNewBill({});
-    expect(service.saveBillToDrive).not.toHaveBeenCalled();
+    expect(service.saveBillToDrive).toHaveBeenCalledWith(expect.anything(), expect.any(String), expect.objectContaining({ googleClientId: BUILT_IN_GOOGLE_CLIENT_ID }));
   });
   it('export with auto-upload off never calls the upload', async () => {
     await exportNewBill({ ...CID, driveAutoUpload: false });
