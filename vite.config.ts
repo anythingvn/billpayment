@@ -19,7 +19,7 @@ export default defineConfig({
         theme_color: '#0f6e56',
         icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,svg}'] },
+      workbox: { globPatterns: ['**/*.{js,css,html,svg,docx}'] },
     }),
   ],
   test: {

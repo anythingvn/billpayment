@@ -86,7 +86,7 @@ Values are text: money formatted `20.952.000`, dates `dd/mm/yyyy`. Unknown value
 
 **Syntax (docx-templates, delimiters `{` `}`)**
 - Value: `{so_hop_dong}`
-- Repeat: `{FOR dong IN dich_vu}` … `{$dong.ten}` … `{END-FOR dong}`. Placed in a table row, the whole row repeats.
+- Repeat table rows: put `{FOR d IN dich_vu}` alone in the row **above** the repeating row and `{END-FOR d}` alone in the row **below**; the repeating row uses `{$d.ten}` etc. Both marker rows disappear from the result. (FOR and END-FOR in the same row would repeat columns instead.)
 - Condition: `{IF co_vat}` … `{END-IF}`
 - Image: `{IMAGE qr()}`, `{IMAGE logo()}`
 

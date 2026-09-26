@@ -9,7 +9,8 @@ import { makeDocx, docxText, docxXml, docxMedia, PNG_1PX, JPEG_1PX } from './mak
 
 const line = (nameVi: string, details: string[] = []) => ({ nameVi, nameEn: '', unitVi: '', unitEn: '', qty: 1, unitPrice: 1000000, details });
 const bill2 = () => sampleBill({ lines: [line('Thiết kế logo'), line('Website cơ bản')] });
-const rowTable = [['{FOR d IN dich_vu}{$d.stt}', '{$d.ten}', '{$d.chi_tiet}', '{$d.thanh_tien}{END-FOR d}']];
+// Row loops: the FOR marker in its own row above, the END-FOR marker in its own row below (both rows vanish).
+const rowTable = [['{FOR d IN dich_vu}', '', '', ''], ['{$d.stt}', '{$d.ten}', '{$d.chi_tiet}', '{$d.thanh_tien}'], ['{END-FOR d}', '', '', '']];
 
 describe('renderDocx', () => {
   it('fills values and repeats table rows', async () => {
@@ -18,6 +19,9 @@ describe('renderDocx', () => {
     expect(text).toContain('Số: TT-2026-0012');
     expect(text).toContain('Thiết kế logo');
     expect(text).toContain('Website cơ bản');
+    const xml = await docxXml(out);
+    expect(xml.match(/<w:tr[ >]/g)).toHaveLength(2); // one row per service line; the marker rows are gone
+    expect(xml.match(/<w:tc>/g)).toHaveLength(8);
   });
   it('fills a placeholder split across runs', async () => {
     const out = await renderDocx(await makeDocx([['{so_', 'hop_dong}']]), contractDocData(sampleContract(), DEFAULT_SETTINGS), {});

@@ -85,7 +85,7 @@ export const PLACEHOLDERS: PlaceholderInfo[] = [
     ['tong_bang_chu_en', 'Tổng cộng bằng chữ (tiếng Anh)', 'Total in words (EN)', 'Twenty million nine hundred fifty-two thousand dong.'],
   ]),
   ...p('tables', ALL, [
-    ['dich_vu', 'Bảng dịch vụ (lặp mỗi dòng)', 'Services table (repeats per line)', '{FOR d IN dich_vu} … {END-FOR d}'],
+    ['dich_vu', 'Bảng dịch vụ (lặp mỗi dòng)', 'Services table (repeats per line)', 'Row above: {FOR d IN dich_vu} · row: {$d.ten} … · row below: {END-FOR d}'],
     ['dich_vu.stt', 'STT', 'No.', '1'], ['dich_vu.ten', 'Tên dịch vụ', 'Service name', 'Thiết kế logo'],
     ['dich_vu.ten_en', 'Tên dịch vụ (tiếng Anh)', 'Service name (EN)', 'Logo design'],
     ['dich_vu.chi_tiet', 'Chi tiết (nhiều dòng)', 'Detail lines', '3 phương án'],
@@ -94,11 +94,11 @@ export const PLACEHOLDERS: PlaceholderInfo[] = [
     ['dich_vu.thanh_tien', 'Thành tiền', 'Amount', '5.000.000'],
   ]),
   ...p('tables', CA, [
-    ['dot_thanh_toan', 'Bảng đợt thanh toán', 'Instalments table', '{FOR t IN dot_thanh_toan} … {END-FOR t}'],
+    ['dot_thanh_toan', 'Bảng đợt thanh toán', 'Instalments table', 'Row above: {FOR t IN dot_thanh_toan} · row: {$t.ten} … · row below: {END-FOR t}'],
     ['dot_thanh_toan.stt', 'STT', 'No.', '1'], ['dot_thanh_toan.ten', 'Tên đợt', 'Instalment name', 'Đợt 1 – Tạm ứng'],
     ['dot_thanh_toan.ty_le', 'Tỷ lệ', 'Share', '50%'], ['dot_thanh_toan.so_tien', 'Số tiền (trước thuế)', 'Amount before VAT', '10.000.000'],
     ['dot_thanh_toan.thoi_han', 'Thời hạn', 'When', 'Khi ký hợp đồng'],
-    ['ky_thanh_toan', 'Bảng kỳ thanh toán', 'Periods table', '{FOR k IN ky_thanh_toan} … {END-FOR k}'],
+    ['ky_thanh_toan', 'Bảng kỳ thanh toán', 'Periods table', 'Row above: {FOR k IN ky_thanh_toan} · row: {$k.ky} … · row below: {END-FOR k}'],
     ['ky_thanh_toan.stt', 'STT', 'No.', '1'], ['ky_thanh_toan.ky', 'Kỳ', 'Period', 'Tháng 10/2026'],
     ['ky_thanh_toan.so_tien', 'Số tiền (trước thuế)', 'Amount before VAT', '800.000'],
   ]),
