@@ -10,6 +10,7 @@ https://anythingvn.github.io/billpayment/ — the same checks apply to `http://l
 ## Last run
 | Date | Who | Result |
 |---|---|---|
+| 2026-09-26 | Claude (browser, test data, localhost:5199 dev + 5198 production build) | Customer statement: 40-bill customer — balances reconcile (opening + billed − paid = closing = unpaid total), days overdue to today, QR + reference shown; PDF 2 pages (this year) / 3 pages (all time) with page breaks between rows; bill PDF still 1 page after the shared PDF change; Word from the starter with no leftover placeholders (bank block and QR only when owed); production build: starter installed, Word download OK, no console errors |
 | 2026-09-26 | Automated tests + independent review | Accountant report review fixes: report Drive status kept through backup/restore; "Uploading to Google Drive…" on a period's first save; days overdue counted to today for a period not yet ended (422 tests) |
 | 2026-09-26 | Claude (browser, test data, localhost:5199 dev + 5198 production build) | Accountant report: Last month figures match a hand calculation (bill issued in July and paid in August counted as paid, not billed; draft left out); Excel download has 4 sheets, exact dates, `#,##0` money, Vietnamese intact; works in the production build |
 | 2026-09-26 | Claude (browser, test data, localhost:5199) | Word review minors: bill and contract .docx line breaks are real Word breaks (library option), no leftover placeholders; Settings no longer scrolls sideways on a narrow screen |
@@ -167,4 +168,17 @@ Guide: `docs/word-templates.md`. Items marked *(generated in browser)* were chec
 - [ ] With **This month**, the Owed sheet counts days overdue up to today, not to the end of the month
 - [ ] A bill paid after the period shows "Paid" on the Billed sheet and also appears on the Owed sheet (it was still owed at the end of the period); check your accountant is fine with this
 - [ ] Give the file to your accountant: does it have what they need?
+
+## 10. Customer statement
+- [x] Customers → **Statement** opens the statement for **This year** up to today *(2026-09-26, test data)*
+- [x] Opening + billed − paid = closing balance = total of the unpaid table *(2026-09-26, 40 test bills)*
+- [x] A long statement (40 bills) breaks across pages between rows, never through one *(2026-09-26, Drive PDF builder)*
+- [ ] **Export PDF** → Save as PDF: 1-page and multi-page statements look like your bills; the table headings repeat on each page; the balances and the signature block aren't split
+- [ ] Scan the statement's QR with your bank app: the amount is the closing balance and the reference is `DC…`
+- [ ] A customer who owes nothing: closing balance 0, "Không có / None" under unpaid, no QR
+- [ ] Settings → Documents → **Use starter** for the Statement template, then **Word (.docx)**: open it in Word; balances and both tables are right
+- [ ] Edit the statement starter with your letterhead, upload it, generate again
+- [ ] **Save to Google Drive**: the PDF (and .docx) land in `Phiếu thanh toán/Đối chiếu/<year>/<customer>/`; saving again updates the same files
+- [ ] Back up, restore, then **Update in Google Drive** for a saved statement: still one file of each in Drive
+- [ ] Send one to a customer and ask them to sign and return it
 

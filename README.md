@@ -28,11 +28,15 @@ fill your own **Word templates** (company letterhead), and optionally save every
   - **Tổng hợp / Summary:** VAT per rate for bills **paid** in the period (the e-invoice is issued after payment), money received, billed and still owed;
   - **Đã thanh toán / Paid**, **Đã lập / Billed** and **Còn phải thu / Owed** (with days overdue, up to today for a period not yet ended);
   - real numbers and dates, so SUM and sorting work; the same figures are shown on screen.
+- **Customer statement (đối chiếu công nợ):** Customers → **Statement** → pick a period (This year, Last year, quarters, All time, or any dates):
+  opening balance, billed, paid and closing balance; every bill in the period; what's unpaid with days overdue; a VietQR for the balance;
+  and signature boxes for both sides. Export PDF (same look as bills), **Word** from your own Statement template, or save both to Drive.
 - **Google Drive (optional)**, automatically or with a button:
   - bills: `My Drive / Phiếu thanh toán / <year> / <customer> / <bill number>.pdf` on export, with the Word file next to it when you have a bill template;
   - contracts and addenda: `Phiếu thanh toán / Hợp đồng / <year> / <customer> / HĐ … .docx` on **Save & activate**;
-  - reports: `Phiếu thanh toán / Báo cáo / <year> / Báo cáo … .xlsx` with a button; saving the same period again updates the same file.
-- **Works offline** and installs as an app (desktop or phone). **Backup / Restore** to a single file (Word templates and saved-report Drive links included).
+  - reports: `Phiếu thanh toán / Báo cáo / <year> / Báo cáo … .xlsx` with a button; saving the same period again updates the same file;
+  - customer statements: `Phiếu thanh toán / Đối chiếu / <year> / <customer> / Đối chiếu … .pdf` (and `.docx`) with a button.
+- **Works offline** and installs as an app (desktop or phone). **Backup / Restore** to a single file (Word templates and the Drive links of saved reports and statements included).
 
 ## Use
 1. Open the live app in Chrome, Edge or Safari. Install it: the install icon in the address bar, or *Add to Home screen* on a phone.
@@ -46,6 +50,9 @@ fill your own **Word templates** (company letterhead), and optionally save every
 
 **Word templates:** Settings → Documents → **Use starter** (or download a starter, edit it in Word and upload it).
 Then use **Word (.docx)** on a contract, addendum or bill. How to write templates: [docs/word-templates.md](docs/word-templates.md).
+
+**Chasing a payment or year-end reconciliation:** Customers → **Statement** on the customer → pick the period → **Export PDF**
+(or **Word**, or **Save to Google Drive**), send it, and ask the customer to sign and return it.
 
 **Report for your accountant:** Reports → pick the period (e.g. **Last month** or **Last quarter**) → **Download Excel**
 or **Save to Google Drive**. Compare its VAT per rate with the e-invoices you issued for the same period.
@@ -67,10 +74,10 @@ npm run build    # type-check + production build into dist/
 - **Code map:**
   - `src/domain/` — money, words, VietQR, banks, status and validation rules, contract plans/terms/auto-fill
   - `src/storage/` — IndexedDB, numbering, backup
-  - `src/report/` — accountant report Excel file (ExcelJS, loaded only on export); figures in `src/domain/report.ts`
+  - `src/report/` — accountant report Excel file (ExcelJS, loaded only on export); figures in `src/domain/report.ts`; customer statements in `src/domain/statement.ts`
   - `src/docs/` — Word templates: placeholders, checker, render, starters (`npm run make-starters`)
   - `src/drive/` — Google sign-in, Drive API, folders, upload
-  - `src/ui/` — bill page, PDF, lines editor, Drive status line
+  - `src/ui/` — bill and statement pages, PDF, lines editor, Drive status line
   - `src/screens/` — the app's screens
 - **Deploy:** every push to `main` runs the tests and publishes to GitHub Pages (`.github/workflows/deploy-pages.yml`); nothing is published if a test fails.
 - **Word in the browser:** `docx-templates` must be imported from `docx-templates/lib/browser.js` (its Node entry breaks in browsers); a test enforces this. Tests build sample .docx files with `docx` and read them with `jszip` (dev only).
@@ -78,7 +85,7 @@ npm run build    # type-check + production build into dist/
 - **Secrets:** only the public Google Client ID is in the code. Never commit `client_secret*.json` files (they're git-ignored).
 
 ## Docs
-- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [contracts](docs/superpowers/specs/2026-09-26-contracts-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md), [Word documents](docs/superpowers/specs/2026-09-26-word-documents-design.md), [accountant report](docs/superpowers/specs/2026-09-26-accountant-report-design.md)
+- Design specs: [first version](docs/superpowers/specs/2026-09-25-payment-bill-app-design.md), [contracts](docs/superpowers/specs/2026-09-26-contracts-design.md), [Google Drive](docs/superpowers/specs/2026-09-26-google-drive-upload-design.md), [Word documents](docs/superpowers/specs/2026-09-26-word-documents-design.md), [accountant report](docs/superpowers/specs/2026-09-26-accountant-report-design.md), [customer statement](docs/superpowers/specs/2026-09-26-customer-statement-design.md)
 - Build plans: [docs/superpowers/plans/](docs/superpowers/plans/)
 - Word templates: [docs/word-templates.md](docs/word-templates.md)
 - Google Drive setup: [docs/google-drive-setup.md](docs/google-drive-setup.md)
