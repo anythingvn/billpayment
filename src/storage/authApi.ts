@@ -4,6 +4,8 @@ import { ConflictError, ForbiddenError, InvalidError, OfflineError, ServerError,
 export interface SessionUser { id: string; username: string; displayName: string; role: Role; mustChangePassword: boolean }
 export interface UserInfo extends SessionUser { disabled: boolean; lastSignIn: string | null }
 export interface ActivityItem { at: string; action: string; user: string | null; detail: Record<string, unknown> }
+/** The nightly copies on the company Google Drive (Admin). */
+export interface DriveBackupStatus { at: string | null; error: string | null; days: { date: string }[] }
 
 /** Sign-in, users and activity calls to the server (separate from the data Store). */
 export interface AuthApi {
@@ -19,6 +21,9 @@ export interface AuthApi {
   updateUser(id: string, change: { displayName?: string; role?: Role; disabled?: boolean }): Promise<UserInfo>;
   resetPassword(id: string, password: string): Promise<void>;
   listActivity(before?: string): Promise<ActivityItem[]>;
+  driveBackup(): Promise<DriveBackupStatus>;
+  /** Backs up now (on the server, then to Google Drive). */
+  driveBackupNow(): Promise<DriveBackupStatus>;
 }
 
 async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -65,4 +70,6 @@ export const serverAuth: AuthApi = {
   updateUser: async (id, change) => (await call<{ user: UserInfo }>('PATCH', `/api/users/${encodeURIComponent(id)}`, change)).user,
   resetPassword: async (id, password) => { await call('POST', `/api/users/${encodeURIComponent(id)}/password`, { password }); },
   listActivity: async (before) => (await call<{ items: ActivityItem[] }>('GET', `/api/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`)).items,
+  driveBackup: () => call<DriveBackupStatus>('GET', '/api/backup/drive'),
+  driveBackupNow: () => call<DriveBackupStatus>('POST', '/api/backup/drive'),
 };

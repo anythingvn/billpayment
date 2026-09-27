@@ -208,6 +208,8 @@ Setup guide: `docs/server-setup.md`.
 - [ ] Settings → Google Drive → **Connect Google Drive** (Admin, after adding the Web client to `.env`): a bill, a contract, a report and a statement save to the company Drive; other users' saves go there too
 - [ ] **Download backup** (Admin) contains no passwords or Google token; **Restore** needs the word RESTORE and keeps the users
 - [ ] Next morning: `data/backups/billpayment-<date>.db` exists
+- [ ] With the company Drive connected: **Backup / Restore → Back up to Google Drive now** puts `billpayment-<date>.json` in `Phiếu thanh toán/Sao lưu` and `.db` in `Sao lưu/Máy chủ – không chia sẻ`; pressing it again the same day replaces them
+- [ ] Next morning the Backup screen shows "Google Drive: last copy … 02:00" (if the Mac was asleep, the time it woke)
 - [ ] Save a draft, reopen it and save again, then send it: no "Someone else changed this"
 - [ ] Mark a bill paid, then Undo paid on the same screen: no conflict message
 - [ ] `docker compose exec app node server/dist/resetPassword.js admin` lets the Admin back in with a new password

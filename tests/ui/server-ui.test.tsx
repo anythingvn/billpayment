@@ -27,6 +27,8 @@ function fakeAuth(over: Partial<AuthApi> = {}): AuthApi {
     updateUser: vi.fn(async (id, change) => ({ ...lan, id, ...change, disabled: !!change.disabled, lastSignIn: null })),
     resetPassword: vi.fn(async () => {}),
     listActivity: vi.fn(async () => [{ at: '2026-09-26T08:00:00.000Z', action: 'signin', user: 'Chị Lan', detail: {} }]),
+    driveBackup: vi.fn(async () => ({ at: null, error: null, days: [] })),
+    driveBackupNow: vi.fn(async () => ({ at: '2026-09-26T19:00:00.000Z', error: null, days: [{ date: '2026-09-27' }] })),
     ...over,
   };
 }
@@ -270,3 +272,23 @@ describe('review fixes (app)', () => {
   });
 });
 
+describe('backup to Google Drive (Admin)', () => {
+  it('shows the last copy and backs up now', async () => {
+    const auth = fakeAuth({ driveBackup: vi.fn(async () => ({ at: '2026-09-26T19:00:00.000Z', error: null, days: [{ date: '2026-09-26' }, { date: '2026-09-27' }] })) });
+    await root(auth);
+    location.hash = '#/backup';
+    expect(await screen.findByText(/Google Drive: last copy \d\d\/\d\d\/2026 \d\d:\d\d · 2 nights kept/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Back up to Google Drive now'));
+    await waitFor(() => expect(auth.driveBackupNow).toHaveBeenCalled());
+    expect(await screen.findByText(/Google Drive: last copy .* · 1 night kept/)).toBeTruthy();
+  });
+
+  it('shows a failure, and "no copy yet"', async () => {
+    const auth = fakeAuth({ driveBackupNow: vi.fn(async () => ({ at: '2026-09-26T19:00:00.000Z', error: "Google Drive isn't connected", days: [] })) });
+    await root(auth);
+    location.hash = '#/backup';
+    expect(await screen.findByText('Google Drive: no copy yet')).toBeTruthy();
+    fireEvent.click(screen.getByText('Back up to Google Drive now'));
+    expect(await screen.findByText(/Google Drive: the last try .* failed — Google Drive isn't connected/)).toBeTruthy();
+  });
+});

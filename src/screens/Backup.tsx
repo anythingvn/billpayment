@@ -3,6 +3,8 @@ import { useApp } from '../app';
 import { useWrite } from '../ui/useOnline';
 import { backupFileName, exportAll, lastBackupAt, markBackedUp, parseBackup, restoreAll, type BackupData } from '../storage/backup';
 import { isHandled } from '../storage/errors';
+import type { AuthApi, DriveBackupStatus } from '../storage/authApi';
+import { formatDateTime } from '../ui/DriveStatusLine';
 
 function download(data: BackupData, name: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -71,11 +73,38 @@ export function BackupScreen() {
         <p class="muted">Last backup: {last ? new Date(last).toLocaleString('vi-VN') : 'never'}</p>
         <button class="btn" {...w()} onClick={backup}>Download backup file</button>
       </div>
+      {onServer && auth && <DriveBackupPanel auth={auth} />}
       <div class="panel">
         <h3>Restore</h3>
         <p class="muted">Replaces everything in this app with the contents of a backup file.</p>
         <input type="file" accept="application/json,.json" {...w()} onChange={(e) => { restore(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       </div>
+    </div>
+  );
+}
+
+/** Admin, server: the nightly copy to the company Google Drive, and a button to make one now. */
+function DriveBackupPanel({ auth }: { auth: AuthApi }) {
+  const w = useWrite();
+  const [st, setSt] = useState<DriveBackupStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { auth.driveBackup().then(setSt, () => undefined); }, []);
+  const now = async () => {
+    setBusy(true);
+    try { setSt(await auth.driveBackupNow()); } catch (e) { if (!isHandled(e)) setSt((p) => ({ at: new Date().toISOString(), error: String((e as Error).message ?? e), days: p?.days ?? [] })); }
+    setBusy(false);
+  };
+  const n = st?.days.length ?? 0;
+  return (
+    <div class="panel">
+      <h3>Google Drive</h3>
+      <p class="muted" style="margin-top:0">Every night the server also copies the backup to the company Google Drive, folder “Sao lưu” (the last 14 nights).
+        The database copy in “Máy chủ – không chia sẻ” holds password hashes: never share that folder.</p>
+      {st && (st.error
+        ? <p class="errors">Google Drive: the last try {st.at ? formatDateTime(st.at) : ''} failed — {st.error}</p>
+        : st.at ? <p>Google Drive: last copy {formatDateTime(st.at)} · {n} {n === 1 ? 'night' : 'nights'} kept</p>
+          : <p class="muted">Google Drive: no copy yet</p>)}
+      <button class="btn ghost" {...w(busy)} onClick={now}>{busy ? 'Backing up…' : 'Back up to Google Drive now'}</button>
     </div>
   );
 }

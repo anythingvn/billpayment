@@ -18,20 +18,33 @@ export function runBackupNow(store: SqliteStore, dataDir: string, now: Date): st
   return file;
 }
 
-/** Runs the backup every night at 02:00 server time. Failures are logged and retried the next night. */
-export function startNightlyBackup(store: SqliteStore, dataDir: string, log: (msg: string) => void = console.error): void {
+/** Tonight's work: the local copy, then `after` (the copy to Google Drive). Failures are logged, never thrown. */
+export async function nightlyRun(store: SqliteStore, dataDir: string, now: Date, after: ((file: string) => Promise<unknown>) | undefined,
+  log: (msg: string) => void): Promise<void> {
+  let file: string;
+  try {
+    file = runBackupNow(store, dataDir, now);
+  } catch (e) {
+    log(`Nightly backup failed: ${e instanceof Error ? e.message : String(e)}`);
+    return;
+  }
+  try {
+    await after?.(file);
+  } catch (e) {
+    log(`Backup to Google Drive failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+/** Runs the backup every night at 02:00 server time (then `after`). Failures are logged and retried the next night. */
+export function startNightlyBackup(store: SqliteStore, dataDir: string, log: (msg: string) => void = console.error,
+  after?: (file: string) => Promise<unknown>): void {
   const schedule = () => {
     const now = new Date();
     const next = new Date(now);
     next.setHours(2, 0, 0, 0);
     if (next <= now) next.setDate(next.getDate() + 1);
     setTimeout(() => {
-      try {
-        runBackupNow(store, dataDir, new Date());
-      } catch (e) {
-        log(`Nightly backup failed: ${e instanceof Error ? e.message : String(e)}`);
-      }
-      schedule();
+      nightlyRun(store, dataDir, new Date(), after, log).finally(schedule);
     }, next.getTime() - now.getTime()).unref();
   };
   schedule();

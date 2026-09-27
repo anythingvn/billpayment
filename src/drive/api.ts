@@ -24,6 +24,8 @@ export interface DriveApi {
   createFile(name: string, parentId: string, blob: Blob, mimeType: string): Promise<DriveFile>;
   updateFile(id: string, name: string, blob: Blob, mimeType: string, move?: { from: string; to: string }): Promise<DriveFile>;
   aboutEmail(): Promise<string | null>;
+  /** Moves a file to the Drive trash (Google empties it after 30 days). */
+  trashFile(id: string): Promise<void>;
 }
 
 type GetToken = (opts?: { refresh?: boolean }) => Promise<string>;
@@ -81,6 +83,11 @@ export function createDriveApi(getToken: GetToken, fetchFn: typeof fetch = fetch
   };
 
   return {
+    async trashFile(id) {
+      await call(`${API}/files/${encodeURIComponent(id)}?fields=id`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }),
+      });
+    },
     async getFile(id) {
       const f = await call<DriveFile>(`${API}/files/${encodeURIComponent(id)}?fields=${FILE_FIELDS}`);
       return f && !f.trashed ? f : null;

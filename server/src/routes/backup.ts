@@ -2,10 +2,28 @@ import type { FastifyInstance } from 'fastify';
 import { backupFileName, parseBackup } from '../../../src/storage/backup';
 import { logActivity } from '../activity';
 import type { Ctx } from '../context';
+import type { ServerDrive } from '../drive';
+import { backupToDrive, driveBackupState } from '../driveBackup';
+import { runBackupNow } from '../nightly';
 import { invalid, requireAdmin } from './auth';
 
-export function backupRoutes(app: FastifyInstance, ctx: Ctx): void {
+/** Everything the app's backup has, plus users (no password hashes) and the activity log. Never secrets. */
+export async function backupJson(ctx: Ctx): Promise<object> {
   const { store, accounts } = ctx;
+  const data = await store.exportAll(ctx.now().toISOString());
+  const users = accounts.list().map((u) => ({ username: u.username, displayName: u.displayName, role: u.role, disabled: u.disabled }));
+  const activity = (store.db.prepare(`SELECT a.at, a.action, a.detail, u.display_name AS user FROM activity a LEFT JOIN users u ON u.id = a.user_id
+    ORDER BY a.at DESC, a.id DESC`).all() as { at: string; action: string; detail: string; user: string | null }[])
+    .map((a) => ({ at: a.at, action: a.action, user: a.user, detail: JSON.parse(a.detail) }));
+  return { ...data, users, activity };
+}
+
+/** The nightly copy to the company Drive, for the backup file just written to `dbFile`. */
+export const driveBackupFor = (ctx: Ctx, drive: ServerDrive) => async (dbFile: string) =>
+  backupToDrive(ctx.store, drive, dbFile, await backupJson(ctx), ctx.now());
+
+export function backupRoutes(app: FastifyInstance, ctx: Ctx, drive: ServerDrive): void {
+  const { store } = ctx;
   const admin = { preHandler: requireAdmin(ctx), bodyLimit: 20 * 1024 * 1024 };
   const actor = (u: { id: string; displayName: string }) => ({ id: u.id, displayName: u.displayName });
 
@@ -19,18 +37,18 @@ export function backupRoutes(app: FastifyInstance, ctx: Ctx): void {
     return { summary: parsed.summary };
   });
 
-  /** Everything the app's backup has, plus users (no password hashes) and the activity log. Never secrets. */
   app.get('/api/backup', admin, async (req, reply) => {
     const now = ctx.now();
-    const data = await store.exportAll(now.toISOString());
-    const users = accounts.list().map((u) => ({ username: u.username, displayName: u.displayName, role: u.role, disabled: u.disabled }));
-    const activity = (store.db.prepare(`SELECT a.at, a.action, a.detail, u.display_name AS user FROM activity a LEFT JOIN users u ON u.id = a.user_id
-      ORDER BY a.at DESC, a.id DESC`).all() as { at: string; action: string; detail: string; user: string | null }[])
-      .map((a) => ({ at: a.at, action: a.action, user: a.user, detail: JSON.parse(a.detail) }));
+    const body = await backupJson(ctx);
     logActivity(store, req.user!.id, 'backup-download', {}, now);
     reply.header('Content-Disposition', `attachment; filename="${backupFileName(now.toISOString())}"`);
-    return { ...data, users, activity };
+    return body;
   });
+
+  /** The copies on the company Google Drive: last run and the days kept. */
+  app.get('/api/backup/drive', admin, async () => driveBackupState(store));
+  /** Backs up now: the local copy, then the copy to Google Drive (replacing today's files there). */
+  app.post('/api/backup/drive', admin, async () => driveBackupFor(ctx, drive)(runBackupNow(store, ctx.env.dataDir, ctx.now())));
 
   /** Replaces all business data; users, sessions and the Drive connection stay. */
   app.post('/api/restore', admin, async (req, reply) => {

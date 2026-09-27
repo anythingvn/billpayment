@@ -82,7 +82,15 @@ The server keeps Google's refresh token encrypted with `TOKEN_KEY`; it never rea
 
 ## 5. Backups — your responsibility
 
-The server copies its database every night into `data/backups/`. Copy the whole `data/` folder **off the server**
+The server copies its database every night into `data/backups/`. When the company Google Drive is connected, it
+also uploads two files to it (the last 14 nights kept; older ones go to the Drive trash):
+- `Phiếu thanh toán/Sao lưu/billpayment-<date>.json`: the app's backup file (no passwords or keys), restorable with
+  **Backup / Restore → Restore**.
+- `Phiếu thanh toán/Sao lưu/Máy chủ – không chia sẻ/billpayment-<date>.db`: the whole database, including users.
+  It holds password hashes and the encrypted Google key: **never share this folder**. To use it, put it in place of
+  `data/billpayment.db` (server stopped) with the same `.env`.
+
+The Admin sees the last copy on **Backup / Restore** and can run one with **Back up to Google Drive now**. Copy the whole `data/` folder **off the server**
 regularly (another machine, Google Drive, a USB disk). The Admin can also download a backup file any time in
 **Backup / Restore**.
 

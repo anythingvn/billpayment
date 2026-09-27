@@ -16,7 +16,7 @@ export class VersionConflict extends Error {
 const REPORT_DRIVE = 'report-drive:';
 const STATEMENT_DRIVE = 'statement-drive:';
 /** Server facts that a restore keeps: last backup time, the company Drive connection and its folder cache. */
-export const KEEP_META = ['lastBackupAt', 'driveConnected', 'driveFolders', 'drive-token'];
+export const KEEP_META = ['lastBackupAt', 'driveConnected', 'driveFolders', 'drive-token', 'backup-drive'];
 
 interface Row { json: string; version: number; created_by: string | null; updated_by: string | null }
 

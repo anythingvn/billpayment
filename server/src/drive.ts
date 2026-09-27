@@ -128,6 +128,33 @@ export class ServerDrive {
     return this.store.updateDriveStatus({ type: target.type, id: target.id }, field, (prev) => make(prev ?? EMPTY));
   }
 
+  /** Runs Drive work one job at a time (shared with uploads). */
+  private enqueue<T>(job: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(job);
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  /** Uploads, or replaces, one of the server's own files (backups). Returns the Drive file id; throws on failure. */
+  putFile(input: { folders: string[]; fileName: string; mimeType: string; data: Buffer; existingFileId: string | null }): Promise<string> {
+    return this.enqueue(async () => {
+      const api = this.makeApi(() => this.accessToken());
+      const cache = this.store.getMetaSync<Record<string, string>>('driveFolders') ?? {};
+      const result = await uploadFile(api, {
+        folders: input.folders, fileName: input.fileName, mimeType: input.mimeType,
+        blob: new Blob([new Uint8Array(input.data)], { type: input.mimeType }), existingFileId: input.existingFileId,
+      }, cache, this.now().toISOString());
+      this.store.setMetaSync('driveFolders', result.cache);
+      if (result.status.error || !result.status.fileId) throw new Error(result.status.error ?? 'Upload failed');
+      return result.status.fileId;
+    });
+  }
+
+  /** Moves one of the server's own files to the Drive trash. */
+  trash(id: string): Promise<void> {
+    return this.enqueue(() => this.makeApi(() => this.accessToken()).trashFile(id));
+  }
+
   /** Uploads (or updates) one file and records its status where the app reads it. Errors are recorded, not thrown. */
   upload(input: { target: UploadTarget; field: 'drive' | 'driveDocx'; fileName: string; folders: string[]; mimeType: string; data: Buffer }): Promise<DriveStatus> {
     const run = this.queue.then(async () => {

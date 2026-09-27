@@ -9,7 +9,7 @@ import { addSecurity } from './security';
 import { authRoutes } from './routes/auth';
 import { userRoutes } from './routes/users';
 import { recordRoutes } from './routes/records';
-import { backupRoutes } from './routes/backup';
+import { backupRoutes, driveBackupFor } from './routes/backup';
 import { driveRoutes } from './routes/drive';
 import { ServerDrive, googleOAuth, type GoogleOAuth } from './drive';
 import type { DriveApi } from '../../src/drive/api';
@@ -34,6 +34,13 @@ export interface AppOptions {
   driveApi?: (getToken: () => Promise<string>) => DriveApi;
 }
 
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** The nightly copy to the company Google Drive of the backup file just written (see startNightlyBackup). */
+    driveBackup: (dbFile: string) => Promise<unknown>;
+  }
+}
+
 /** The server: the built app at / and the JSON API under /api. */
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 20 * 1024 * 1024 });
@@ -51,9 +58,11 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   authRoutes(app, ctx, opts.setupCode ?? newSetupCode());
   userRoutes(app, ctx);
   recordRoutes(app, ctx);
-  backupRoutes(app, ctx);
   const oauth = opts.googleOAuth ?? googleOAuth(opts.env);
-  driveRoutes(app, ctx, new ServerDrive(opts.store, opts.env, oauth, opts.driveApi, ctx.now), oauth);
+  const drive = new ServerDrive(opts.store, opts.env, oauth, opts.driveApi, ctx.now);
+  backupRoutes(app, ctx, drive);
+  driveRoutes(app, ctx, drive, oauth);
+  app.decorate('driveBackup', driveBackupFor(ctx, drive));
 
   const dist = opts.distDir ?? 'dist';
   if (existsSync(dist)) await app.register(fastifyStatic, { root: dist.startsWith('/') ? dist : `${process.cwd()}/${dist}`, prefix: '/' });

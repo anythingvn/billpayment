@@ -23,5 +23,5 @@ if ((store.db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number })
   // Printed only while the server has no users: whoever sets it up must be able to read this log.
   console.log(`\n  First-time setup: open ${env.publicUrl} and enter this setup code: ${setupCode}\n`);
 }
-startNightlyBackup(store, env.dataDir, (msg) => app.log.error(msg));
+startNightlyBackup(store, env.dataDir, (msg) => app.log.error(msg), (file) => app.driveBackup(file));
 await app.listen({ host: '0.0.0.0', port: env.port });
