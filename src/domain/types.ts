@@ -219,7 +219,7 @@ export interface Settings extends Tracked {
  * The app's own Google OAuth Web client (public by design; only works on the registered origins
  * https://anythingvn.github.io and http://localhost:5173). Used unless Settings → Advanced sets another.
  */
-export const BUILT_IN_GOOGLE_CLIENT_ID = '163028591701-sudv6ppv27fkj30rukboks15ujivtrv7.apps.googleusercontent.com';
+export const BUILT_IN_GOOGLE_CLIENT_ID = '246306730428-rdie5fprfdmbabald373v854p6o9f7kq.apps.googleusercontent.com';
 
 export const DEFAULT_SETTINGS: Settings = {
   businessName: '',
