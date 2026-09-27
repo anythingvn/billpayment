@@ -5,6 +5,9 @@ services:
     env_file: .env
     environment:
       DATA_DIR: /data
+      # The server's clock: the nightly backup runs at 02:00 in this time zone and names files by its date.
+      # Set TZ in .env to change it.
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
       # Only this machine can reach :8080 — people use HTTPS through the reverse proxy (see docs/server-setup.md).
       # Trying it on your own computer? This is fine as it is: open http://localhost:8080
