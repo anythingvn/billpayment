@@ -52,7 +52,7 @@ describe('Google Drive settings', () => {
   it('adds Drive defaults to older settings, using the built-in Client ID', () => {
     const s = normalizeSettings({ businessName: 'X' });
     expect([s.googleClientId, s.driveFolderName, s.driveAutoUpload]).toEqual([BUILT_IN_GOOGLE_CLIENT_ID, 'Phiếu thanh toán', true]);
-    expect(BUILT_IN_GOOGLE_CLIENT_ID).toBe('163028591701-sudv6ppv27fkj30rukboks15ujivtrv7.apps.googleusercontent.com');
+    expect(BUILT_IN_GOOGLE_CLIENT_ID).toBe('246306730428-rdie5fprfdmbabald373v854p6o9f7kq.apps.googleusercontent.com');
   });
   it('falls back to the built-in Client ID when none was saved, but keeps a custom one', () => {
     expect(normalizeSettings({ googleClientId: '' }).googleClientId).toBe(BUILT_IN_GOOGLE_CLIENT_ID);
