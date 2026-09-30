@@ -151,8 +151,8 @@ describe('drive service', () => {
     const db = await dbWith(sampleBill({ status: 'sent' }));
     await connectDrive(db, s);
     await saveBillToDrive(db, 'b1', s);
-    const metas = await Promise.all((await db.getAllKeys('meta')).map((k) => db.get('meta', k)));
-    const everything = JSON.stringify({ metas, bills: await db.getAll('bills'), settings: await db.getAll('settings') });
+    const metas = await Promise.all((await db.idb.getAllKeys('meta')).map((k) => db.idb.get('meta', k)));
+    const everything = JSON.stringify({ metas, bills: await db.idb.getAll('bills'), settings: await db.idb.getAll('settings') });
     expect(everything).not.toContain('ya29.fake');
   });
 });

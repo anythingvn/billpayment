@@ -75,6 +75,13 @@ describe('Drive REST client', () => {
     expect(body).toContain('"parents":["F"]');
     expect(body).toContain('%PDF-1.4');
   });
+  it('trashFile moves the file to the trash (not a permanent delete)', async () => {
+    const f = fakeFetch([json({ id: 'P' })]);
+    await createDriveApi(tokens('t').getToken, f.fn).trashFile('P');
+    expect(f.reqs[0].init.method).toBe('PATCH');
+    expect(new URL(f.reqs[0].url).pathname).toBe('/drive/v3/files/P');
+    expect(JSON.parse(String(f.reqs[0].init.body))).toEqual({ trashed: true });
+  });
   it('updateFile adds move params', async () => {
     const f = fakeFetch([json({ id: 'P', name: 'a.pdf', parents: ['b'] })]);
     await createDriveApi(tokens('t').getToken, f.fn).updateFile('P', 'a.pdf', new Blob(['x']), 'application/pdf', { from: 'a', to: 'b' });

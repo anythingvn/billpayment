@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { listServices, newId, putService } from '../storage/db';
+import { ignoreHandled } from '../storage/errors';
 import type { Service } from '../domain/types';
 import { formatVnd } from '../domain/format';
+import { useWrite } from '../ui/useOnline';
+import { useCan } from '../ui/useCan';
 
 const emptyService = (): Service => ({ id: newId(), nameVi: '', nameEn: '', unitVi: '', unitEn: '', unitPrice: 0, archived: false });
 
 function ServiceForm({ value, onSave, onCancel }: { value: Service; onSave(s: Service): void; onCancel(): void }) {
+  const w = useWrite();
   const [s, setS] = useState(value);
   const [err, setErr] = useState('');
   const f = (k: 'nameVi' | 'nameEn' | 'unitVi' | 'unitEn', label: string) => (
@@ -27,23 +31,26 @@ function ServiceForm({ value, onSave, onCancel }: { value: Service; onSave(s: Se
           <input type="number" min={0} step={1000} value={s.unitPrice} onInput={(e) => setS({ ...s, unitPrice: Number(e.currentTarget.value) })} />
         </label>
       </div>
-      <p><button class="btn" onClick={save}>Save service</button> <button class="btn ghost" onClick={onCancel}>Cancel</button></p>
+      <p><button class="btn" {...w()} onClick={save}>Save service</button> <button class="btn ghost" onClick={onCancel}>Cancel</button></p>
     </div>
   );
 }
 
 export function Services() {
   const { db } = useApp();
+  const w = useWrite();
+  const can = useCan();
   const [items, setItems] = useState<Service[]>([]);
   const [editing, setEditing] = useState<Service | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const load = async () => setItems((await listServices(db)).sort((a, b) => a.nameVi.localeCompare(b.nameVi, 'vi')));
   useEffect(() => { load(); }, []);
-  const save = async (s: Service) => { await putService(db, s); setEditing(null); load(); };
+  // A failed write was already reported (guardStore); the form stays open with its input.
+  const save = (s: Service) => putService(db, s).then(() => { setEditing(null); load(); }, ignoreHandled);
   const shown = items.filter((s) => showArchived || !s.archived);
   return (
     <div>
-      <div class="page-head"><h2>Services</h2><button class="btn" onClick={() => setEditing(emptyService())}>+ New service</button></div>
+      <div class="page-head"><h2>Services</h2>{can('record.edit') && <button class="btn" {...w()} onClick={() => setEditing(emptyService())}>+ New service</button>}</div>
       {editing && <ServiceForm key={editing.id} value={editing} onSave={save} onCancel={() => setEditing(null)} />}
       <label class="muted"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.currentTarget.checked)} /> Show archived</label>
       <table class="list">
@@ -55,8 +62,8 @@ export function Services() {
               <td>{[s.unitVi, s.unitEn].filter(Boolean).join(' / ')}</td>
               <td class="r">{formatVnd(s.unitPrice)}</td>
               <td class="r">
-                <button class="btn ghost" onClick={() => setEditing(s)}>Edit</button>{' '}
-                <button class="btn ghost" onClick={() => save({ ...s, archived: !s.archived })}>{s.archived ? 'Unarchive' : 'Archive'}</button>
+                {can('record.edit') && <><button class="btn ghost" {...w()} onClick={() => setEditing(s)}>Edit</button>{' '}</>}
+                {can('record.remove') && <button class="btn ghost" {...w()} onClick={() => save({ ...s, archived: !s.archived })}>{s.archived ? 'Unarchive' : 'Archive'}</button>}
               </td>
             </tr>
           ))}

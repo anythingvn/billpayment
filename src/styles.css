@@ -40,3 +40,7 @@ table.list tr.click:hover { background: #f8fafc; }
 .checked-names { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .checked-names .known { color: #166534; }
 .checked-names .unknown { color: #991b1b; font-weight: 600; background: #fef2f2; padding: 0 4px; border-radius: 4px; }
+.offline-banner { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+.app-problem { position: sticky; top: 0; z-index: 20; margin: 0; }
+.signin-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); z-index: 30; overflow: auto; }
+.user-menu { margin-top: auto; padding-top: 16px; font-size: 13px; }

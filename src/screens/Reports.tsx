@@ -8,11 +8,14 @@ import { reportToXlsx } from '../report/excel';
 import { downloadBlob } from '../docs/download';
 import { driveConfigured, isUploadingFile, onDriveChange, prepareDrive, reportDriveStatus, saveReportToDrive } from '../drive/service';
 import { DriveStatusText } from '../ui/DriveStatusLine';
+import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 const DATE_ERROR = 'The start date must be on or before the end date';
 
 export function Reports() {
   const { db, settings } = useApp();
+  const w = useWrite();
   const today = todayIso();
   const presets = useMemo(() => reportPresets(today), [today]);
   const last = presets.find((p) => p.key === 'lastMonth')!;
@@ -52,6 +55,7 @@ export function Reports() {
     try {
       downloadBlob(await reportToXlsx(report), fileName);
     } catch (e) {
+      if (isHandled(e)) return;
       setError(`The Excel file could not be created: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy(false);
@@ -78,7 +82,7 @@ export function Reports() {
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
           <button class="btn" disabled={!valid || busy} onClick={download}>Download Excel</button>
           {configured
-            ? <button class="btn ghost" disabled={!valid || uploading} onClick={save}>{status?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
+            ? <button class="btn ghost" {...w(!valid || uploading)} onClick={save}>{status?.fileId ? 'Update in Google Drive' : 'Save to Google Drive'}</button>
             : <a href="#/settings" class="muted">Connect Google Drive in Settings</a>}
           {valid && <DriveStatusText status={status} uploading={uploading} configured={configured} onSave={save}
             saved={(when) => `Saved to Drive ${when}`} notSaved={(e) => `Not saved: ${e}`} />}

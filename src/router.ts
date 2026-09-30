@@ -12,6 +12,8 @@ export type Route =
   | { name: 'settings' }
   | { name: 'backup' }
   | { name: 'reports' }
+  | { name: 'users' }
+  | { name: 'activity' }
   | { name: 'contracts' }
   | { name: 'newContract' }
   | { name: 'contract'; id: string }
@@ -42,7 +44,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'customers' && parts[1] && parts[2] === 'statement' && parts.length === 3) {
     return { name: 'customerStatement', id: decodeURIComponent(parts[1]) };
   }
-  if (parts.length === 1 && ['customers', 'services', 'settings', 'backup', 'reports'].includes(parts[0])) {
+  if (parts.length === 1 && ['customers', 'services', 'settings', 'backup', 'reports', 'users', 'activity'].includes(parts[0])) {
     return { name: parts[0] } as Route;
   }
   return { name: 'home' };
@@ -82,6 +84,8 @@ export function useRoute(): Route {
   const [route, setRoute] = useState<Route>(() => parseRoute(location.hash));
   useEffect(() => {
     let current = location.hash;
+    // The hash may have changed between the first render and this effect (e.g. a quick click): catch up.
+    setRoute(parseRoute(current));
     const onChange = () => {
       if (location.hash === current) return;
       if (guard && !guard()) {

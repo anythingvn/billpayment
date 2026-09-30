@@ -46,6 +46,12 @@ export function fakeDrive(): DriveApi & { files: Map<string, Stored>; calls: str
       if (move) f.parents = [move.to];
       return pub(f);
     },
+    async trashFile(id) {
+      calls.push(`trashFile ${id}`);
+      const f = files.get(id);
+      if (!f) throw new Error('not found');
+      f.trashed = true;
+    },
     async aboutEmail() {
       calls.push('aboutEmail');
       return 'owner@example.com';

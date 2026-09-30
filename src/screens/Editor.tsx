@@ -20,6 +20,8 @@ import { LinesEditor } from '../ui/LinesEditor';
 import { businessSnapshot } from '../domain/settings';
 import { applicableTerms, contractItems } from '../domain/contractTerms';
 import { contractRefFor, fillFromContract } from '../domain/contractFill';
+import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 export type EditorMode =
   | { kind: 'new' } | { kind: 'edit'; id: string } | { kind: 'duplicate'; id: string }
@@ -73,13 +75,17 @@ export async function saveDraftBill(db: AppDb, d: DraftBill, settings: Settings,
     paidDate: null,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
+    ...(d.version !== undefined && { version: d.version }),
   };
-  await putBill(db, bill);
-  return bill;
+  // The saved record (on a server: with its new version).
+  return putBill(db, bill);
 }
 
 export function Editor({ mode }: { mode: EditorMode }) {
-  const { db, settings } = useApp();
+  const { db, settings: shared, user } = useApp();
+  // On a server, "Prepared by" on new bills is the signed-in person (saved on the bill when it is sent).
+  const settings = useMemo(() => (user ? { ...shared, preparedBy: user.displayName } : shared), [shared, user]);
+  const w = useWrite();
   const [draft, setDraft] = useState<DraftBill | null>(null);
   const [saved, setSaved] = useState('');
   const [step, setStep] = useState<Step>(1);
@@ -156,6 +162,7 @@ export function Editor({ mode }: { mode: EditorMode }) {
       setDraft(draftFromBill(bill));
       return bill;
     } catch (e) {
+      if (isHandled(e)) return null;
       setError(`Could not save: ${String(e)}. Make a backup and check that the browser is not in private mode.`);
       return null;
     } finally {
@@ -230,10 +237,10 @@ export function Editor({ mode }: { mode: EditorMode }) {
       <div class="page-head no-print" style="margin-top:16px">
         <button class="btn ghost" disabled={step === 1} onClick={() => setStep((step - 1) as Step)}>← Back</button>
         <span>
-          <button class="btn ghost" disabled={saving} onClick={saveDraftOnly}>Save draft</button>{' '}
+          <button class="btn ghost" {...w(saving)} onClick={saveDraftOnly}>Save draft</button>{' '}
           {step < 3
             ? <button class="btn" onClick={() => setStep((step + 1) as Step)}>Next →</button>
-            : <button class="btn" disabled={saving || blockers.length > 0} onClick={saveAndExport}>Save &amp; export PDF</button>}
+            : <button class="btn" {...w(saving || blockers.length > 0)} onClick={saveAndExport}>Save &amp; export PDF</button>}
         </span>
       </div>
     </div>
@@ -254,6 +261,7 @@ function Steps({ step, onStep }: { step: Step; onStep(s: Step): void }) {
 function CustomerStep({ draft, customers, onPick, onCreate }: {
   draft: DraftBill; customers: Customer[]; onPick(c: Customer): void; onCreate(c: Customer): void;
 }) {
+  const w = useWrite();
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
   const shown = customers.filter((c) => `${c.name} ${c.taxId}`.toLowerCase().includes(q.trim().toLowerCase()));
@@ -262,7 +270,7 @@ function CustomerStep({ draft, customers, onPick, onCreate }: {
       <div class="page-head">
         <input class="field" placeholder="Search customers…" value={q} onInput={(e) => setQ(e.currentTarget.value)}
           style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px" />
-        <button class="btn ghost" onClick={() => setAdding(true)}>+ New customer</button>
+        <button class="btn ghost" {...w()} onClick={() => setAdding(true)}>+ New customer</button>
       </div>
       {adding && <CustomerForm value={emptyCustomer()} onSave={(c) => { setAdding(false); onCreate(c); }} onCancel={() => setAdding(false)} />}
       <table class="list">

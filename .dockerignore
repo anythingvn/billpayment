@@ -1,0 +1,9 @@
+node_modules
+dist
+server/dist
+data
+.env
+.git
+.superpowers
+.claude
+client_secret*.json

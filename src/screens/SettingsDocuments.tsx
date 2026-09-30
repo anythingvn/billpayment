@@ -8,6 +8,8 @@ import { loadStarter } from '../docs/starters';
 import { downloadBlob } from '../docs/download';
 import { formatDateVn } from '../domain/format';
 import type { DocKind, DocTemplate } from '../domain/types';
+import { useWrite } from '../ui/useOnline';
+import { isHandled } from '../storage/errors';
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const KIND_LABEL: Record<DocKind, string> = { contract: 'contract', addendum: 'addendum', bill: 'bill', statement: 'statement' };
@@ -50,6 +52,7 @@ const unreadable = (r: TemplateReport) => r.errors.some((e) => e.startsWith("The
 
 export function SettingsDocuments() {
   const { db } = useApp();
+  const w = useWrite();
   const [templates, setTemplates] = useState<DocTemplate[]>([]);
   const [newName, setNewName] = useState('');
   const [msgs, setMsgs] = useState<string[]>([]);
@@ -87,6 +90,7 @@ export function SettingsDocuments() {
       await save(kind, data, file.name, name, existing ?? (kind === 'contract' ? null : slot(kind)));
       if (kind === 'contract' && !existing) setNewName('');
     } catch (err) {
+      if (isHandled(err)) return;
       report([err instanceof Error ? err.message : String(err)]);
     }
   }
@@ -98,6 +102,7 @@ export function SettingsDocuments() {
     try {
       await save(kind, await loadStarter(kind), `starter-${kind}.docx`, STARTER_NAME[kind], current);
     } catch (err) {
+      if (isHandled(err)) return;
       report([err instanceof Error ? err.message : String(err)]);
     }
   }
@@ -106,6 +111,7 @@ export function SettingsDocuments() {
     try {
       downloadBlob(new Blob([await loadStarter(kind)], { type: DOCX_MIME }), `starter-${kind}.docx`);
     } catch (err) {
+      if (isHandled(err)) return;
       report([err instanceof Error ? err.message : String(err)]);
     }
   }
@@ -137,6 +143,7 @@ export function SettingsDocuments() {
       const r = await inspectTemplate(await readDocx(file));
       setCheck({ report: r, lines: reportLines(r) });
     } catch (err) {
+      if (isHandled(err)) return;
       setCheck({ report: { used: [], unknown: [], unavailable: [], errors: [] }, lines: [err instanceof Error ? err.message : String(err)] });
     }
   }
@@ -145,7 +152,7 @@ export function SettingsDocuments() {
   const uploaded = (t: DocTemplate) => formatDateVn(t.uploadedAt.slice(0, 10));
   const fileButton = (label: string, text: string, onChange: (e: Event) => void) => (
     <label class="btn ghost" style="display:inline-block">{text}
-      <input type="file" accept=".docx" aria-label={label} style="display:none" onChange={onChange} />
+      <input type="file" accept=".docx" aria-label={label} style="display:none" {...w()} onChange={onChange} />
     </label>
   );
 
@@ -172,10 +179,10 @@ export function SettingsDocuments() {
               <td class="muted">{t.fileName}</td>
               <td>{uploaded(t)}</td>
               <td style="display:flex;gap:6px;flex-wrap:wrap">
-                <button class="btn ghost" onClick={() => rename(t)}>Rename</button>
+                <button class="btn ghost" {...w()} onClick={() => rename(t)}>Rename</button>
                 <button class="btn ghost" onClick={() => download(t)}>Download</button>
                 {fileButton(`Replace ${t.name}`, 'Replace', (e) => upload('contract', e, t))}
-                <button class="btn ghost" onClick={() => remove(t)}>Remove</button>
+                <button class="btn ghost" {...w()} onClick={() => remove(t)}>Remove</button>
               </td>
             </tr>
           ))}
@@ -197,7 +204,7 @@ export function SettingsDocuments() {
               {t ? <span>{t.fileName} <span class="muted">· {uploaded(t)}</span></span> : <span class="muted">None</span>}
               {fileButton(`Upload ${kind} template`, t ? 'Replace' : 'Upload', (e) => upload(kind, e, t))}
               {t && <button class="btn ghost" onClick={() => download(t)}>Download</button>}
-              {t && <button class="btn ghost" onClick={() => remove(t)}>Remove</button>}
+              {t && <button class="btn ghost" {...w()} onClick={() => remove(t)}>Remove</button>}
             </div>
           </div>
         );
@@ -211,7 +218,7 @@ export function SettingsDocuments() {
               <td style="text-transform:capitalize">{KIND_LABEL[kind]}</td>
               <td style="display:flex;gap:6px">
                 <button class="btn ghost" onClick={() => downloadStarter(kind)}>Download</button>
-                <button class="btn ghost" aria-label={`Use starter ${kind} template`} onClick={() => useStarter(kind)}>Use starter</button>
+                <button class="btn ghost" aria-label={`Use starter ${kind} template`} {...w()} onClick={() => useStarter(kind)}>Use starter</button>
               </td>
             </tr>
           ))}

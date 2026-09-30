@@ -11,6 +11,8 @@ import { homeSummary } from '../domain/summary';
 import { displayStatus } from '../domain/status';
 import { computeTotals } from '../domain/money';
 import { formatDateVn, formatVnd, todayIso } from '../domain/format';
+import { useWrite } from '../ui/useOnline';
+import { useCan } from '../ui/useCan';
 
 const LABEL = { draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue', cancelled: 'Cancelled' } as const;
 type Filter = 'all' | keyof typeof LABEL;
@@ -21,7 +23,9 @@ export function StatusBadge({ bill, today }: { bill: Bill; today: string }) {
 }
 
 export function Home() {
-  const { db } = useApp();
+  const { db, auth } = useApp();
+  const w = useWrite();
+  const can = useCan();
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [remind, setRemind] = useState(false);
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -33,7 +37,8 @@ export function Home() {
     (async () => {
       setContracts(await listContracts(db));
       setBills(await listBills(db));
-      setRemind(needsBackupReminder(await lastBackupAt(db), new Date().toISOString()));
+      // Only this browser's own data needs the reminder; the server backs itself up every night.
+      if (!auth) setRemind(needsBackupReminder(await lastBackupAt(db), new Date().toISOString()));
     })();
   }, []);
 
@@ -62,7 +67,7 @@ export function Home() {
           <a class="btn" href="#to-bill" onClick={(e) => { e.preventDefault(); document.getElementById('to-bill')?.scrollIntoView(); }}>See list</a>
         </div>
       )}
-      <div class="page-head"><h2>Bills</h2><button class="btn" onClick={() => navigate({ name: 'newBill' })}>+ New bill</button></div>
+      <div class="page-head"><h2>Bills</h2>{can('record.edit') && <button class="btn" {...w()} onClick={() => navigate({ name: 'newBill' })}>+ New bill</button>}</div>
       {toBill.length > 0 && (
         <div class="panel" id="to-bill">
           <h3 style="margin-top:0">To bill</h3>
@@ -70,7 +75,9 @@ export function Home() {
             {toBill.map((t) => (
               <li key={`${t.sourceId}-${t.key}`} style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #eef0f3">
                 <span>{`${t.contract.number} · ${t.contract.customer.name} · ${t.label.vi} · ${formatVnd(t.amount)} · due since ${formatDateVn(t.dueDate!)}`}</span>
-                <a class="btn" href={routeToHash({ name: 'newBillFromContract', contractId: t.sourceId, itemKey: t.key })}>Create bill</a>
+                {can('record.edit')
+                  ? <a class="btn" href={routeToHash({ name: 'newBillFromContract', contractId: t.sourceId, itemKey: t.key })}>Create bill</a>
+                  : <span class="muted">Due</span>}
               </li>
             ))}
           </ul>
